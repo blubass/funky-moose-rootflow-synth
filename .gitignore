@@ -1,0 +1,27 @@
+# Build artifacts
+/build/
+/Binaries/
+/Builds/
+/DerivedData/
+/Intermediate/
+/obj/
+/*.artefacts/
+
+# JUCE/Projucer files
+/JuceLibraryCode/
+/*.jucer
+
+# IDE files
+/.vscode/
+/.idea/
+/*.swp
+/*.swo
+/*.DS_Store
+/Thumbs.db
+
+# OS generated files
+.DS_Store
+
+# Logs and debug files
+/*.log
+/build_errors.txt

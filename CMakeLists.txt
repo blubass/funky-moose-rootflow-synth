@@ -1,0 +1,53 @@
+
+cmake_minimum_required(VERSION 3.22)
+project(RootFlow VERSION 0.1.0)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+find_package(JUCE CONFIG REQUIRED)
+
+juce_add_plugin(RootFlow
+    COMPANY_NAME "Funky Moose Audio"
+    BUNDLE_ID at.uwefelchle.rootflow
+    IS_SYNTH TRUE
+    NEEDS_MIDI_INPUT TRUE
+    COPY_PLUGIN_AFTER_BUILD TRUE
+    PLUGIN_MANUFACTURER_CODE FMAA
+    PLUGIN_CODE RTFL
+    FORMATS AU VST3 Standalone
+    PRODUCT_NAME "RootFlow"
+    PLIST_TO_MERGE "${CMAKE_CURRENT_SOURCE_DIR}/Source/Info-App.plist"
+    MACOS_ENTITLEMENTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/RootFlow.entitlements"
+)
+
+target_compile_definitions(RootFlow PUBLIC
+    JUCE_VST3_CAN_REPLACE_VST2=0
+    JUCE_WEB_BROWSER=0
+    JUCE_USE_CURL=0
+)
+
+juce_generate_juce_header(RootFlow)
+
+target_sources(RootFlow PRIVATE
+    Source/PluginProcessor.cpp
+    Source/PluginEditor.cpp
+    Source/RootFlowVoice.cpp
+)
+
+juce_add_binary_data(RootFlowAssets
+    SOURCES
+        Assets/wood_texture.png
+        Assets/roots_bg.png
+        Assets/roots_overlay_soft.png
+        Assets/roots_overlay_detail.png
+        Assets/moose_logo.png
+
+)
+
+target_link_libraries(RootFlow PRIVATE
+    juce::juce_audio_utils
+    juce::juce_dsp
+    juce::juce_gui_extra
+    RootFlowAssets
+)
