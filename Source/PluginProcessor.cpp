@@ -416,6 +416,24 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         }
     }
 
+    // --- UNISON LOGIC ---
+    int unisonCount = 1;
+    if (seasonMacro > 0.4f)  unisonCount = 2;
+    if (seasonMacro > 0.82f) unisonCount = 3;
+
+    if (unisonCount > 1)
+    {
+        juce::MidiBuffer unisonMidi;
+        for (const auto metadata : midiMessages)
+        {
+            auto msg = metadata.getMessage();
+            int pos = metadata.samplePosition;
+            for (int u = 0; u < unisonCount; ++u)
+                unisonMidi.addEvent(msg, pos);
+        }
+        midiMessages.swapWith(unisonMidi);
+    }
+
     handleIncomingMidiMessages(midiMessages);
     keyboardState.processNextMidiBuffer(midiMessages, 0, numSamples, true);
     synth.renderNextBlock(buffer, midiMessages, 0, numSamples);

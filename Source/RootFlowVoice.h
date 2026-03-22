@@ -86,5 +86,4 @@ private:
     juce::LinearSmoothedValue<float> smoothedPulseAmount { 0.5f };
     juce::LinearSmoothedValue<float> smoothedGrowth { 0.5f };
 
-    void updateDSP();
 };
