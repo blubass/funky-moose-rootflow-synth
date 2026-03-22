@@ -1,6 +1,9 @@
 #pragma once
 #include <JuceHeader.h>
 
+/**
+ * Snapshot for UI Visualizers.
+ */
 struct RootFlowBioFeedbackSnapshot
 {
     float plantEnergy = 0.0f;
@@ -9,20 +12,24 @@ struct RootFlowBioFeedbackSnapshot
     float tension = 0.0f;
 };
 
+/**
+ * The 'Brain' of RootFlow.
+ * Fuses ROOT (stability), SAP (vitality), and PULSE (interaction)
+ * into a single organic Energy value.
+ */
 class RootFlowModulationEngine
 {
 public:
     void prepare(double sr, int)
     {
         sampleRate = sr;
+        smoothedPlantEnergy.reset(sr, 0.1); 
+        
         phase = 0.0f;
         currentSap = 0.0f;
         targetSap = 0.0f;
         pulseFollower = 0.0f;
         plantEnergy = 0.0f;
-        growthCycle = 0.0f;
-        leafJitter = 0.0f;
-        tension = 0.0f;
         bioFeedback = {};
     }
 
@@ -30,158 +37,100 @@ public:
                     float flow, float vitality, float texture,
                     float rate, float breath, float growth)
     {
-        constexpr float referenceBlocksPerSecond = referenceSampleRate / referenceBlockSize;
-
-        const float shapedDepth = std::pow(juce::jlimit(0.0f, 1.0f, depth), 0.42f);
-        const float shapedSoil = std::pow(juce::jlimit(0.0f, 1.0f, soil), 0.44f);
-        const float shapedAnchor = std::pow(juce::jlimit(0.0f, 1.0f, anchor), 0.48f);
-        const float shapedFlow = std::pow(juce::jlimit(0.0f, 1.0f, flow), 0.56f);
-        const float shapedVitality = std::pow(juce::jlimit(0.0f, 1.0f, vitality), 0.56f);
-        const float shapedTexture = std::pow(juce::jlimit(0.0f, 1.0f, texture), 0.54f);
-        const float shapedRate = std::pow(juce::jlimit(0.0f, 1.0f, rate), 0.18f);
-        const float shapedBreath = std::pow(juce::jlimit(0.0f, 1.0f, breath), 0.20f);
-        const float shapedGrowth = std::pow(juce::jlimit(0.0f, 1.0f, growth), 0.18f);
-
-        rootAmt = shapedDepth;
-        // Retuned from the previous block-based motion so the feel stays close to the 44.1k/512 baseline.
-        rootRateHz = (0.0010f + shapedSoil * 0.120f) * (referenceBlocksPerSecond / juce::MathConstants<float>::twoPi);
-        rootAnchorAmt = shapedAnchor;
+        // ROOT (Stability): Slow, deep movements
+        rootAmt = depth;
+        rootAnchorAmt = anchor;
+        // Quadratic scaling for finer control over ultra-slow drift
+        rootSpeed = 0.00015f + (soil * soil * 0.0125f); 
         
-        sapAmt = shapedFlow;
-        sapDriftRateHz = (0.005f + shapedVitality * 0.05f) * referenceBlocksPerSecond;
-        sapTextureAmt = shapedTexture;
+        // SAP (Vitality): Fluid Drift and Organic 'Juice' flow
+        sapAmt = flow;
+        sapSpeed = 0.001f + vitality * 0.035f;
+        sapTextureAmt = texture;
         
-        pulseAmt = shapedRate;
-        pulseSens = shapedBreath;
-        pulseGrowthAmt = shapedGrowth;
+        // PULSE (Interaction): Reaction to Audio Input / Envelopes
+        pulseAmt = rate;
+        pulseSens = breath;
+        pulseGrowthAmt = growth;
     }
 
     void update(juce::AudioBuffer<float>& buffer)
     {
         const int numSamples = buffer.getNumSamples();
-        if (numSamples <= 0)
-            return;
+        if (numSamples <= 0) return;
 
-        const float safeSampleRate = (float) juce::jmax(1.0, sampleRate);
-        const float deltaTime = (float) numSamples / safeSampleRate;
-
-        // 1. ROOT: Slow Organic Sine, integrated in real time instead of block-size steps.
-        phase += rootRateHz * deltaTime * juce::MathConstants<float>::twoPi;
-        while (phase > juce::MathConstants<float>::twoPi)
-            phase -= juce::MathConstants<float>::twoPi;
+        // 1. ROOT (The Foundation)
+        // Very slow organic sine wave.
+        phase += rootSpeed;
+        if (phase > juce::MathConstants<float>::twoPi) phase -= juce::MathConstants<float>::twoPi;
         
-        float root = (std::sin(phase) * 0.5f + 0.5f) * (0.02f + rootAmt * 1.18f);
-        root = root * (1.0f - rootAnchorAmt * 0.90f) + (rootAnchorAmt * 0.14f);
+        float root = (std::sin(phase) * 0.5f + 0.5f) * rootAmt;
+        // Mix in Anchor (static bias)
+        root = root * (1.0f - rootAnchorAmt * 0.75f) + (rootAnchorAmt * 0.45f);
 
-        // 2. SAP: Fluid Drift
-        const float sapDriftProbability = 1.0f - std::exp(-sapDriftRateHz * deltaTime);
-        if (random.nextFloat() < sapDriftProbability)
+        // 2. SAP (The Vitality Loop)
+        // Random walk for unpredictable but smooth changes.
+        if (random.nextFloat() > (1.0f - sapSpeed)) 
             targetSap = random.nextFloat();
         
-        // Roughly 20ms smoothing, independent of sample rate and buffer size.
-        float sapSmoothing = 1.0f - std::exp(-(float) numSamples / (safeSampleRate * 0.02f));
-        currentSap += (targetSap - currentSap) * sapSmoothing * sapAmt;
+        // Approx. 30ms smoothing for the sap drift
+        currentSap += (targetSap - currentSap) * 0.0055f;
+        float sap = currentSap * sapAmt;
         
-        float textureNoise = (random.nextFloat() - 0.5f) * sapTextureAmt * 0.25f;
+        // Texture creates micro-nervousness
+        float textureNoise = (random.nextFloat() * 2.0f - 1.0f) * sapTextureAmt * 0.12f;
 
-        // 3. PULSE: Energy Follower
+        // 3. PULSE (The Dynamic Reaction)
+        // Envelope Follower tracking the input magnitude.
         float env = 0.0f;
         if (buffer.getNumChannels() > 0)
         {
             for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
                 env = juce::jmax(env, buffer.getMagnitude(ch, 0, numSamples));
         }
-            
-        env = juce::jlimit(0.0f, 1.0f, env * (1.2f + pulseSens * 16.0f));
-        const float activity = juce::jlimit(0.0f, 1.0f, env + pulseFollower * 0.45f);
 
-        // Block-size independent attack/release (roughly 10ms and 200ms)
-        float attackCoeff = 1.0f - std::exp(-(float) numSamples / (safeSampleRate * (0.008f / (0.16f + pulseAmt * 3.0f))));
-        float releaseCoeff = 1.0f - std::exp(-(float) numSamples / (safeSampleRate * (0.18f / (0.10f + pulseAmt * 2.8f))));
+        // Sensitivity scaling
+        env = juce::jlimit(0.0f, 1.0f, env * (1.15f + pulseSens * 14.0f));
 
-        pulseFollower += (env - pulseFollower) * (env > pulseFollower ? attackCoeff : releaseCoeff);
+        // Attack/Release characteristic
+        float attack = 0.42f;
+        float release = 0.024f;
+        pulseFollower += (env - pulseFollower) * (env > pulseFollower ? attack : release) * (0.15f + pulseAmt * 0.85f);
         pulseFollower = juce::jlimit(0.0f, 1.0f, pulseFollower);
 
-        const float rootMotion = root * (0.10f + activity * 0.90f);
-        const float sapMotion = currentSap * (0.08f + activity * 0.92f);
-
-        const float growthTarget = juce::jlimit(0.0f, 1.0f,
-                                                0.01f
-                                                + rootMotion * 0.18f
-                                                + sapMotion * 0.10f
-                                                + pulseFollower * (0.14f + pulseGrowthAmt * 0.34f));
-        const float growthRiseCoeff = 1.0f - std::exp(-(float) numSamples / (safeSampleRate * (0.09f + (1.0f - pulseGrowthAmt) * 0.10f)));
-        const float growthFallCoeff = 1.0f - std::exp(-(float) numSamples / (safeSampleRate * (0.16f + rootAnchorAmt * 0.12f)));
-        growthCycle += (growthTarget - growthCycle) * (growthTarget > growthCycle ? growthRiseCoeff : growthFallCoeff);
-        growthCycle = juce::jlimit(0.0f, 1.0f, growthCycle);
-
-        const float jitterImpulse = sapDriftProbability * activity * (0.16f + sapTextureAmt * 0.34f + pulseFollower * 0.12f);
-        const float jitterTarget = juce::jlimit(0.0f, 1.0f,
-                                                0.01f
-                                                + std::abs(textureNoise) * 2.7f
-                                                + sapTextureAmt * 0.10f * activity
-                                                + pulseFollower * 0.08f
-                                                + (random.nextFloat() < jitterImpulse ? random.nextFloat() * 0.36f : 0.0f));
-        const float jitterCoeff = 1.0f - std::exp(-(float) numSamples / (safeSampleRate * (0.055f + 0.06f * (1.0f - sapTextureAmt))));
-        leafJitter += (jitterTarget - leafJitter) * jitterCoeff;
-        leafJitter = juce::jlimit(0.0f, 1.0f, leafJitter);
-
-        const float tensionTarget = juce::jlimit(0.0f, 1.0f,
-                                                 0.01f
-                                                 + pulseFollower * (0.18f + pulseAmt * 0.28f)
-                                                 + (1.0f - rootAnchorAmt) * 0.12f * activity
-                                                 + sapTextureAmt * 0.06f * activity
-                                                 + rootAmt * 0.10f * activity);
-        const float tensionCoeff = 1.0f - std::exp(-(float) numSamples / (safeSampleRate * 0.11f));
-        tension += (tensionTarget - tension) * tensionCoeff;
-        tension = juce::jlimit(0.0f, 1.0f, tension);
-
-        if (env < 0.0005f)
-        {
-            const float idleSapDecay = std::exp(-(float) numSamples / (safeSampleRate * 0.10f));
-            const float idlePulseDecay = std::exp(-(float) numSamples / (safeSampleRate * 0.12f));
-            const float idleGrowthDecay = std::exp(-(float) numSamples / (safeSampleRate * 0.14f));
-            const float idleJitterDecay = std::exp(-(float) numSamples / (safeSampleRate * 0.12f));
-            const float idleTensionDecay = std::exp(-(float) numSamples / (safeSampleRate * 0.12f));
-            currentSap *= idleSapDecay;
-            pulseFollower *= idlePulseDecay;
-            growthCycle *= idleGrowthDecay;
-            leafJitter *= idleJitterDecay;
-            tension *= idleTensionDecay;
-        }
+        // 4. SYNERGY (Combining into beautiful creature)
+        // Base energy ensures heartbeat even when silent.
+        float rawEnergy = 0.12f 
+                        + (root * 0.22f) 
+                        + (sap * 0.28f) 
+                        + (pulseFollower * 0.46f) 
+                        + (textureNoise * 0.05f);
         
-        // Combine to Plant Energy
-        float combinedSap = juce::jlimit(0.0f, 1.0f, currentSap + textureNoise);
-        plantEnergy = 0.01f + rootMotion * 0.08f
-                            + combinedSap * 0.08f * activity
-                            + pulseFollower * (0.12f + pulseGrowthAmt * 0.24f)
-                            + growthCycle * 0.10f
-                            + tension * 0.08f;
-        plantEnergy = juce::jlimit(0.0f, 1.0f, plantEnergy);
+        plantEnergy = juce::jlimit(0.0f, 1.0f, rawEnergy);
+        smoothedPlantEnergy.setTargetValue(plantEnergy);
 
-        bioFeedback.plantEnergy = plantEnergy;
-        bioFeedback.growthCycle = juce::jlimit(0.0f, 1.0f, growthCycle);
-        bioFeedback.leafJitter = juce::jlimit(0.0f, 1.0f, leafJitter);
-        bioFeedback.tension = juce::jlimit(0.0f, 1.0f, tension);
+        // Map internal states to the Snapshot for the Visualizer
+        bioFeedback.plantEnergy = smoothedPlantEnergy.getNextValue();
+        bioFeedback.growthCycle = juce::jlimit(0.0f, 1.0f, root * 1.15f + pulseFollower * 0.25f);
+        bioFeedback.leafJitter = juce::jlimit(0.0f, 1.0f, currentSap + std::abs(textureNoise) * 4.0f);
+        bioFeedback.tension = juce::jlimit(0.0f, 1.0f, pulseFollower * 0.95f + (1.0f - rootAnchorAmt) * 0.15f);
     }
 
-    float getPlantEnergy() const { return plantEnergy; }
+    float getPlantEnergy() const { return bioFeedback.plantEnergy; }
     const RootFlowBioFeedbackSnapshot& getBioFeedbackSnapshot() const noexcept { return bioFeedback; }
-	private:
-    static constexpr float referenceSampleRate = 44100.0f;
-    static constexpr float referenceBlockSize = 512.0f;
 
+private:
     double sampleRate = 44100.0;
     juce::Random random;
+    juce::LinearSmoothedValue<float> smoothedPlantEnergy;
+    
     float phase = 0;
-    float rootAmt = 0.5f, rootRateHz = 0.068f, rootAnchorAmt = 0.5f;
-    float sapAmt = 0.5f, sapDriftRateHz = 0.86f, sapTextureAmt = 0.5f;
+    float rootAmt = 0.5f, rootSpeed = 0.005f, rootAnchorAmt = 0.5f;
+    float sapAmt = 0.5f, sapSpeed = 0.01f, sapTextureAmt = 0.5f;
     float pulseAmt = 0.5f, pulseSens = 0.5f, pulseGrowthAmt = 0.5f;
     float currentSap = 0, targetSap = 0;
     float pulseFollower = 0;
     float plantEnergy = 0;
-    float growthCycle = 0;
-    float leafJitter = 0;
-    float tension = 0;
+    
     RootFlowBioFeedbackSnapshot bioFeedback;
-}; 
+};

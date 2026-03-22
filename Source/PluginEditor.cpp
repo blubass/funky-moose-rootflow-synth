@@ -681,6 +681,10 @@ juce::Colour getStatusWarnColour() noexcept
 }
 }
 
+
+
+
+
 RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcessor& p)
     : juce::AudioProcessorEditor(p),
       audioProcessor(p),
@@ -943,7 +947,40 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
     instabilitySlider.setTextValueSuffix("%");
     rainSlider.setNumDecimalPlacesToDisplay(1);
 
+
+
     loadAssets();
+
+    // --- MUTATION BUTTON SETUP ---
+    mutateButton.setButtonText("MUTATE");
+    mutateButton.setColour(juce::TextButton::buttonColourId, juce::Colour(15, 22, 15));
+    mutateButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xff22ff66));
+    mutateButton.setLookAndFeel(&look);
+    addAndMakeVisible(mutateButton);
+    mutateButton.toFront(false);
+
+    mutateButton.onClick = [this] {
+        auto& random = juce::Random::getSystemRandom();
+        auto randomizeParam = [&](const juce::String& name) {
+            if (auto* p = audioProcessor.tree.getRawParameterValue(name)) {
+                *p = random.nextFloat();
+            }
+        };
+
+        // Mutate DNA
+        randomizeParam("rootDepth"); randomizeParam("rootSoil"); randomizeParam("rootAnchor");
+        randomizeParam("sapFlow"); randomizeParam("sapVitality"); randomizeParam("sapTexture");
+        randomizeParam("pulseRate"); randomizeParam("pulseBreath"); randomizeParam("pulseGrowth");
+        
+        // Environment
+        randomizeParam("ecoSystem"); 
+        randomizeParam("bloom"); 
+        randomizeParam("rain"); 
+        randomizeParam("sun");
+
+        setMidiStatusMessage("BIO-DNA MUTATED: NEW GROWTH DETECTED", getStatusInfoColour());
+        midiIndicatorLevel = juce::jmax(midiIndicatorLevel, 0.6f);
+    };
 
     setSize(1024, 1024);
     refreshHeaderControlState();
@@ -1197,6 +1234,8 @@ void RootFlowAudioProcessorEditor::resized()
         juce::roundToInt(innerRect.getWidth() * 0.77f),
         juce::roundToInt(juce::jmax(142.0f * scale, innerRect.getHeight() * 0.142f)));
 
+
+
     mainFieldRect = juce::Rectangle<int>(
         innerRect.getX() + juce::roundToInt(20.0f * scale),
         headerBoardRect.getBottom() + juce::roundToInt(18.0f * scale),
@@ -1407,7 +1446,13 @@ void RootFlowAudioProcessorEditor::resized()
                             headerTop,
                             presetWidth,
                             controlHeight);
-        presetSaveButton.setBounds(presetBox.getRight() + controlGap,
+
+        mutateButton.setBounds(presetBox.getRight() + controlGap,
+                               headerTop,
+                               juce::roundToInt(84.0f * scale),
+                               controlHeight);
+
+        presetSaveButton.setBounds(mutateButton.getRight() + controlGap,
                                    headerTop,
                                    presetButtonWidth,
                                    controlHeight);
@@ -1449,7 +1494,13 @@ void RootFlowAudioProcessorEditor::resized()
                             headerTop,
                             presetWidth,
                             controlHeight);
-        presetSaveButton.setBounds(presetBox.getRight() + controlGap,
+
+        mutateButton.setBounds(presetBox.getRight() + controlGap,
+                               headerTop,
+                               juce::roundToInt(84.0f * scale),
+                               controlHeight);
+
+        presetSaveButton.setBounds(mutateButton.getRight() + controlGap,
                                    headerTop,
                                    presetButtonWidth,
                                    controlHeight);

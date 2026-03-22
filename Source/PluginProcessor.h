@@ -140,7 +140,7 @@ private:
 
         int getParameterSlot(int channel, int controllerNumber) const noexcept
         {
-            if (! juce::isPositiveAndBelow(channel, 17) || ! juce::isPositiveAndBelow(controllerNumber, 128))
+            if (channel < 1 || channel > 16 || ! juce::isPositiveAndBelow(controllerNumber, 128))
                 return -1;
 
             return parameterSlots[(size_t) (channel - 1) * 128u + (size_t) controllerNumber];

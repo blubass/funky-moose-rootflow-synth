@@ -82,6 +82,7 @@ private:
     juce::TextButton testToneButton;
     juce::MidiKeyboardComponent keyboardDrawer;
     juce::TextButton keyboardDrawerButton;
+    juce::TextButton mutateButton;
     PlantEnergyVisualizer visualizer;
     RootFlowLookAndFeel look;
     void loadAssets();
@@ -129,6 +130,9 @@ private:
     juce::Slider bloomSlider, rainSlider, sunSlider;
     juce::Label bloomLabel, rainLabel, sunLabel;
 
+
+    juce::Label titleLabel;
+
     using Attachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     std::unique_ptr<Attachment> rootDepthAtt, rootSoilAtt, rootAnchorAtt,
                                sapFlowAtt, sapVitalityAtt, sapTextureAtt,
@@ -157,4 +161,6 @@ private:
     std::array<bool, 13> virtualKeyDownStates {};
 
     juce::TextButton vizModeButton, vizColorButton;
+
+
 };

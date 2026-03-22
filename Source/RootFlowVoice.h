@@ -1,6 +1,8 @@
-#pragma once
 #include <JuceHeader.h>
 #include <array>
+#include "RootFlowOscillators.h"
+
+class RootFlowModulationEngine;
 
 /**
  * Basic sound class for RootFlow. 
@@ -43,7 +45,7 @@ public:
     void renderNextBlock(juce::AudioBuffer<float>& outputBuffer, 
                          int startSample, int numSamples) override;
 
-    void setSampleRate(double sr);
+    void setSampleRate(double sr, int blockSize);
     void reset();
     void recoverFromSilentState();
 
@@ -55,16 +57,22 @@ public:
     void setPulseRate(float v);
     void setPulseAmount(float v);
     void setGrowth(float v);
+    
+    void setEngine(const RootFlowModulationEngine* e) { engine = e; }
 
 private:
     double sampleRate = 44100.0;
 
-    // ROOT (Oscillators)
-    juce::dsp::Oscillator<float> osc1;
-    juce::dsp::Oscillator<float> osc2;
+    // ROOT (PolyBLEP Oscillators)
+    RootFlowOscillator osc1;
+    RootFlowOscillator osc2;
     juce::dsp::Oscillator<float> oscSub;
     juce::dsp::Oscillator<float> lfo;      // PULSE LFO
     juce::dsp::Oscillator<float> driftLfo; // Slow Analog Drift
+    
+    // NOISE (Organic Roots Texture)
+    juce::Random noiseGen;
+    juce::dsp::IIR::Filter<float> noiseFilter;
 
     // SAP (Filter)
     juce::dsp::StateVariableTPTFilter<float> filter;
@@ -85,5 +93,11 @@ private:
     juce::LinearSmoothedValue<float> smoothedPulseRate { 0.5f };
     juce::LinearSmoothedValue<float> smoothedPulseAmount { 0.5f };
     juce::LinearSmoothedValue<float> smoothedGrowth { 0.5f };
+    
+    // Bio-Feedback Energy & Filter
+    const RootFlowModulationEngine* engine = nullptr;
+    juce::LinearSmoothedValue<float> smoothedEnergy { 0.05f };
+    float lastLeftFilterOut = 0.0f;
+    float lastRightFilterOut = 0.0f;
 
 };

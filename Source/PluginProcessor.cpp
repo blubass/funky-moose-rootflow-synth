@@ -70,7 +70,7 @@ constexpr std::array<const char*, 16> presetParameterIDs {
     "ecoSystem"
 };
 
-const std::array<FactoryPreset, 30> factoryPresets {{
+const std::array<FactoryPreset, 80> factoryPresets {{
     { "ROOTFLOW INIT", { 0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.65f, 0.18f, 0.28f, 0.00f, 0.00f, 0.00f, 0.34f } },
     // Friendly
     { "MORNING DEW",   { 0.36f, 0.28f, 0.16f, 0.62f, 0.78f, 0.40f, 0.30f, 0.34f, 0.28f, 0.68f, 0.26f, 0.14f, 0.42f, 0.20f, 0.10f, 0.08f } },
@@ -107,15 +107,76 @@ const std::array<FactoryPreset, 30> factoryPresets {{
     { "LUNAR DRIP",    { 0.66f, 0.54f, 0.44f, 0.42f, 0.40f, 0.34f, 0.22f, 0.38f, 0.24f, 0.84f, 0.28f, 0.18f, 0.10f, 0.78f, 0.58f, 0.96f } },
     { "THORN STATIC",  { 0.52f, 0.44f, 0.28f, 0.68f, 0.80f, 0.62f, 0.56f, 0.46f, 0.52f, 0.72f, 0.34f, 0.74f, 0.82f, 0.08f, 0.08f, 0.20f } },
     { "FERAL CANOPY",  { 0.60f, 0.48f, 0.30f, 0.54f, 0.58f, 0.48f, 0.38f, 0.44f, 0.30f, 0.94f, 0.28f, 0.52f, 0.18f, 0.62f, 0.18f, 0.84f } },
-    { "SOLAR SHED",    { 0.46f, 0.34f, 0.18f, 0.70f, 0.86f, 0.58f, 0.42f, 0.36f, 0.44f, 0.68f, 0.36f, 0.40f, 0.72f, 0.08f, 0.48f, 0.10f } }
+    { "SOLAR SHED",    { 0.46f, 0.34f, 0.18f, 0.70f, 0.86f, 0.58f, 0.42f, 0.36f, 0.44f, 0.68f, 0.36f, 0.40f, 0.72f, 0.08f, 0.48f, 0.10f } },
+
+    // --- BIO-PROFILES (Newly Integrated) ---
+    { "Ancient Oak      ", { 0.94f, 0.28f, 0.88f, 0.12f, 0.10f, 0.18f, 0.08f, 0.14f, 0.06f, 0.65f, 0.18f, 0.28f, 0.22f, 0.12f, 0.76f, 0.68f } },
+    { "Mimosa Pudica    ", { 0.18f, 0.42f, 0.12f, 0.48f, 0.62f, 0.12f, 0.92f, 0.84f, 0.78f, 0.65f, 0.18f, 0.28f, 0.72f, 0.38f, 0.32f, 0.82f } },
+    { "Wild Ivy         ", { 0.38f, 0.82f, 0.44f, 0.82f, 0.72f, 0.94f, 0.42f, 0.34f, 0.52f, 0.65f, 0.18f, 0.28f, 0.32f, 0.88f, 0.42f, 0.72f } },
+    { "Redwood Titan    ", { 1.00f, 0.20f, 0.90f, 0.10f, 0.00f, 0.40f, 0.00f, 0.10f, 0.20f, 0.65f, 0.18f, 0.28f, 0.20f, 0.20f, 0.90f, 0.90f } },
+    { "Weeping Willow   ", { 0.60f, 0.40f, 0.70f, 0.70f, 0.20f, 0.50f, 0.30f, 0.40f, 0.30f, 0.65f, 0.18f, 0.28f, 0.50f, 0.60f, 0.60f, 0.80f } },
+    { "Baobab Core      ", { 0.80f, 0.10f, 0.90f, 0.00f, 0.10f, 0.70f, 0.10f, 0.00f, 0.10f, 0.65f, 0.18f, 0.28f, 0.10f, 0.00f, 0.40f, 0.50f } },
+    { "Banyan Network   ", { 0.90f, 0.70f, 0.80f, 0.40f, 0.30f, 0.60f, 0.20f, 0.30f, 0.20f, 0.65f, 0.18f, 0.28f, 0.40f, 0.50f, 0.70f, 0.80f } },
+    { "Ironwood Solid   ", { 1.00f, 0.00f, 1.00f, 0.10f, 0.00f, 0.90f, 0.00f, 0.00f, 0.00f, 0.65f, 0.18f, 0.28f, 0.00f, 0.10f, 0.20f, 0.30f } },
+    { "Petrified Log    ", { 0.90f, 0.00f, 1.00f, 0.00f, 0.00f, 1.00f, 0.00f, 0.00f, 0.00f, 0.65f, 0.18f, 0.28f, 0.10f, 0.10f, 0.80f, 0.40f } },
+    { "Poison Ivy       ", { 0.30f, 0.70f, 0.40f, 0.80f, 0.80f, 0.90f, 0.70f, 0.60f, 0.80f, 0.65f, 0.18f, 0.28f, 0.50f, 0.60f, 0.30f, 0.70f } },
+    { "Strangler Fig    ", { 0.70f, 0.90f, 0.80f, 0.60f, 0.70f, 0.80f, 0.40f, 0.50f, 0.60f, 0.65f, 0.18f, 0.28f, 0.30f, 0.70f, 0.40f, 0.80f } },
+    { "Morning Glory    ", { 0.20f, 0.40f, 0.20f, 0.90f, 0.60f, 0.30f, 0.60f, 0.50f, 0.70f, 0.65f, 0.18f, 0.28f, 0.80f, 0.20f, 0.70f, 0.90f } },
+    { "Kudzu Swarm      ", { 0.40f, 1.00f, 0.50f, 1.00f, 1.00f, 0.90f, 0.80f, 0.70f, 1.00f, 0.65f, 0.18f, 0.28f, 0.60f, 0.90f, 0.50f, 0.90f } },
+    { "Thorny Bramble   ", { 0.50f, 0.60f, 0.60f, 0.40f, 0.80f, 1.00f, 0.70f, 0.30f, 0.40f, 0.65f, 0.18f, 0.28f, 0.20f, 0.40f, 0.30f, 0.60f } },
+    { "Jungle Canopy    ", { 0.60f, 0.50f, 0.40f, 0.70f, 0.50f, 0.50f, 0.50f, 0.60f, 0.50f, 0.65f, 0.18f, 0.28f, 0.70f, 0.80f, 0.90f, 1.00f } },
+    { "Neon Fern        ", { 0.20f, 0.30f, 0.20f, 0.60f, 0.50f, 0.20f, 0.60f, 0.80f, 0.70f, 0.65f, 0.18f, 0.28f, 0.90f, 0.30f, 0.80f, 0.90f } },
+    { "Ghost Fungus     ", { 0.10f, 0.80f, 0.10f, 0.30f, 0.90f, 0.50f, 0.20f, 0.90f, 0.40f, 0.65f, 0.18f, 0.28f, 1.00f, 0.80f, 0.90f, 1.00f } },
+    { "Glimmer Moss     ", { 0.00f, 0.20f, 0.30f, 0.40f, 0.40f, 0.10f, 0.50f, 0.70f, 0.30f, 0.65f, 0.18f, 0.28f, 0.80f, 0.20f, 0.60f, 0.80f } },
+    { "Lunar Lotus      ", { 0.30f, 0.10f, 0.20f, 0.50f, 0.20f, 0.00f, 0.30f, 1.00f, 0.50f, 0.65f, 0.18f, 0.28f, 0.70f, 0.10f, 1.00f, 0.90f } },
+    { "Foxfire Wood     ", { 0.40f, 0.60f, 0.50f, 0.70f, 0.80f, 0.40f, 0.40f, 0.60f, 0.60f, 0.65f, 0.18f, 0.28f, 0.80f, 0.50f, 0.70f, 0.80f } },
+    { "Avatar Tree      ", { 0.80f, 0.30f, 0.70f, 0.80f, 0.50f, 0.30f, 0.50f, 0.80f, 0.80f, 0.65f, 0.18f, 0.28f, 0.90f, 0.60f, 1.00f, 1.00f } },
+    { "Mycelium Web     ", { 0.70f, 0.90f, 0.30f, 0.90f, 1.00f, 0.80f, 0.20f, 0.40f, 0.10f, 0.65f, 0.18f, 0.28f, 0.40f, 0.90f, 0.50f, 0.80f } },
+    { "Puffball Cloud   ", { 0.10f, 0.20f, 0.10f, 0.50f, 0.80f, 0.90f, 1.00f, 0.20f, 0.90f, 0.65f, 0.18f, 0.28f, 0.50f, 0.80f, 0.30f, 0.70f } },
+    { "Slime Mold       ", { 0.20f, 1.00f, 0.20f, 1.00f, 0.50f, 0.60f, 0.10f, 0.10f, 0.30f, 0.65f, 0.18f, 0.28f, 0.80f, 0.50f, 0.20f, 0.60f } },
+    { "Truffle Dark     ", { 0.90f, 0.80f, 0.90f, 0.20f, 0.30f, 0.80f, 0.10f, 0.20f, 0.00f, 0.65f, 0.18f, 0.28f, 0.10f, 0.30f, 0.10f, 0.40f } },
+    { "Cordyceps Hive   ", { 0.50f, 0.90f, 0.60f, 0.80f, 1.00f, 0.90f, 0.90f, 0.80f, 0.80f, 0.65f, 0.18f, 0.28f, 0.60f, 0.90f, 0.40f, 0.90f } },
+    { "Kelp Forest      ", { 0.60f, 0.80f, 0.40f, 0.90f, 0.60f, 0.20f, 0.40f, 0.70f, 0.50f, 0.65f, 0.18f, 0.28f, 0.70f, 0.40f, 0.90f, 0.90f } },
+    { "Water Lily       ", { 0.20f, 0.30f, 0.10f, 0.60f, 0.30f, 0.00f, 0.50f, 0.80f, 0.40f, 0.65f, 0.18f, 0.28f, 0.50f, 0.20f, 0.80f, 0.80f } },
+    { "Coral Polyps     ", { 0.40f, 0.50f, 0.80f, 0.70f, 0.90f, 0.50f, 0.80f, 0.60f, 0.70f, 0.65f, 0.18f, 0.28f, 0.80f, 0.70f, 0.60f, 0.90f } },
+    { "Seaweed Drift    ", { 0.30f, 0.70f, 0.20f, 1.00f, 0.40f, 0.10f, 0.20f, 0.90f, 0.30f, 0.65f, 0.18f, 0.28f, 0.90f, 0.10f, 0.70f, 0.80f } },
+    { "Abyssal Bloom    ", { 0.80f, 0.90f, 0.60f, 0.50f, 0.80f, 0.30f, 0.30f, 0.80f, 0.60f, 0.65f, 0.18f, 0.28f, 1.00f, 0.80f, 1.00f, 1.00f } },
+    { "Saguaro Cactus   ", { 0.80f, 0.10f, 0.90f, 0.00f, 0.00f, 0.80f, 0.10f, 0.10f, 0.10f, 0.65f, 0.18f, 0.28f, 0.00f, 0.00f, 0.50f, 0.30f } },
+    { "Tumbleweed       ", { 0.00f, 0.80f, 0.00f, 0.20f, 0.70f, 0.90f, 0.60f, 0.20f, 0.40f, 0.65f, 0.18f, 0.28f, 0.20f, 0.40f, 0.20f, 0.40f } },
+    { "Resurrection     ", { 0.40f, 0.60f, 0.50f, 0.10f, 0.90f, 0.80f, 0.90f, 0.50f, 1.00f, 0.65f, 0.18f, 0.28f, 0.40f, 0.20f, 0.60f, 0.60f } },
+    { "Aloe Vera        ", { 0.50f, 0.20f, 0.40f, 0.40f, 0.10f, 0.30f, 0.20f, 0.40f, 0.30f, 0.65f, 0.18f, 0.28f, 0.20f, 0.10f, 0.40f, 0.50f } },
+    { "Scorched Earth   ", { 0.90f, 0.90f, 0.90f, 0.00f, 0.00f, 1.00f, 0.00f, 0.00f, 0.00f, 0.65f, 0.18f, 0.28f, 0.00f, 0.00f, 0.10f, 0.20f } },
+    { "Venus Flytrap    ", { 0.30f, 0.40f, 0.50f, 0.20f, 0.80f, 0.40f, 1.00f, 0.10f, 1.00f, 0.65f, 0.18f, 0.28f, 0.20f, 0.10f, 0.30f, 0.60f } },
+    { "Pitcher Plant    ", { 0.40f, 0.30f, 0.60f, 0.60f, 0.50f, 0.70f, 0.80f, 0.40f, 0.60f, 0.65f, 0.18f, 0.28f, 0.40f, 0.50f, 0.60f, 0.70f } },
+    { "Sundew Drops     ", { 0.20f, 0.50f, 0.30f, 0.80f, 0.90f, 0.20f, 0.70f, 0.70f, 0.80f, 0.65f, 0.18f, 0.28f, 0.80f, 0.40f, 0.50f, 0.80f } },
+    { "Cobra Lily       ", { 0.50f, 0.60f, 0.70f, 0.50f, 0.70f, 0.60f, 0.90f, 0.50f, 0.90f, 0.65f, 0.18f, 0.28f, 0.30f, 0.30f, 0.40f, 0.70f } },
+    { "Xenoflora 1      ", { 0.80f, 1.00f, 0.20f, 1.00f, 1.00f, 1.00f, 1.00f, 0.10f, 0.80f, 0.65f, 0.18f, 0.28f, 0.90f, 1.00f, 0.20f, 1.00f } },
+    { "Glass Orchid     ", { 0.10f, 0.00f, 0.10f, 0.20f, 0.10f, 0.00f, 0.40f, 0.90f, 0.20f, 0.65f, 0.18f, 0.28f, 1.00f, 0.20f, 1.00f, 0.90f } },
+    { "Quantum Spore    ", { 0.50f, 0.50f, 0.50f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 0.65f, 0.18f, 0.28f, 1.00f, 1.00f, 1.00f, 1.00f } },
+    { "Crystalline      ", { 0.20f, 0.10f, 0.30f, 0.10f, 0.00f, 0.10f, 0.20f, 0.80f, 0.30f, 0.65f, 0.18f, 0.28f, 0.90f, 0.50f, 0.90f, 0.80f } },
+    { "Plasma Root      ", { 1.00f, 0.90f, 0.90f, 0.80f, 1.00f, 0.80f, 0.90f, 0.90f, 1.00f, 0.65f, 0.18f, 0.28f, 0.70f, 0.60f, 0.80f, 0.90f } },
+    { "Cyber Bonsai     ", { 0.50f, 0.00f, 0.60f, 0.30f, 0.20f, 0.10f, 0.80f, 0.40f, 0.50f, 0.65f, 0.18f, 0.28f, 0.40f, 0.20f, 0.50f, 0.60f } },
+    { "Fiber Optic      ", { 0.10f, 0.10f, 0.20f, 0.80f, 0.40f, 0.00f, 0.60f, 0.90f, 0.40f, 0.65f, 0.18f, 0.28f, 0.90f, 0.30f, 0.80f, 0.90f } },
+    { "Wire Weed        ", { 0.30f, 0.80f, 0.40f, 0.90f, 0.90f, 1.00f, 0.70f, 0.20f, 0.60f, 0.65f, 0.18f, 0.28f, 0.50f, 0.80f, 0.30f, 0.70f } },
+    { "Silicon Petal    ", { 0.20f, 0.00f, 0.30f, 0.40f, 0.10f, 0.00f, 0.40f, 0.70f, 0.30f, 0.65f, 0.18f, 0.28f, 0.70f, 0.20f, 0.70f, 0.80f } },
+    { "Robo Sprout      ", { 0.40f, 0.20f, 0.40f, 0.50f, 0.30f, 0.20f, 1.00f, 0.50f, 0.80f, 0.65f, 0.18f, 0.28f, 0.30f, 0.30f, 0.40f, 0.50f } }
 }};
 
-constexpr std::array<FactoryPresetSectionDefinition, 5> factoryPresetSections {{
+constexpr std::array<FactoryPresetSectionDefinition, 14> factoryPresetSections {{
     { "START",    0, 1 },
     { "FRIENDLY", 1, 8 },
     { "MOTION",   9, 8 },
     { "DEEP",    17, 6 },
-    { "WILD",    23, 7 }
+    { "WILD",    23, 7 },
+    { "BIO: LEGACY",  30, 3 },
+    { "BIO: GIANTS",  33, 6 },
+    { "BIO: CREEPERS",39, 6 },
+    { "BIO: LUMINA",  45, 6 },
+    { "BIO: SPORES",  51, 5 },
+    { "BIO: AQUATIC",  56, 5 },
+    { "BIO: DESERT",   61, 5 },
+    { "BIO: HUNTERS",  66, 4 },
+    { "BIO: XENO",     70, 10 }
 }};
 
 constexpr auto midiBindingsTag = "MidiBindings";
@@ -277,7 +338,8 @@ void RootFlowAudioProcessor::prepareToPlay(double sr, int bs)
     for (int i = 0; i < 12; ++i)
     {
         auto* voice = new RootFlowVoice();
-        voice->setSampleRate(sr);
+        voice->setEngine(&modulation); // Link to bio-feedback engine
+        voice->setSampleRate(sr, bs);
         synth.addVoice(voice);
     }
 
@@ -469,6 +531,10 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     currentBioFeedback = modulation.getBioFeedbackSnapshot();
     const float plantEnergy = currentBioFeedback.plantEnergy;
     lastPlantEnergy.store(plantEnergy, std::memory_order_relaxed);
+
+    const float ecoRaw = RootFlowDSP::clamp01(*tree.getRawParameterValue("ecoSystem"));
+    const float ecoMaster = std::pow(ecoRaw, 0.70f); // Concave curve: FX gets through more quickly
+
     const float seasonalFxLift = seasonMorph.spring * 0.09f
                                + seasonMorph.summer * 0.14f
                                + seasonMorph.autumn * 0.12f
@@ -480,11 +546,11 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                                      + seasonMorph.autumn * 0.16f
                                                      + seasonMorph.winter * 0.04f)
                                         + 0.01f
-                                        + seasonalFxLift * 0.28f);
+                                        + seasonalFxLift * 0.28f) * ecoMaster;
 
     const bool postFxSafetyBypassActive = postFxSafetyBypassBlocksRemaining > 0;
 
-    bloom.setParams(bloomAmount,
+    bloom.setParams(bloomAmount * ecoMaster,
                     fxEnergy,
                     sapVitality,
                     pulseBreath,
@@ -493,7 +559,7 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     if (! postFxSafetyBypassActive)
         bloom.process(buffer);
 
-    rain.setParams(rainAmount,
+    rain.setParams(rainAmount * ecoMaster,
                    fxEnergy,
                    sapFlow,
                    sapTexture,
@@ -502,7 +568,7 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     if (! postFxSafetyBypassActive)
         rain.process(buffer);
 
-    sun.setParams(sunAmount,
+    sun.setParams(sunAmount * ecoMaster,
                   fxEnergy,
                   rootDepth,
                   sapVitality,
@@ -765,13 +831,21 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                       tonedR,
                                       drivenR) * seasonOutputTrim * canopyOutputTrim;
             const float testTone = std::sin(testTonePhase) * 0.06f * testToneLevelSmoothed.getNextValue();
-            finalL += testTone;
-            finalR += testTone;
+            
+            // Apply Master Boost (approx +9dB) with soft-rounding to prevent 'scratching'
+            float boostedL = (finalL + testTone) * 2.85f;
+            float boostedR = (finalR + testTone) * 2.85f;
+            
+            // Deep-Sine Friendly Soft Limiter
+            finalL = boostedL / (1.15f + std::abs(boostedL * 0.18f));
+            finalR = boostedR / (1.15f + std::abs(boostedR * 0.18f));
+
             invalidAudioDetected = invalidAudioDetected || (! std::isfinite(finalL)) || (! std::isfinite(finalR));
             rawOutputPeak = juce::jmax(rawOutputPeak, std::abs(finalL));
             rawOutputPeak = juce::jmax(rawOutputPeak, std::abs(finalR));
             finalL = applyOutputDcBlock(finalL, 0);
             finalR = applyOutputDcBlock(finalR, 1);
+            
             leftData[i] = sanitizeOutputSample(finalL, outputSafetyLimit);
             rightData[i] = sanitizeOutputSample(finalR, outputSafetyLimit);
             finalOutputPeak = juce::jmax(finalOutputPeak, std::abs(leftData[i]));
@@ -1816,10 +1890,13 @@ void RootFlowAudioProcessor::performPendingProcessingStateReset() noexcept
     lastPlantEnergy.store(0.0f, std::memory_order_relaxed);
 
     for (int i = 0; i < synth.getNumVoices(); ++i)
+    {
         if (auto* voice = dynamic_cast<RootFlowVoice*>(synth.getVoice(i)))
         {
-            voice->setSampleRate(safeSampleRate);
+            voice->setEngine(&modulation);
+            voice->setSampleRate(safeSampleRate, safeBlockSize);
         }
+    }
 
     bloom.reset();
     rain.reset();
