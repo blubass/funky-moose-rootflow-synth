@@ -57,15 +57,23 @@ public:
     void setPulseRate(float v);
     void setPulseAmount(float v);
     void setGrowth(float v);
+    void setCanopy(float v);
+    void setWaveform(int typeIndex);
     
     void setEngine(const RootFlowModulationEngine* e) { engine = e; }
 
 private:
     double sampleRate = 44100.0;
 
-    // ROOT (PolyBLEP Oscillators)
-    RootFlowOscillator osc1;
-    RootFlowOscillator osc2;
+    // ROOT (Unison Bank)
+    static constexpr int maxUnison = 8;
+    int unisonVoices = 4;
+    float unisonDetune = 0.012f;
+    float stereoSpread = 0.5f;
+
+    RootFlowOscillator unisonOscillators[maxUnison];
+    float unisonOffsets[maxUnison]{ 0 };
+
     juce::dsp::Oscillator<float> oscSub;
     juce::dsp::Oscillator<float> lfo;      // PULSE LFO
     juce::dsp::Oscillator<float> driftLfo; // Slow Analog Drift
@@ -75,7 +83,8 @@ private:
     juce::dsp::IIR::Filter<float> noiseFilter;
 
     // SAP (Filter)
-    juce::dsp::StateVariableTPTFilter<float> filter;
+    juce::dsp::StateVariableTPTFilter<float> filterL;
+    juce::dsp::StateVariableTPTFilter<float> filterR;
 
     // AMP (Envelope)
     juce::ADSR adsr;
@@ -93,6 +102,7 @@ private:
     juce::LinearSmoothedValue<float> smoothedPulseRate { 0.5f };
     juce::LinearSmoothedValue<float> smoothedPulseAmount { 0.5f };
     juce::LinearSmoothedValue<float> smoothedGrowth { 0.5f };
+    juce::LinearSmoothedValue<float> smoothedCanopy { 0.5f };
     
     // Bio-Feedback Energy & Filter
     const RootFlowModulationEngine* engine = nullptr;

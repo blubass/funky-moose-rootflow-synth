@@ -723,9 +723,9 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
     setup(atmosSlider, atmosLabel, "ATMOS", atmosAtt, "atmosphere", false);
     setup(seasonsSlider, seasonsLabel, "SEASONS", seasonsAtt, "ecoSystem", false);
 
-    setup(bloomSlider, bloomLabel, "GLOW", bloomAtt, "bloom", false);
-    setup(rainSlider, rainLabel, "DENSITY", rainAtt, "rain", false);
-    setup(sunSlider, sunLabel, "FLARE", sunAtt, "sun", false);
+    setup(bloomSlider, bloomLabel, "SOIL", bloomAtt, "bloom", false);
+    setup(rainSlider, rainLabel, "AIR", rainAtt, "rain", false);
+    setup(sunSlider, sunLabel, "SPACE", sunAtt, "sun", false);
     instabilitySlider.getProperties().set("rfStyle", "macro");
     atmosSlider.getProperties().set("rfStyle", "macro");
     seasonsSlider.getProperties().set("rfStyle", "macro");
@@ -763,11 +763,11 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
     seasonsLabel.setVisible(false);
     seasonsSlider.setTooltip("Morph the ecosystem between Spring, Summer, Autumn and Winter");
     bloomLabel.setVisible(false);
-    bloomSlider.setTooltip("Add halo bloom, width and luminous wash");
+    bloomSlider.setTooltip("Add heavy soil resonance, dark warmth and earth-bound depth");
     rainLabel.setVisible(false);
-    rainSlider.setTooltip("Add diffuse rain tails, body and density");
+    rainSlider.setTooltip("Add moving air, wind-swept delays and leaf-motion breath");
     sunLabel.setVisible(false);
-    sunSlider.setTooltip("Push flare, heat and driven brightness");
+    sunSlider.setTooltip("Open the cosmic space with wide shimmer and blooming light");
     rootDepthSlider.setTooltip("Add body, low-end weight and depth");
     rootSoilSlider.setTooltip("Increase earthy tone and low-mid saturation");
     rootAnchorSlider.setTooltip("Tighten the voice around a darker, steadier center");
@@ -982,7 +982,39 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
         midiIndicatorLevel = juce::jmax(midiIndicatorLevel, 0.6f);
     };
 
-    setSize(1024, 1024);
+    // Waveform Switch Setup
+    waveSelector.addItemList({ "SINE", "SAW", "PULSE" }, 1);
+    waveSelector.setSelectedId(1, juce::dontSendNotification);
+    waveSelector.setJustificationType(juce::Justification::centred);
+    waveSelector.setLookAndFeel(&look);
+    addAndMakeVisible(waveSelector);
+
+    waveAttachment = std::make_unique<ComboAttachment>(audioProcessor.tree, "oscWave", waveSelector);
+
+    // --- BIO-SEQUENCER SETUP ---
+    setupHeaderButton(seqToggle, "SEQ Off", juce::Colour(25, 45, 25));
+    seqToggle.setClickingTogglesState(true);
+    addAndMakeVisible(seqToggle);
+    seqOnAtt = std::make_unique<ButtonAttachment>(audioProcessor.tree, "sequencerOn", seqToggle);
+    seqToggle.onStateChange = [this] {
+        seqToggle.setButtonText(seqToggle.getToggleState() ? "SEQ On" : "SEQ Off");
+        repaint();
+    };
+
+    seqRateSelector.addItemList({ "1/4", "1/8", "1/16", "1/32" }, 1);
+    seqRateSelector.setLookAndFeel(&look);
+    addAndMakeVisible(seqRateSelector);
+    seqRateAtt = std::make_unique<ComboAttachment>(audioProcessor.tree, "sequencerRate", seqRateSelector);
+
+    seqStepsSelector.addItemList({ "4 Steps", "8 Steps", "12 Steps", "16 Steps" }, 1);
+    seqStepsSelector.setLookAndFeel(&look);
+    addAndMakeVisible(seqStepsSelector);
+    seqStepsSelector.onChange = [this] {
+        if (auto* p = audioProcessor.tree.getRawParameterValue("sequencerSteps"))
+            *p = (float)((seqStepsSelector.getSelectedItemIndex() + 1) * 4);
+    };
+
+    setSize(900, 640);
     refreshHeaderControlState();
 }
 
@@ -1037,10 +1069,22 @@ bool RootFlowAudioProcessorEditor::keyStateChanged(bool)
     return false;
 }
 
-void RootFlowAudioProcessorEditor::mouseDown(const juce::MouseEvent&)
+void RootFlowAudioProcessorEditor::mouseDown(const juce::MouseEvent& e)
 {
     if (isVirtualKeyboardInputEnabled())
         grabKeyboardFocus();
+
+    auto localPos = e.getPosition();
+    if (sequencerRect.contains(localPos))
+    {
+        const int numSteps = 16;
+        float stepW = (float)sequencerRect.getWidth() / (float)numSteps;
+        int step = (int)((localPos.getX() - sequencerRect.getX()) / stepW);
+        step = juce::jlimit(0, numSteps - 1, step);
+        
+        audioProcessor.sequencerSteps[(size_t)step].active = !audioProcessor.sequencerSteps[(size_t)step].active;
+        repaint();
+    }
 }
 
 void RootFlowAudioProcessorEditor::loadAssets()
@@ -1055,6 +1099,34 @@ void RootFlowAudioProcessorEditor::loadAssets()
 
 
     look.setWoodImage(woodBackground);
+}
+
+void RootFlowAudioProcessorEditor::drawSequencerPanel(juce::Graphics& g, juce::Rectangle<int> area)
+{
+    auto fArea = area.toFloat();
+    const float cornerRadius = 9.0f;
+    
+    // Wood Background
+    drawProceduralWoodPanel(g, fArea, cornerRadius, 
+                            juce::Colour(45, 34, 28),
+                            juce::Colour(30, 22, 18), 
+                            0.18f);
+
+    // Varnish & Glow
+    g.setColour(juce::Colour(110, 255, 140).withAlpha(0.04f));
+    g.fillRoundedRectangle(fArea.reduced(1.0f), cornerRadius);
+    
+    // Frame
+    g.setColour(juce::Colour(25, 18, 12));
+    g.drawRoundedRectangle(fArea, cornerRadius, 2.5f);
+    
+    g.setColour(juce::Colour(85, 75, 65).withAlpha(0.4f));
+    g.drawRoundedRectangle(fArea.reduced(2.0f), cornerRadius - 1.0f, 1.0f);
+    
+    // Label
+    g.setColour(juce::Colour(110, 255, 140).withAlpha(0.45f));
+    g.setFont(juce::FontOptions(12.0f).withStyle("Bold"));
+    g.drawText("BIO-SEQUENCER", area.withTrimmedLeft(18).withHeight(20), juce::Justification::left);
 }
 
 void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
@@ -1106,6 +1178,7 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
 
     drawMainPanel(g, innerRect);
     drawHeader(g, headerBoardRect);
+    drawSequencerPanel(g, sequencerBoardRect);
     drawSectionPanel(g, rootRect, "ROOT");
     drawSectionPanel(g, sapRect, "SAP");
     drawSectionPanel(g, pulseRect, "PULSE");
@@ -1177,6 +1250,45 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
         g.restoreState();
     };
 
+    // --- BIO-SEQUENCER GRID DRAWING ---
+    if (sequencerRect.getWidth() > 0)
+    {
+        g.saveState();
+        const float energy = smoothedUiEnergy;
+        const int numSteps = 16;
+        float stepW = (float)sequencerRect.getWidth() / (float)numSteps;
+        auto drawArea = sequencerRect.toFloat();
+        
+        for (int i = 0; i < numSteps; ++i)
+        {
+            auto r = drawArea.removeFromLeft(stepW).reduced(2.0f);
+            const bool isActive = audioProcessor.sequencerSteps[(size_t)i].active;
+            const bool isCurrent = (i == audioProcessor.currentSequencerStep) && (audioProcessor.isSequencerEnabled());
+            
+            juce::Colour cellCol = juce::Colour(55, 120, 75).withAlpha(0.25f);
+            if (isActive) 
+                cellCol = juce::Colour(110, 255, 140).withAlpha(0.58f + energy * 0.38f);
+            
+            if (isCurrent)
+            {
+                g.setColour(juce::Colours::white.withAlpha(0.92f + energy * 0.08f));
+                g.fillRoundedRectangle(r, 2.5f);
+            }
+            else
+            {
+                g.setColour(cellCol);
+                g.fillRoundedRectangle(r, 2.5f);
+                
+                if (isActive)
+                {
+                    g.setColour(cellCol.brighter(0.2f).withAlpha(0.6f));
+                    g.drawRoundedRectangle(r, 2.5f, 1.3f);
+                }
+            }
+        }
+        g.restoreState();
+    }
+
     drawSectionAura(rootRect, "ROOT", { &rootDepthSlider, &rootSoilSlider, &rootAnchorSlider });
     drawSectionAura(sapRect, "SAP", { &sapFlowSlider, &sapVitalitySlider, &sapTextureSlider });
     drawSectionAura(pulseRect, "PULSE", { &pulseRateSlider, &pulseBreathSlider, &pulseGrowthSlider });
@@ -1223,26 +1335,33 @@ void RootFlowAudioProcessorEditor::resized()
     auto bounds = getLocalBounds();
     float w = static_cast<float>(bounds.getWidth());
     float h = static_cast<float>(bounds.getHeight());
-    float scale = juce::jmin(w / 1024.0f, h / 1024.0f);
-
-    float frameInset = 24.0f * scale;
+    
+    // TOTAL SCALING OVERHAUL: Internal Design reference 1100x820
+    // This makes the UI smaller, clearer and ensures nothing is cut off on 13" laptops.
+    float scale = juce::jmin(w / 1100.0f, h / 820.0f);
+    
+    float frameInset = 20.0f * scale;
     innerRect = bounds.reduced((int)frameInset);
 
     headerBoardRect = juce::Rectangle<int>(
-        innerRect.getX() + juce::roundToInt(innerRect.getWidth() * 0.115f),
-        innerRect.getY() + juce::roundToInt(20.0f * scale),
-        juce::roundToInt(innerRect.getWidth() * 0.77f),
-        juce::roundToInt(juce::jmax(142.0f * scale, innerRect.getHeight() * 0.142f)));
+        innerRect.getX() + juce::roundToInt(innerRect.getWidth() * 0.03f),
+        innerRect.getY() + juce::roundToInt(10.0f * scale),
+        juce::roundToInt(innerRect.getWidth() * 0.94f),
+        juce::roundToInt(142.0f * scale)); // Scaled Header
 
-
+    sequencerBoardRect = juce::Rectangle<int>(
+        headerBoardRect.getX(),
+        headerBoardRect.getBottom() + juce::roundToInt(8.0f * scale),
+        headerBoardRect.getWidth(),
+        juce::roundToInt(62.0f * scale)); // Scaled Sequencer (was 54)
 
     mainFieldRect = juce::Rectangle<int>(
         innerRect.getX() + juce::roundToInt(20.0f * scale),
-        headerBoardRect.getBottom() + juce::roundToInt(18.0f * scale),
+        sequencerBoardRect.getBottom() + juce::roundToInt(14.0f * scale),
         innerRect.getWidth() - juce::roundToInt(40.0f * scale),
-        juce::roundToInt(innerRect.getHeight() * 0.575f));
+        juce::roundToInt(innerRect.getHeight() * 0.58f));
 
-    int knobSize = juce::roundToInt(102.0f * scale);
+    int knobSize = juce::roundToInt(94.0f * scale); // Scaled Main Knobs (was 78)
     int sideLabelHeight = juce::roundToInt(26.0f * scale);
     int labelFontSize = juce::roundToInt(13.0f * scale);
 
@@ -1308,10 +1427,10 @@ void RootFlowAudioProcessorEditor::resized()
         l[i]->setFont(juce::FontOptions((float) labelFontSize).withStyle("Bold"));
     }
 
-    const int canopyPodWidth = juce::roundToInt(142.0f * scale);
-    const int canopyPodHeight = juce::roundToInt(114.0f * scale);
-    const int instabilityPodWidth = juce::roundToInt(170.0f * scale);
-    const int centrePodGap = juce::roundToInt(14.0f * scale);
+    const int canopyPodWidth = juce::roundToInt(150.0f * scale);
+    const int canopyPodHeight = juce::roundToInt(108.0f * scale);
+    const int instabilityPodWidth = juce::roundToInt(184.0f * scale);
+    const int centrePodGap = juce::roundToInt(12.0f * scale);
     const int centrePodStartX = centreLeft + juce::jmax(0, (centreWidth - (canopyPodWidth + instabilityPodWidth + centrePodGap)) / 2);
     const int centrePodY = sapRect.getBottom() + juce::roundToInt(8.0f * scale);
     canopyRect = { centrePodStartX, centrePodY, canopyPodWidth, canopyPodHeight };
@@ -1320,7 +1439,7 @@ void RootFlowAudioProcessorEditor::resized()
     const int canopyKnobSize = juce::roundToInt(70.0f * scale);
     auto canopySliderBounds = juce::Rectangle<int>(
         canopyRect.getCentreX() - canopyKnobSize / 2,
-        canopyRect.getY() + juce::roundToInt(26.0f * scale),
+        canopyRect.getY() + juce::roundToInt(14.0f * scale), // Raised from 26
         canopyKnobSize,
         canopyKnobSize);
     canopySlider.setBounds(canopySliderBounds);
@@ -1333,7 +1452,7 @@ void RootFlowAudioProcessorEditor::resized()
     const int instabilityKnobSize = juce::roundToInt(58.0f * scale);
     auto instabilitySliderBounds = juce::Rectangle<int>(
         instabilityRect.getX() + juce::roundToInt(14.0f * scale),
-        instabilityRect.getY() + juce::roundToInt(28.0f * scale),
+        instabilityRect.getY() + juce::roundToInt(12.0f * scale), // Raised from 20
         instabilityKnobSize,
         instabilityKnobSize);
     instabilitySlider.setBounds(instabilitySliderBounds);
@@ -1346,11 +1465,11 @@ void RootFlowAudioProcessorEditor::resized()
     const int macroPodWidth = juce::roundToInt(146.0f * scale);
     const int macroPodHeight = juce::roundToInt(68.0f * scale);
     const int macroKnobSize = juce::roundToInt(46.0f * scale);
-    const int macroKnobY = headerBoardRect.getY() + juce::roundToInt(64.0f * scale);
+    const int macroKnobY = headerBoardRect.getY() + juce::roundToInt(72.0f * scale);
 
     atmosRect = {
         headerBoardRect.getX() + juce::roundToInt(18.0f * scale),
-        headerBoardRect.getY() + juce::roundToInt(48.0f * scale),
+        headerBoardRect.getY() + juce::roundToInt(62.0f * scale),
         macroPodWidth,
         macroPodHeight
     };
@@ -1361,7 +1480,7 @@ void RootFlowAudioProcessorEditor::resized()
 
     seasonsRect = {
         headerBoardRect.getRight() - macroPodWidth - juce::roundToInt(18.0f * scale),
-        headerBoardRect.getY() + juce::roundToInt(48.0f * scale),
+        headerBoardRect.getY() + juce::roundToInt(62.0f * scale),
         macroPodWidth,
         macroPodHeight
     };
@@ -1396,75 +1515,111 @@ void RootFlowAudioProcessorEditor::resized()
     juce::Rectangle<int> moduleRects[] = { bloomRect, rainRect, sunRect };
     juce::Slider* fxSliders[] = { &bloomSlider, &rainSlider, &sunSlider };
     juce::Label* fxLabels[] = { &bloomLabel, &rainLabel, &sunLabel };
-    int fxKnobSize = juce::roundToInt(108.0f * scale);
+    int fxKnobSize = juce::roundToInt(72.0f * scale); // Compact FX Knobs (was 108)
 
     for (int i = 0; i < 3; ++i)
     {
         auto module = moduleRects[i];
         auto sliderBounds = juce::Rectangle<int>(module.getCentreX() - fxKnobSize / 2,
-                                                 module.getY() + juce::roundToInt(58.0f * scale),
+                                                 module.getY() + juce::roundToInt(32.0f * scale),
                                                  fxKnobSize, fxKnobSize);
         fxSliders[i]->setBounds(sliderBounds);
-        fxLabels[i]->setBounds(sliderBounds.getX() - 16, sliderBounds.getBottom() + juce::roundToInt(6.0f * scale),
+        fxLabels[i]->setBounds(sliderBounds.getX() - 16, sliderBounds.getBottom() + juce::roundToInt(4.0f * scale),
                                sliderBounds.getWidth() + 32, sideLabelHeight);
         fxLabels[i]->setFont(juce::FontOptions((float) juce::roundToInt(14.0f * scale)).withStyle("Bold"));
     }
 
-    if (isKeyboardDrawerAvailable())
-    {
-        const int headerTop = headerBoardRect.getY() + juce::roundToInt(12.0f * scale);
-        const int controlHeight = juce::roundToInt(28.0f * scale);
-        const int presetWidth = juce::roundToInt(172.0f * scale);
-        const int presetButtonWidth = juce::roundToInt(58.0f * scale);
-        const int deleteButtonWidth = juce::roundToInt(52.0f * scale);
-        const int smallButtonWidth = juce::roundToInt(66.0f * scale);
-        const int controlGap = juce::roundToInt(6.0f * scale);
-        const int toneButtonWidth = juce::roundToInt(64.0f * scale);
-        const int buttonWidth = juce::roundToInt(72.0f * scale);
-        const int buttonHeight = controlHeight;
-        keyboardDrawerButton.setBounds(headerBoardRect.getRight() - buttonWidth - juce::roundToInt(14.0f * scale),
-                                       headerTop,
-                                       buttonWidth,
-                                       buttonHeight);
-        testToneButton.setBounds(keyboardDrawerButton.getX() - controlGap - toneButtonWidth,
-                                 headerTop,
-                                 toneButtonWidth,
-                                 controlHeight);
-        midiClearButton.setBounds(testToneButton.getX() - controlGap - smallButtonWidth,
-                                  headerTop,
-                                  smallButtonWidth,
-                                  controlHeight);
-        mpkDefaultButton.setBounds(midiClearButton.getX() - controlGap - smallButtonWidth,
-                                   headerTop,
-                                   smallButtonWidth,
-                                   controlHeight);
-        midiLearnButton.setBounds(mpkDefaultButton.getX() - controlGap - smallButtonWidth,
-                                  headerTop,
-                                  smallButtonWidth,
-                                  controlHeight);
-        presetBox.setBounds(headerBoardRect.getX() + juce::roundToInt(16.0f * scale),
-                            headerTop,
-                            presetWidth,
-                            controlHeight);
+    // --- UNIFIED HEADER LAYOUT ---
+    const int controlHeight = juce::roundToInt(28.0f * scale);
+    const int lane1Top = headerBoardRect.getY() + juce::roundToInt(10.0f * scale);
+    const int lane2Top = lane1Top + controlHeight + juce::roundToInt(10.0f * scale);
+    const int controlGap = juce::roundToInt(6.0f * scale);
+    const int presetWidth = juce::roundToInt(184.0f * scale);
+    const int smallButtonWidth = juce::roundToInt(66.0f * scale);
 
-        mutateButton.setBounds(presetBox.getRight() + controlGap,
-                               headerTop,
-                               juce::roundToInt(84.0f * scale),
+    // --- LANE 1: GLOBAL & PRESETS (HEADER) ---
+    const int waveWidth = juce::roundToInt(scale * 84.0f);
+    waveSelector.setBounds(headerBoardRect.getX() + juce::roundToInt(16.0f * scale),
+                           lane1Top,
+                           waveWidth,
+                           controlHeight);
+
+    presetBox.setBounds(waveSelector.getRight() + controlGap,
+                        lane1Top,
+                        presetWidth,
+                        controlHeight);
+
+    mutateButton.setBounds(presetBox.getRight() + controlGap,
+                           lane1Top,
+                           juce::roundToInt(84.0f * scale),
+                           controlHeight);
+
+    presetSaveButton.setBounds(mutateButton.getRight() + controlGap,
+                               lane1Top,
+                               juce::roundToInt(58.0f * scale),
+                               controlHeight);
+    presetDeleteButton.setBounds(presetSaveButton.getRight() + controlGap,
+                                 lane1Top,
+                                 juce::roundToInt(52.0f * scale),
+                                 controlHeight);
+
+    // Other buttons on the right of Header
+    int rightButtonX = headerBoardRect.getRight() - juce::roundToInt(16.0f * scale);
+    
+    auto placeRight = [&](juce::Component& c, int w) {
+        rightButtonX -= w;
+        c.setBounds(rightButtonX, lane1Top, w, controlHeight);
+        rightButtonX -= controlGap;
+    };
+
+    if (isKeyboardDrawerAvailable())
+        placeRight(keyboardDrawerButton, juce::roundToInt(72.0f * scale));
+    else
+        keyboardDrawerButton.setVisible(false);
+    
+    placeRight(testToneButton, juce::roundToInt(64.0f * scale));
+    placeRight(midiClearButton, smallButtonWidth);
+    placeRight(mpkDefaultButton, smallButtonWidth);
+    placeRight(midiLearnButton, smallButtonWidth);
+
+    // --- BIO-SEQUENCER (DEDICATED PANEL) ---
+    const int seqLaneTop = sequencerBoardRect.getY() + juce::roundToInt(24.0f * scale);
+    const int seqToggleWidth = juce::roundToInt(scale * 86.0f);
+    const int seqRateWidth = juce::roundToInt(scale * 74.0f);
+    const int seqStepsWidth = juce::roundToInt(scale * 80.0f);
+    
+    seqToggle.setBounds(sequencerBoardRect.getX() + juce::roundToInt(16.0f * scale),
+                         seqLaneTop - juce::roundToInt(4.0f * scale),
+                         seqToggleWidth,
+                         controlHeight);
+
+    seqRateSelector.setBounds(seqToggle.getRight() + controlGap,
+                               seqLaneTop - juce::roundToInt(4.0f * scale),
+                               seqRateWidth,
                                controlHeight);
 
-        presetSaveButton.setBounds(mutateButton.getRight() + controlGap,
-                                   headerTop,
-                                   presetButtonWidth,
-                                   controlHeight);
-        presetDeleteButton.setBounds(presetSaveButton.getRight() + controlGap,
-                                     headerTop,
-                                     deleteButtonWidth,
-                                     controlHeight);
+    seqStepsSelector.setBounds(seqRateSelector.getRight() + controlGap,
+                                seqLaneTop - juce::roundToInt(4.0f * scale),
+                                seqStepsWidth,
+                                controlHeight);
 
-        const int drawerMargin = juce::roundToInt(8.0f * scale);
-        const int drawerHeight = juce::roundToInt(168.0f * scale);
-        const int hiddenY = innerRect.getBottom() + juce::roundToInt(20.0f * scale);
-        const int visibleY = innerRect.getBottom() - drawerHeight - drawerMargin;
+    // Grid: Extended to fill the remaining horizontal space in the panel
+    const int gridLeft = seqStepsSelector.getRight() + controlGap * 3;
+    const int gridRight = sequencerBoardRect.getRight() - juce::roundToInt(20.0f * scale);
+    
+    sequencerRect = juce::Rectangle<int>(
+        gridLeft,
+        seqLaneTop,
+        gridRight - gridLeft,
+        juce::roundToInt(24.0f * scale)
+    );
+
+    if (isKeyboardDrawerAvailable())
+    {
+        const int drawerMargin = juce::roundToInt(4.0f * scale);
+        const int drawerHeight = juce::roundToInt(108.0f * scale); // Slimmer Keyboard
+        const int hiddenY = bounds.getBottom() + juce::roundToInt(10.0f * scale);
+        const int visibleY = bounds.getBottom() - drawerHeight - drawerMargin;
         const int drawerY = juce::roundToInt(hiddenY + (visibleY - hiddenY) * keyboardDrawerOpenAmount);
 
         keyboardDrawerRect = {
@@ -1483,45 +1638,6 @@ void RootFlowAudioProcessorEditor::resized()
     }
     else
     {
-        const int headerTop = headerBoardRect.getY() + juce::roundToInt(12.0f * scale);
-        const int controlHeight = juce::roundToInt(28.0f * scale);
-        const int presetWidth = juce::roundToInt(172.0f * scale);
-        const int presetButtonWidth = juce::roundToInt(58.0f * scale);
-        const int deleteButtonWidth = juce::roundToInt(52.0f * scale);
-        const int smallButtonWidth = juce::roundToInt(70.0f * scale);
-        const int controlGap = juce::roundToInt(8.0f * scale);
-        presetBox.setBounds(headerBoardRect.getX() + juce::roundToInt(16.0f * scale),
-                            headerTop,
-                            presetWidth,
-                            controlHeight);
-
-        mutateButton.setBounds(presetBox.getRight() + controlGap,
-                               headerTop,
-                               juce::roundToInt(84.0f * scale),
-                               controlHeight);
-
-        presetSaveButton.setBounds(mutateButton.getRight() + controlGap,
-                                   headerTop,
-                                   presetButtonWidth,
-                                   controlHeight);
-        presetDeleteButton.setBounds(presetSaveButton.getRight() + controlGap,
-                                     headerTop,
-                                     deleteButtonWidth,
-                                     controlHeight);
-        midiLearnButton.setBounds(headerBoardRect.getRight() - juce::roundToInt(16.0f * scale) - smallButtonWidth * 3 - controlGap * 2,
-                                  headerTop,
-                                  smallButtonWidth,
-                                  controlHeight);
-        mpkDefaultButton.setBounds(midiLearnButton.getRight() + controlGap,
-                                   headerTop,
-                                   smallButtonWidth,
-                                   controlHeight);
-        midiClearButton.setBounds(mpkDefaultButton.getRight() + controlGap,
-                                   headerTop,
-                                   smallButtonWidth,
-                                   controlHeight);
-        testToneButton.setVisible(false);
-        keyboardDrawerButton.setVisible(false);
         keyboardDrawer.setVisible(false);
         keyboardDrawerRect = {};
     }
@@ -1577,6 +1693,13 @@ void RootFlowAudioProcessorEditor::timerCallback()
     visualizerState.rain = parameterValue("rain");
     visualizerState.sun = parameterValue("sun");
     visualizerState.ecoSystem = parameterValue("ecoSystem");
+    
+    // Bio-Sequencer State
+    visualizerState.currentSequencerStep = audioProcessor.currentSequencerStep;
+    visualizerState.sequencerOn = (parameterValue("sequencerOn") > 0.5f);
+    for (int i = 0; i < 16; ++i)
+        visualizerState.sequencerStepActive[(size_t)i] = audioProcessor.sequencerSteps[(size_t)i].active;
+
     visualizer.pushVisualizerState(visualizerState);
     smoothedUiEnergy += (dynamicEnergy - smoothedUiEnergy) * 0.15f; // Faster reactivity
     uiPulsePhase += 0.045f + smoothedUiEnergy * 0.10f;
@@ -1745,10 +1868,18 @@ void RootFlowAudioProcessorEditor::toggleKeyboardDrawer()
 
     keyboardDrawerTarget = keyboardDrawerTarget > 0.5f ? 0.0f : 1.0f;
     keyboardDrawer.setVisible(true);
+    
+    // SLIM SLIDE-UP Window Extension
     if (keyboardDrawerTarget > 0.5f)
+    {
+        setSize(900, 640 + 94); // Minimal extension
         grabKeyboardFocus();
+    }
     else
+    {
+        setSize(900, 640);
         releaseVirtualKeyboardNotes();
+    }
 }
 
 bool RootFlowAudioProcessorEditor::isKeyboardDrawerAvailable() const noexcept
@@ -3137,3 +3268,5 @@ void RootFlowAudioProcessorEditor::setupLabel(juce::Label& l, bool primary)
     }
     l.setJustificationType(juce::Justification::centred);
 }
+
+

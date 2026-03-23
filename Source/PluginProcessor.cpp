@@ -2,6 +2,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include <cmath>
+#include <algorithm>
 
 namespace
 {
@@ -60,14 +61,16 @@ SeasonMorph getSeasonMorph(float value) noexcept
     return morph;
 }
 
-constexpr std::array<const char*, 16> presetParameterIDs {
+constexpr std::array<const char*, 21> presetParameterIDs {
     "rootDepth", "rootSoil", "rootAnchor",
     "sapFlow", "sapVitality", "sapTexture",
     "pulseRate", "pulseBreath", "pulseGrowth",
     "canopy", "atmosphere",
     "instability",
     "bloom", "rain", "sun",
-    "ecoSystem"
+    "ecoSystem",
+    "sequencerOn", "sequencerRate", "sequencerSteps", "sequencerGate",
+    "oscWave"
 };
 
 const std::array<FactoryPreset, 80> factoryPresets {{
@@ -273,6 +276,15 @@ RootFlowAudioProcessor::RootFlowAudioProcessor()
     resetMidiExpressionState();
     resetToDefaultMpkMiniMappings();
 
+    // Default Bio-Sequencer Pattern
+    for (int i = 0; i < 16; ++i)
+    {
+        sequencerSteps[i].active = (i % 2 == 0); // Trigger every other step
+        sequencerSteps[i].velocity = 0.6f + (i % 4 == 0 ? 0.3f : 0.0f);
+    }
+
+    resetSequencer();
+
     for (const auto* paramID : presetParameterIDs)
         tree.addParameterListener(paramID, this);
 
@@ -313,6 +325,16 @@ juce::AudioProcessorValueTreeState::ParameterLayout RootFlowAudioProcessor::crea
     addParam("rain", "Rain Density", 0.0f);
     addParam("sun", "Sun Flare", 0.0f);
     addParam("ecoSystem", "Seasons", 0.34f);
+    
+    // Bio-Sequencer
+    params.push_back(std::make_unique<juce::AudioParameterBool>(juce::ParameterID("sequencerOn", 1), "Sequencer On", false));
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID("sequencerRate", 1), "Seq Rate", 
+                                                                  juce::StringArray { "1/4", "1/8", "1/16", "1/32" }, 2));
+    params.push_back(std::make_unique<juce::AudioParameterInt>(juce::ParameterID("sequencerSteps", 1), "Seq Steps", 4, 16, 8));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID("sequencerGate", 1), "Seq Gate", 0.1f, 1.0f, 0.5f));
+    
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID("oscWave", 1), "Waveform", 
+                                                                  juce::StringArray { "Sine", "Saw", "Pulse" }, 0));
 
     return { params.begin(), params.end() };
 }
@@ -447,18 +469,18 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                             + seasonMorph.winter * winterOffset);
     };
 
-    const float rootDepth = emphasizeMacroResponse(seasonBlend(rootDepthBase, 0.14f, 0.06f, 0.10f, -0.22f), 0.02f);
-    const float rootSoil = emphasizeMacroResponse(seasonBlend(rootSoilBase, -0.18f, -0.06f, 0.30f, 0.10f), 0.03f);
-    const float rootAnchor = emphasizeMacroResponse(seasonBlend(rootAnchorBase, -0.32f, -0.10f, 0.18f, 0.36f), 0.02f);
-    const float sapFlow = emphasizeMacroResponse(seasonBlend(sapFlowBase, 0.18f, 0.16f, 0.00f, -0.22f), 0.24f);
-    const float sapVitality = emphasizeMacroResponse(seasonBlend(sapVitalityBase, 0.28f, 0.14f, -0.06f, -0.28f), 0.24f);
-    const float sapTexture = emphasizeMacroResponse(seasonBlend(sapTextureBase, -0.10f, 0.06f, 0.32f, 0.14f), 0.24f);
-    const float pulseRate = emphasizeMacroResponse(seasonBlend(pulseRateBase, 0.36f, 0.12f, -0.14f, -0.30f), 0.010f);
-    const float pulseBreath = emphasizeMacroResponse(seasonBlend(pulseBreathBase, -0.18f, -0.06f, 0.24f, 0.12f), 0.016f);
-    const float pulseGrowth = emphasizeMacroResponse(seasonBlend(pulseGrowthBase, 0.36f, 0.10f, -0.06f, -0.30f), 0.010f);
-    const float canopy = emphasizeMacroResponse(seasonBlend(canopyBase, 0.06f, 0.14f, -0.02f, -0.20f), 0.22f);
-    const float atmosphereAmount = shapeAtmosphereResponse(seasonBlend(atmosphereBase, 0.22f, 0.32f, 0.24f, 0.40f));
-    const float instabilityAmount = emphasizeMacroResponse(seasonBlend(instabilityBase, 0.02f, 0.08f, 0.14f, -0.10f), 0.04f);
+    const float rootDepth = emphasizeMacroResponse(seasonBlend(rootDepthBase, 0.22f, 0.12f, 0.18f, -0.32f), 0.015f);
+    const float rootSoil = emphasizeMacroResponse(seasonBlend(rootSoilBase, -0.12f, -0.04f, 0.44f, 0.18f), 0.018f);
+    const float rootAnchor = emphasizeMacroResponse(seasonBlend(rootAnchorBase, -0.42f, -0.15f, 0.24f, 0.48f), 0.012f);
+    const float sapFlow = emphasizeMacroResponse(seasonBlend(sapFlowBase, 0.28f, 0.24f, 0.04f, -0.32f), 0.12f);
+    const float sapVitality = emphasizeMacroResponse(seasonBlend(sapVitalityBase, 0.44f, 0.28f, -0.12f, -0.44f), 0.10f);
+    const float sapTexture = emphasizeMacroResponse(seasonBlend(sapTextureBase, -0.05f, 0.12f, 0.48f, 0.22f), 0.08f);
+    const float pulseRate = emphasizeMacroResponse(seasonBlend(pulseRateBase, 0.48f, 0.18f, -0.22f, -0.44f), 0.008f);
+    const float pulseBreath = emphasizeMacroResponse(seasonBlend(pulseBreathBase, -0.24f, -0.08f, 0.36f, 0.24f), 0.012f);
+    const float pulseGrowth = emphasizeMacroResponse(seasonBlend(pulseGrowthBase, 0.48f, 0.14f, -0.12f, -0.44f), 0.008f);
+    const float canopy = emphasizeMacroResponse(seasonBlend(canopyBase, 0.12f, 0.22f, -0.04f, -0.32f), 0.09f);
+    const float atmosphereAmount = shapeAtmosphereResponse(seasonBlend(atmosphereBase, 0.32f, 0.44f, 0.36f, 0.52f));
+    const float instabilityAmount = emphasizeMacroResponse(seasonBlend(instabilityBase, 0.05f, 0.12f, 0.22f, -0.14f), 0.025f);
     const float bloomAmount = applySeasonalFxScale(bloomBase, seasonMorph, 0.22f, 0.14f, -0.10f, -0.22f, 0.03f);
     const float rainAmount = applySeasonalFxScale(rainBase, seasonMorph, 0.08f, -0.02f, 0.38f, 0.12f, 0.016f);
     const float sunAmount = applySeasonalFxScale(sunBase, seasonMorph, 0.40f, 0.16f, 0.00f, -0.16f, 0.006f);
@@ -475,6 +497,8 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             voice->setGrowth(pulseGrowth);
             voice->setPulseRate(pulseRate);
             voice->setPulseAmount(pulseBreath);
+            voice->setCanopy(canopy);
+            voice->setWaveform((int)(*tree.getRawParameterValue("oscWave")));
         }
     }
 
@@ -497,6 +521,7 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     }
 
     handleIncomingMidiMessages(midiMessages);
+    updateSequencer(numSamples, midiMessages);
     keyboardState.processNextMidiBuffer(midiMessages, 0, numSamples, true);
     synth.renderNextBlock(buffer, midiMessages, 0, numSamples);
     if (drySafetyBuffer.getNumChannels() != numChannels || drySafetyBuffer.getNumSamples() != numSamples)
@@ -1375,6 +1400,26 @@ void RootFlowAudioProcessor::handleIncomingMidiMessages(juce::MidiBuffer& midiMe
     for (const auto metadata : midiMessages)
     {
         const auto message = metadata.getMessage();
+
+        if (message.isNoteOn())
+        {
+            const juce::ScopedLock sl (noteLock);
+            int note = message.getNoteNumber();
+            if (std::find(heldMidiNotes.begin(), heldMidiNotes.end(), note) == heldMidiNotes.end())
+                heldMidiNotes.push_back(note);
+        }
+        else if (message.isNoteOff())
+        {
+            const juce::ScopedLock sl (noteLock);
+            int note = message.getNoteNumber();
+            heldMidiNotes.erase(std::remove(heldMidiNotes.begin(), heldMidiNotes.end(), note), heldMidiNotes.end());
+        }
+        else if (message.isAllNotesOff())
+        {
+            const juce::ScopedLock sl (noteLock);
+            heldMidiNotes.clear();
+        }
+
         bool wasMapped = false;
 
         if (message.isController())
@@ -1959,7 +2004,107 @@ void RootFlowAudioProcessor::setStateInformation (const void* data, int sizeInBy
         }
 }
 
+void RootFlowAudioProcessor::resetSequencer()
+{
+    currentSequencerStep = 0;
+    sampleCounter = 0;
+    lastSequencerNote = -1;
+    sequencerNoteActive = false;
+    samplesPerStep = 44100.0 * 0.125;
+}
+
+void RootFlowAudioProcessor::updateSequencer(int numSamples, juce::MidiBuffer& midiMessages)
+{
+    const bool isEnabled = *tree.getRawParameterValue("sequencerOn") > 0.5f;
+    if (! isEnabled)
+    {
+        if (sequencerNoteActive)
+        {
+            midiMessages.addEvent(juce::MidiMessage::noteOff(1, lastSequencerNote), 0);
+            sequencerNoteActive = false;
+        }
+        return;
+    }
+
+    const int rateIndex = (int)*tree.getRawParameterValue("sequencerRate");
+    const int numSteps = (int)*tree.getRawParameterValue("sequencerSteps");
+    const float gateParam = *tree.getRawParameterValue("sequencerGate");
+
+    // Modulation of speed and gate by plantEnergy
+    const float energy = currentBioFeedback.plantEnergy;
+    const double speedMod = 0.85 + energy * 1.5; // Up to 2.35x speed at full energy
+    const float modulatedGate = juce::jlimit(0.05f, 0.95f, gateParam * (1.0f + energy * 0.4f));
+
+    double bpm = 120.0;
+    if (auto* playHead = getPlayHead())
+    {
+        if (auto position = playHead->getPosition())
+        {
+            if (auto bpmOpt = position->getBpm())
+                bpm = *bpmOpt;
+        }
+    }
+
+    const double sr = getSampleRate() > 0 ? getSampleRate() : 44100.0;
+    const double samplesPerBeat = (sr * 60.0) / bpm;
+    
+    // Rate divisions
+    double division = 0.25; // 1/16th
+    if (rateIndex == 0)      division = 1.0;   // 1/4
+    else if (rateIndex == 1)  division = 0.5;   // 1/8
+    else if (rateIndex == 3) division = 0.125; // 1/32
+
+    samplesPerStep = (samplesPerBeat * division) / speedMod;
+    sequencerGateSamples = samplesPerStep * modulatedGate;
+
+    for (int i = 0; i < numSamples; ++i)
+    {
+        sampleCounter++;
+
+        if (sampleCounter >= samplesPerStep)
+        {
+            sampleCounter -= samplesPerStep;
+
+            if (sequencerNoteActive)
+            {
+                midiMessages.addEvent(juce::MidiMessage::noteOff(1, lastSequencerNote), i);
+                sequencerNoteActive = false;
+            }
+
+            currentSequencerStep = (currentSequencerStep + 1) % juce::jmax(1, numSteps);
+            
+            auto& step = sequencerSteps[(size_t)currentSequencerStep];
+            if (step.active)
+            {
+                const juce::ScopedLock sl (noteLock);
+                if (! heldMidiNotes.empty())
+                {
+                    currentArpIndex = (currentArpIndex + 1) % (int)heldMidiNotes.size();
+                    lastSequencerNote = heldMidiNotes[(size_t)currentArpIndex];
+                    midiMessages.addEvent(juce::MidiMessage::noteOn(1, lastSequencerNote, step.velocity), i);
+                    sequencerNoteActive = true;
+                }
+                else
+                {
+                    // If no keys held, play a base note modulated by energy or remain silent
+                    // We'll play a base note so it's not totally dead if SEQ is ON
+                    lastSequencerNote = 48 + (energy * 12.0f); 
+                    midiMessages.addEvent(juce::MidiMessage::noteOn(1, lastSequencerNote, step.velocity * 0.5f), i);
+                    sequencerNoteActive = true;
+                }
+            }
+        }
+
+        if (sequencerNoteActive && sampleCounter >= sequencerGateSamples)
+        {
+            midiMessages.addEvent(juce::MidiMessage::noteOff(1, lastSequencerNote), i);
+            sequencerNoteActive = false;
+        }
+    }
+}
+
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new RootFlowAudioProcessor();
 }
+

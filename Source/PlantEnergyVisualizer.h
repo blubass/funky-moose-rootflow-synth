@@ -31,6 +31,9 @@ public:
         float rain = 0.0f;
         float sun = 0.0f;
         float ecoSystem = 0.5f;
+        int currentSequencerStep = -1;
+        bool sequencerOn = false;
+        std::array<bool, 16> sequencerStepActive {};
     };
 
     enum class SpeciesMode
@@ -188,6 +191,7 @@ public:
         drawMirroredEnergySeed(g, graphArea, historyA, 1.00f, 0.0f, energySeedPhase);
         drawMyceliumNetwork(g, graphArea);
         drawSporeField(g, graphArea);
+        drawBioSequencer(g, graphArea);
     }
 
     void timerCallback() override
@@ -492,6 +496,51 @@ private:
         historyWritePosition = (historyWritePosition + 1) % historySize;
 
         repaint();
+    }
+
+    void drawBioSequencer(juce::Graphics& g, juce::Rectangle<float> area)
+    {
+        if (! currentState.sequencerOn)
+            return;
+
+        const int numSteps = 16;
+        const float radius = juce::jmin(area.getWidth(), area.getHeight()) * 0.44f;
+        const juce::Point<float> center = area.getCentre();
+        const float energy = currentState.plantEnergy;
+        
+        for (int i = 0; i < numSteps; ++i)
+        {
+            const float angle = (float)i * juce::MathConstants<float>::twoPi / (float)numSteps - juce::MathConstants<float>::halfPi;
+            const float x = center.x + std::cos(angle) * (radius + std::sin(ambientFieldPhase * 0.4f + (float)i * 0.5f) * 4.0f * energy);
+            const float y = center.y + std::sin(angle) * (radius + std::cos(ambientFieldPhase * 0.4f + (float)i * 0.5f) * 4.0f * energy);
+            
+            const bool isActive = currentState.sequencerStepActive[(size_t)i];
+            const bool isCurrent = (i == currentState.currentSequencerStep);
+            
+            float dotSize = isActive ? 3.5f : 1.5f;
+            if (isCurrent) dotSize *= 1.8f;
+            
+            juce::Colour dotCol;
+            if (isCurrent) dotCol = juce::Colours::white;
+            else if (isActive) dotCol = juce::Colour(110, 255, 140).withAlpha(0.4f + energy * 0.4f);
+            else dotCol = juce::Colour(110, 255, 140).withAlpha(0.1f);
+            
+            if (isActive)
+            {
+                const float pulse = 1.0f + 0.3f * std::sin(ambientFieldPhase * 3.0f + (float)i);
+                dotSize *= (0.85f + pulse * 0.15f * energy);
+            }
+
+            g.setColour(dotCol);
+            g.fillEllipse(x - dotSize * 0.5f, y - dotSize * 0.5f, dotSize, dotSize);
+            
+            if (isCurrent)
+            {
+                g.setColour(dotCol.withAlpha(0.2f * energy));
+                const float ringSize = dotSize * (2.2f + std::sin(ambientFieldPhase * 4.0f) * 0.5f);
+                g.drawEllipse(x - ringSize * 0.5f, y - ringSize * 0.5f, ringSize, ringSize, 0.8f);
+            }
+        }
     }
 
     void writeHistorySample(HistoryBuffer& history, float value)

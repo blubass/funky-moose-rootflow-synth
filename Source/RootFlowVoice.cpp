@@ -9,9 +9,10 @@ RootFlowVoice::RootFlowVoice()
     driftLfo.initialise(sine);
     oscSub.initialise(sine);
 
-    filter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
-    filter.setResonance(0.707f); 
-
+    filterL.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
+    filterL.setResonance(0.707f); 
+    filterR.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
+    filterR.setResonance(0.707f);
     adsrParams.attack = 0.015f;  // 15ms Attack
     adsrParams.decay = 0.18f;
     adsrParams.sustain = 0.72f;
@@ -29,14 +30,18 @@ void RootFlowVoice::setSampleRate(double sr, int blockSize)
     sampleRate = sr;
 
     juce::dsp::ProcessSpec spec{ sr, (juce::uint32) juce::jmax(blockSize, 1), 1 };
-    osc1.prepare(sr);
-    osc2.prepare(sr);
+    for (int i = 0; i < maxUnison; ++i)
+        unisonOscillators[i].prepare(sr);
+    
     oscSub.prepare(spec);
     lfo.prepare(spec);
     driftLfo.prepare(spec);
-    filter.prepare(spec);
-    filter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
-    filter.setResonance(0.707f);
+    filterL.prepare(spec);
+    filterL.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
+    filterL.setResonance(0.707f);
+    filterR.prepare(spec);
+    filterR.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
+    filterR.setResonance(0.707f);
     
     // Noise Filter (Lowpass to keep it organic)
     *noiseFilter.coefficients = *juce::dsp::IIR::Coefficients<float>::makeLowPass(sr, 1200.0f);
@@ -50,6 +55,7 @@ void RootFlowVoice::setSampleRate(double sr, int blockSize)
     smoothedPulseRate.reset(sr, 0.02);
     smoothedPulseAmount.reset(sr, 0.02);
     smoothedGrowth.reset(sr, 0.02);
+    smoothedCanopy.reset(sr, 0.02);
     smoothedEnergy.reset(sr, 0.05);
     
     // Bio-Filter states
@@ -66,6 +72,17 @@ void RootFlowVoice::startNote(int midiNoteNumber, float velocity,
     auto& r = juce::Random::getSystemRandom();
     voicePan = r.nextFloat() * 2.0f - 1.0f;
     voiceDetuneRatio = r.nextFloat() * 2.0f - 1.0f;
+
+    // Initialize Unison Offsets & Phases
+    for (int i = 0; i < unisonVoices; ++i)
+    {
+        if (unisonVoices > 1)
+            unisonOffsets[i] = (float(i) / float(unisonVoices - 1)) - 0.5f;
+        else
+            unisonOffsets[i] = 0.0f;
+
+        unisonOscillators[i].setPhase(r.nextFloat());
+    }
     
     // random drift speed
     driftLfo.setFrequency(0.05f + r.nextFloat() * 0.25f);
@@ -90,7 +107,8 @@ void RootFlowVoice::channelPressureChanged(int) {}
 void RootFlowVoice::reset()
 {
     adsr.reset();
-    filter.reset();
+    filterL.reset();
+    filterR.reset();
 }
 
 void RootFlowVoice::recoverFromSilentState()
@@ -116,12 +134,12 @@ void RootFlowVoice::renderNextBlock(juce::AudioBuffer<float>& buffer,
     smoothedEnergy.setTargetValue(targetEnergy);
     float currentEnergy = smoothedEnergy.getNextValue();
 
-    float masterScale = level * 0.058f * (0.65f + currentEnergy * 0.35f);
+    float masterScale = level * 0.088f * (0.58f + currentEnergy * 0.42f);
     
-    // Pre-calculate block-level constants
-    float macroDetuneAmt = (currentDepth * 0.045f) + (growth * 0.08f);
-    float macroDriftAmt = (0.0018f) + (growth * 0.0045f);
-    float macroSpreadAmt = (currentDepth * 0.55f) + (growth * 0.65f);
+    // Extreme 'BITE' Scaling (Parabolic Mapping) - STABILIZED
+    float macroDetuneAmt = (currentDepth * currentDepth * 0.165f) + (growth * growth * 0.225f);
+    float macroDriftAmt = (0.0030f) + (growth * 0.0085f);
+    float macroSpreadAmt = (currentDepth * 0.94f) + (growth * 0.82f);
     
     lfo.setFrequency(juce::jmap(currentPulseR, 0.05f, 15.0f));
 
@@ -135,65 +153,122 @@ void RootFlowVoice::renderNextBlock(juce::AudioBuffer<float>& buffer,
         currentPulseR = smoothedPulseRate.getNextValue();
         currentPulseA = smoothedPulseAmount.getNextValue();
         growth = smoothedGrowth.getNextValue();
+        float currentCanopy = smoothedCanopy.getNextValue();
         currentEnergy = smoothedEnergy.getNextValue();
 
         // 2. Sub-Sample Parameter Updates (Every 16 samples)
         if ((subSampleCount++ & 15) == 0)
         {
             // Filter Update
-            float baseCutoff = 110.0f + (growth * 1400.0f) + (currentEnergy * 2600.0f);
-            float velMod = juce::jmap(level, 0.0f, 1.0f, 0.0f, 4200.0f);
-            filter.setCutoffFrequency(juce::jlimit(20.0f, 20000.0f, baseCutoff + velMod));
-            filter.setResonance(0.707f);
-
-            // Osc Frequency Update (Heavy Math)
-            float detuneInSemis = (voiceDetuneRatio * macroDetuneAmt * 1.15f) + (currentVital * 0.12f);
-            float driftInSemis = driftLfo.processSample(0.0f) * macroDriftAmt * 4.0f;
+            // Filter Update (Extreme Screaming/Punching Range) - SAFE MAX RESONANCE
+            float baseCutoff = 52.0f + (growth * growth * 3600.0f) + (currentEnergy * 5800.0f);
+            float velMod = juce::jmap(level, 0.0f, 1.0f, 0.0f, 8200.0f);
+            float finalCutoff = juce::jlimit(20.0f, 20000.0f, baseCutoff + velMod);
             
-            osc1.setFrequency(baseFrequency * std::exp2((detuneInSemis + driftInSemis) / 12.0f));
-            osc2.setFrequency(baseFrequency * std::exp2((-detuneInSemis - driftInSemis) / 12.0f));
-            oscSub.setFrequency(baseFrequency * 0.5f);
-            
-            masterScale = level * 0.058f * (0.65f + currentEnergy * 0.35f);
-        }
-
-        // 3. Audio Processing
+            // Resonance 'Scream' Mapping (MAX 0.88 for Stability)
+            float res = 0.707f + (currentEnergy * 0.173f); 
+            filterL.setCutoffFrequency(finalCutoff);
+            filterL.setResonance(res);
+            filterR.setCutoffFrequency(finalCutoff);
+            filterR.setResonance(res);
+        }     // Osc Frequency Update (Heavy Math)
         float lfoVal = lfo.processSample(0.0f);
         float env = adsr.getNextSample();
         
-        float s1 = osc1.nextSample();
-        float s2 = osc2.nextSample();
-        float sSub = oscSub.processSample(0.0f);
+        float leftSum = 0.0f;
+        float rightSum = 0.0f;
         
-        float subAmt = currentDepth * 0.44f;
-        float sample = (s1 + s2) * 0.28f + sSub * subAmt;
-        
-        // Anti-Denormal
-        sample += (noiseGen.nextFloat() * 2.0f - 1.0f) * 1e-18f;
+        float detuneBase = (voiceDetuneRatio * macroDetuneAmt * 1.15f) + (currentVital * 0.12f);
+        float driftInSemis = driftLfo.processSample(0.0f) * macroDriftAmt * 4.0f;
 
-        // 4. Resonant Filter (SVF, Q=0.707)
-        sample = filter.processSample(0, sample);
+        // Phase/Frequency Agitation (Vitality Instability) - RE-TUNED FOR STABILITY
+        float agitation = (currentVital * currentVital * 0.35f) + (growth * 0.12f);
 
-        // 5. TEXTURE (Smooth Saturation)
-        if (currentText > 0.12f)
+        // Bio-Dynamic Unison Params
+        float dynamicDetune = 0.008f + (currentEnergy * 0.042f);
+        float dynamicSpread = 0.22f + (currentEnergy * 0.78f);
+
+        for (int v = 0; v < unisonVoices; ++v)
         {
-            // Halve input for dynamics (User request)
-            float drive = (1.0f + (currentText - 0.12f) * 2.15f) * (1.0f + currentEnergy * 0.35f);
-            float x = sample * 0.5f * drive; 
-            sample = x / (1.0f + std::abs(x)); 
+            // Detune per Unison Voice (with unique micro-drift per voice)
+            float unisonDetuneInSemis = unisonOffsets[v] * dynamicDetune * 12.0f; 
+            float voiceDrift = driftInSemis * (1.0f + (float)v * 0.12f);
+            
+            // Apply agitation jitter for "Electric Life"
+            float jitter = (noiseGen.nextFloat() - 0.5f) * agitation;
+            float voiceFreq = baseFrequency * std::exp2((detuneBase + voiceDrift + unisonDetuneInSemis + jitter) / 12.0f);
+            
+            unisonOscillators[v].setFrequency(voiceFreq);
+            float osc = unisonOscillators[v].nextSample();
+
+            // Panning per Unison Voice (with randomized movement/bloom)
+            float panMovement = (noiseGen.nextFloat() - 0.5f) * 0.004f;
+            float voiceSpreadPan = 0.5f + (unisonOffsets[v] + panMovement) * dynamicSpread * 0.5f;
+            
+            leftSum += osc * (1.0f - voiceSpreadPan);
+            rightSum += osc * voiceSpreadPan;
         }
 
-        float amMod = 1.0f - (std::abs(lfoVal) * currentPulseA * 0.18f);
-        sample *= env * masterScale * amMod;
+        float sSub = oscSub.processSample(0.0f);
+        oscSub.setFrequency(baseFrequency * 0.5f);
         
-        // Final Safe Guard
-        sample = sample / (1.0f + std::abs(sample * 0.12f));
+        float subAmt = (currentDepth * currentDepth * 0.74f) + (currentEnergy * 0.18f);
+        
+        // Normalize by voices (Power preservation factor)
+        float normalization = 1.0f / std::sqrt((float)unisonVoices);
+        float leftOut = (leftSum * 0.42f * normalization) + (sSub * subAmt * 0.72f);
+        float rightOut = (rightSum * 0.42f * normalization) + (sSub * subAmt * 0.72f);
+        
+        // Anti-Denormal
+        float noise = (noiseGen.nextFloat() * 2.0f - 1.0f) * 1e-18f;
+        leftOut += noise;
+        rightOut += noise;
 
-        // 6. Stereo Panning
+        // 4. Resonant Filter (SVF) - Independent per channel for stereo
+        float L = filterL.processSample(0, leftOut);
+        float R = filterR.processSample(0, rightOut); 
+        
+        // 5. TEXTURE (Smooth Saturation) - BRUTAL DRIVE/CLIPPING
+        if (currentText > 0.02f)
+        {
+            float drive = (1.0f + (currentText * currentText * 10.5f)) * (1.2f + currentEnergy * 0.85f);
+            
+            auto saturate = [&](float& s) {
+                float x = s * 0.55f * drive;
+                s = x / (1.0f + std::abs(x));
+            };
+            
+            saturate(L);
+            saturate(R);
+        }
+
+        // 6. CANOPY AIR (One-Pole High Shelf) - STABILIZED SHIMMER
+        if (currentCanopy > 0.05f)
+        {
+            float airGain = currentCanopy * 0.65f;
+            float dL = L - lastLeftFilterOut;
+            float dR = R - lastRightFilterOut;
+            L = L + std::tanh(dL * airGain);
+            R = R + std::tanh(dR * airGain);
+        }
+        lastLeftFilterOut = L;
+        lastRightFilterOut = R;
+
+        float amMod = 1.0f - (std::abs(lfoVal) * currentPulseA * 0.18f);
+        float gain = env * masterScale * amMod;
+        
+        L *= gain;
+        R *= gain;
+
+        // Final Safe Guard
+        L = L / (1.0f + std::abs(L * 0.12f));
+        R = R / (1.0f + std::abs(R * 0.12f));
+
+        // 6. Stereo Master Panning (Global shift)
         float spreadPan = 0.5f + (voicePan * juce::jlimit(0.0f, 0.98f, macroSpreadAmt));
-        buffer.addSample(0, startSample + i, sample * (1.0f - spreadPan));
+        buffer.addSample(0, startSample + i, L * (1.0f - spreadPan));
         if (buffer.getNumChannels() > 1)
-            buffer.addSample(1, startSample + i, sample * spreadPan);
+            buffer.addSample(1, startSample + i, R * spreadPan);
 
         if (!adsr.isActive())
         {
@@ -211,3 +286,10 @@ void RootFlowVoice::setDepth(float v)    { smoothedDepth.setTargetValue(v); }
 void RootFlowVoice::setGrowth(float v)      { smoothedGrowth.setTargetValue(v); }
 void RootFlowVoice::setPulseRate(float v) { smoothedPulseRate.setTargetValue(v); }
 void RootFlowVoice::setPulseAmount(float v) { smoothedPulseAmount.setTargetValue(v); }
+void RootFlowVoice::setCanopy(float v) { smoothedCanopy.setTargetValue(v); }
+
+void RootFlowVoice::setWaveform(int typeIndex)
+{
+    for (int i = 0; i < maxUnison; ++i)
+        unisonOscillators[i].setWaveform(typeIndex);
+}

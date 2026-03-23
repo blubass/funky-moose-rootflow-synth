@@ -100,6 +100,7 @@ public:
     MidiActivitySnapshot getMidiActivitySnapshot() const noexcept;
     void setTestToneEnabled(bool shouldEnable) noexcept;
     bool isTestToneEnabled() const noexcept { return testToneEnabled.load(std::memory_order_relaxed) != 0; }
+    bool isSequencerEnabled() const noexcept { if (auto* p = tree.getRawParameterValue("sequencerOn")) return *p > 0.5f; return false; }
 
     // Spectrum Analysis for Visualizer
     static constexpr int fftOrder = 10;
@@ -256,6 +257,31 @@ private:
     std::array<float, fftSize / 2> scopeData {};
     std::array<std::array<float, fftSize / 2>, fftQueueCapacity> fftBlockQueue {};
     juce::AbstractFifo fftBlockFifo { fftQueueCapacity };
+    // --- Bio-Sequencer ---
+public:
+    struct SequencerStep
+    {
+        float velocity = 0.8f;
+        float probability = 1.0f;
+        bool active = true;
+    };
+
+    void updateSequencer(int numSamples, juce::MidiBuffer& midiMessages);
+    void resetSequencer();
+
+    std::array<SequencerStep, 16> sequencerSteps;
+    int currentSequencerStep = 0;
+private:
+    double samplesPerStep = 0.0;
+    double sampleCounter = 0.0;
+    int lastSequencerNote = -1;
+    bool sequencerNoteActive = false;
+    double sequencerGateSamples = 0.0;
+
+    std::vector<int> heldMidiNotes;
+    juce::CriticalSection noteLock;
+    int currentArpIndex = 0;
+
     int fifoIndex = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (RootFlowAudioProcessor)

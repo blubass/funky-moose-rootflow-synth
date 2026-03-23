@@ -26,6 +26,7 @@ public:
 private:
     void drawWoodFrame(juce::Graphics& g, juce::Rectangle<int> area);
     void drawHeader(juce::Graphics& g, juce::Rectangle<int> area);
+    void drawSequencerPanel(juce::Graphics& g, juce::Rectangle<int> area);
     void drawMainPanel(juce::Graphics& g, juce::Rectangle<int> area);
     void drawSectionPanel(juce::Graphics& g, juce::Rectangle<int> area, const juce::String& title);
     void drawCanopyPod(juce::Graphics& g, juce::Rectangle<int> area);
@@ -83,6 +84,7 @@ private:
     juce::MidiKeyboardComponent keyboardDrawer;
     juce::TextButton keyboardDrawerButton;
     juce::TextButton mutateButton;
+    juce::ComboBox waveSelector;
     PlantEnergyVisualizer visualizer;
     RootFlowLookAndFeel look;
     void loadAssets();
@@ -95,11 +97,12 @@ private:
     juce::Image mooseLogo;
 
     
-    juce::Rectangle<int> headerBoardRect, mainFieldRect, rootRect, sapRect, pulseRect, canopyRect, visualizerRect, visualizerFrameRect, keyboardDrawerRect;
+    juce::Rectangle<int> headerBoardRect, sequencerBoardRect, mainFieldRect, rootRect, sapRect, pulseRect, canopyRect, visualizerRect, visualizerFrameRect, keyboardDrawerRect;
     juce::Rectangle<int> bloomRect, rainRect, sunRect, innerRect;
     juce::Rectangle<int> atmosRect;
     juce::Rectangle<int> seasonsRect;
     juce::Rectangle<int> instabilityRect;
+    juce::Rectangle<int> sequencerRect;
 
     // ROOT Section
     juce::Slider rootDepthSlider, rootSoilSlider, rootAnchorSlider;
@@ -134,10 +137,22 @@ private:
     juce::Label titleLabel;
 
     using Attachment = juce::AudioProcessorValueTreeState::SliderAttachment;
+    using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
+    using ComboAttachment = juce::AudioProcessorValueTreeState::ComboBoxAttachment;
+
     std::unique_ptr<Attachment> rootDepthAtt, rootSoilAtt, rootAnchorAtt,
                                sapFlowAtt, sapVitalityAtt, sapTextureAtt,
                                pulseRateAtt, pulseBreathAtt, pulseGrowthAtt,
-                               canopyAtt, instabilityAtt, atmosAtt, seasonsAtt, bloomAtt, rainAtt, sunAtt;
+                               canopyAtt, atmosAtt, seasonsAtt,
+                               bloomAtt, rainAtt, sunAtt,
+                               instabilityAtt;
+    
+    std::unique_ptr<ButtonAttachment> seqOnAtt;
+    std::unique_ptr<ComboAttachment> seqRateAtt, waveAttachment;
+
+    juce::TextButton seqToggle;
+    juce::ComboBox seqRateSelector;
+    juce::ComboBox seqStepsSelector;
 
     bool standaloneWindowConfigured = false;
     float uiPulsePhase = 0.0f;
