@@ -75,14 +75,13 @@ constexpr std::array<const char*, 21> presetParameterIDs {
 
 const std::array<FactoryPreset, 80> factoryPresets {{
     { "ROOTFLOW INIT", { 0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.65f, 0.18f, 0.28f, 0.00f, 0.00f, 0.00f, 0.34f } },
-    // Friendly
-    { "MORNING DEW",   { 0.36f, 0.28f, 0.16f, 0.62f, 0.78f, 0.40f, 0.30f, 0.34f, 0.28f, 0.68f, 0.26f, 0.14f, 0.42f, 0.20f, 0.10f, 0.08f } },
-    { "SOFT SHOOTS",   { 0.42f, 0.30f, 0.24f, 0.54f, 0.72f, 0.30f, 0.24f, 0.32f, 0.26f, 0.62f, 0.18f, 0.10f, 0.20f, 0.12f, 0.06f, 0.12f } },
-    { "CLEARING LIGHT",{ 0.44f, 0.34f, 0.22f, 0.58f, 0.66f, 0.36f, 0.28f, 0.30f, 0.34f, 0.64f, 0.24f, 0.12f, 0.28f, 0.12f, 0.38f, 0.22f } },
-    { "MOSS LULLABY",  { 0.52f, 0.48f, 0.42f, 0.46f, 0.52f, 0.24f, 0.20f, 0.26f, 0.20f, 0.58f, 0.20f, 0.08f, 0.12f, 0.18f, 0.22f, 0.56f } },
-    { "VERNAL GLOW",   { 0.38f, 0.24f, 0.14f, 0.68f, 0.80f, 0.42f, 0.32f, 0.30f, 0.36f, 0.66f, 0.26f, 0.14f, 0.36f, 0.10f, 0.22f, 0.04f } },
-    { "GENTLE FERN",   { 0.30f, 0.22f, 0.12f, 0.64f, 0.82f, 0.30f, 0.18f, 0.24f, 0.18f, 0.60f, 0.20f, 0.08f, 0.18f, 0.08f, 0.04f, 0.18f } },
-    { "PETAL MORNING", { 0.32f, 0.24f, 0.14f, 0.72f, 0.86f, 0.38f, 0.26f, 0.28f, 0.22f, 0.64f, 0.28f, 0.10f, 0.34f, 0.06f, 0.18f, 0.14f } },
+    { "DEEP MYCELIUM",   { 0.36f, 0.28f, 0.16f, 0.62f, 0.78f, 0.40f, 0.30f, 0.34f, 0.28f, 0.68f, 0.26f, 0.14f, 0.42f, 0.20f, 0.10f, 0.08f } },
+    { "CHLOROPHYLL SCREAM", { 0.42f, 0.30f, 0.24f, 0.54f, 0.72f, 0.30f, 0.24f, 0.32f, 0.26f, 0.62f, 0.18f, 0.10f, 0.20f, 0.12f, 0.06f, 0.12f } },
+    { "PHOTOSYNTHESIS", { 0.44f, 0.34f, 0.22f, 0.58f, 0.66f, 0.36f, 0.28f, 0.30f, 0.34f, 0.64f, 0.24f, 0.12f, 0.28f, 0.12f, 0.38f, 0.22f } },
+    { "WOODLAND RAIN",  { 0.52f, 0.48f, 0.42f, 0.46f, 0.52f, 0.24f, 0.20f, 0.26f, 0.20f, 0.58f, 0.20f, 0.08f, 0.12f, 0.18f, 0.22f, 0.56f } },
+    { "ANCIENT OAK",    { 0.38f, 0.24f, 0.14f, 0.68f, 0.80f, 0.42f, 0.32f, 0.30f, 0.36f, 0.66f, 0.26f, 0.14f, 0.36f, 0.10f, 0.22f, 0.04f } },
+    { "NEURAL ROOT",    { 0.30f, 0.22f, 0.12f, 0.64f, 0.82f, 0.30f, 0.18f, 0.24f, 0.18f, 0.60f, 0.20f, 0.08f, 0.18f, 0.08f, 0.04f, 0.18f } },
+    { "MORNING DEW",    { 0.32f, 0.24f, 0.14f, 0.72f, 0.86f, 0.38f, 0.26f, 0.28f, 0.22f, 0.64f, 0.28f, 0.10f, 0.34f, 0.06f, 0.18f, 0.14f } },
     { "SILK CLEARING", { 0.40f, 0.28f, 0.18f, 0.58f, 0.74f, 0.28f, 0.22f, 0.30f, 0.24f, 0.56f, 0.18f, 0.06f, 0.16f, 0.04f, 0.30f, 0.20f } },
 
     // Motion
@@ -2016,7 +2015,7 @@ void RootFlowAudioProcessor::resetSequencer()
 void RootFlowAudioProcessor::updateSequencer(int numSamples, juce::MidiBuffer& midiMessages)
 {
     const bool isEnabled = *tree.getRawParameterValue("sequencerOn") > 0.5f;
-    if (! isEnabled)
+    if (!isEnabled)
     {
         if (sequencerNoteActive)
         {
@@ -2030,10 +2029,13 @@ void RootFlowAudioProcessor::updateSequencer(int numSamples, juce::MidiBuffer& m
     const int numSteps = (int)*tree.getRawParameterValue("sequencerSteps");
     const float gateParam = *tree.getRawParameterValue("sequencerGate");
 
-    // Modulation of speed and gate by plantEnergy
+    // --- BIO-SENSITIVITY ---
+    // Wir nutzen die aktuelle Energie, um das "Verhalten" zu beeinflussen
     const float energy = currentBioFeedback.plantEnergy;
-    const double speedMod = 0.85 + energy * 1.5; // Up to 2.35x speed at full energy
-    const float modulatedGate = juce::jlimit(0.05f, 0.95f, gateParam * (1.0f + energy * 0.4f));
+    
+    // Zeitliche Drift: Bei hoher Energie wird der Sequencer minimal schneller/nervöser
+    const double speedMod = 0.95 + (energy * 0.1); 
+    const float modulatedGate = juce::jlimit(0.1f, 0.95f, gateParam * (0.8f + energy * 0.4f));
 
     double bpm = 120.0;
     if (auto* playHead = getPlayHead())
@@ -2048,8 +2050,7 @@ void RootFlowAudioProcessor::updateSequencer(int numSamples, juce::MidiBuffer& m
     const double sr = getSampleRate() > 0 ? getSampleRate() : 44100.0;
     const double samplesPerBeat = (sr * 60.0) / bpm;
     
-    // Rate divisions
-    double division = 0.25; // 1/16th
+    double division = 0.25; // 1/16th Default
     if (rateIndex == 0)      division = 1.0;   // 1/4
     else if (rateIndex == 1)  division = 0.5;   // 1/8
     else if (rateIndex == 3) division = 0.125; // 1/32
@@ -2065,6 +2066,7 @@ void RootFlowAudioProcessor::updateSequencer(int numSamples, juce::MidiBuffer& m
         {
             sampleCounter -= samplesPerStep;
 
+            // Note Off für den alten Step
             if (sequencerNoteActive)
             {
                 midiMessages.addEvent(juce::MidiMessage::noteOff(1, lastSequencerNote), i);
@@ -2072,29 +2074,43 @@ void RootFlowAudioProcessor::updateSequencer(int numSamples, juce::MidiBuffer& m
             }
 
             currentSequencerStep = (currentSequencerStep + 1) % juce::jmax(1, numSteps);
-            
             auto& step = sequencerSteps[(size_t)currentSequencerStep];
-            if (step.active)
+
+            // --- BIO-LOGIK: Wahrscheinlichkeit ---
+            // Wenn die Energie niedrig ist, "vergisst" die Pflanze manchmal einen Trigger
+            bool energyTrigger = juce::Random::getSystemRandom().nextFloat() < (0.7f + energy * 0.3f);
+
+            if (step.active && energyTrigger)
             {
                 const juce::ScopedLock sl (noteLock);
-                if (! heldMidiNotes.empty())
+                
+                // Velocity wird durch die Energie beeinflusst (mehr Energie = akzentuierter)
+                float dynamicVelocity = juce::jlimit(0.05f, 1.0f, step.velocity * (0.6f + energy * 0.4f));
+                
+                if (!heldMidiNotes.empty())
                 {
                     currentArpIndex = (currentArpIndex + 1) % (int)heldMidiNotes.size();
                     lastSequencerNote = heldMidiNotes[(size_t)currentArpIndex];
-                    midiMessages.addEvent(juce::MidiMessage::noteOn(1, lastSequencerNote, step.velocity), i);
-                    sequencerNoteActive = true;
                 }
                 else
                 {
-                    // If no keys held, play a base note modulated by energy or remain silent
-                    // We'll play a base note so it's not totally dead if SEQ is ON
-                    lastSequencerNote = 48 + (energy * 12.0f); 
-                    midiMessages.addEvent(juce::MidiMessage::noteOn(1, lastSequencerNote, step.velocity * 0.5f), i);
-                    sequencerNoteActive = true;
+                    // Ambient Mode: Wenn keine Tasten gedrückt sind, generiert die Energie "Wurzelnoten" (Pentatonisch)
+                    const int pentatonicScale[] = { 0, 3, 5, 7, 10, 12, 15, 17, 19, 22, 24 };
+                    const int scaleSize = 11;
+                    int scaleIndex = (int)(energy * (scaleSize - 1.0f)); 
+                    scaleIndex = juce::jlimit(0, scaleSize - 1, scaleIndex);
+                    
+                    // Grundton 36 (C2) + generativer Offset aus Pentatonik
+                    lastSequencerNote = 36 + pentatonicScale[scaleIndex]; 
                 }
+                
+                midiMessages.addEvent(juce::MidiMessage::noteOn(1, lastSequencerNote, dynamicVelocity), i);
+                sequencerNoteActive = true;
+                sequencerTriggered.store(true);
             }
         }
 
+        // Gate-Check für Note Off innerhalb des Samples-Blocks
         if (sequencerNoteActive && sampleCounter >= sequencerGateSamples)
         {
             midiMessages.addEvent(juce::MidiMessage::noteOff(1, lastSequencerNote), i);

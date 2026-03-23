@@ -108,6 +108,7 @@ public:
     bool getNextFFTBlock(float* destData);
 
     juce::AudioProcessorValueTreeState tree;
+    std::atomic<bool> sequencerTriggered{ false };
 
 private:
     static constexpr int fftQueueCapacity = 8;

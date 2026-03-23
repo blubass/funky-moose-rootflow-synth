@@ -69,6 +69,7 @@ private:
     bool isVirtualKeyboardInputEnabled() const noexcept;
     void refreshHeaderControlState();
     void setMidiStatusMessage(const juce::String& text, juce::Colour colour);
+    void drawPresetMenu(juce::Graphics& g, juce::Rectangle<int> area);
 
     void setupKnob(juce::Slider& s, juce::Label& l, const juce::String& labelText, bool showVal = false);
     void setupLabel(juce::Label& l, bool primary = true);

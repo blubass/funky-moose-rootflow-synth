@@ -23,9 +23,13 @@ public:
         targetWave = static_cast<Waveform>(juce::jlimit(0, 2, type));
     }
 
+    void setPulseWidth(float pw) {
+        pulseWidth = juce::jlimit(0.05f, 0.95f, pw);
+    }
+
     float nextSample() {
         phase += phaseDelta;
-        if (phase >= 1.0f) phase -= 1.0f;
+        while (phase >= 1.0f) phase -= 1.0f;
 
         float out = 0.0f;
 
@@ -38,9 +42,16 @@ public:
             out -= polyBlep(phase); // Anti-Aliasing
         }
         else if (targetWave == Waveform::Pulse) {
-            out = (phase < 0.5f) ? 0.5f : -0.5f;
-            out += polyBlep(phase); // Anti-Aliasing für beide Flanken
-            out -= polyBlep(std::fmod(phase + 0.5f, 1.0f));
+            // PWM Moduliert
+            out = (phase < pulseWidth) ? 0.5f : -0.5f;
+            
+            // Anti-Aliasing für aufsteigende Flanke (bei phase = 0)
+            out += polyBlep(phase); 
+            
+            // Anti-Aliasing für absteigende Flanke (bei phase = pulseWidth)
+            float phase2 = phase - pulseWidth;
+            if (phase2 < 0.0f) phase2 += 1.0f;
+            out -= polyBlep(phase2);
         }
 
         return out;
@@ -62,5 +73,6 @@ private:
 
     double sampleRate = 44100.0;
     float phase = 0.0f, phaseDelta = 0.0f;
+    float pulseWidth = 0.5f;
     Waveform targetWave = Waveform::Sine;
 };

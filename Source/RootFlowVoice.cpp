@@ -160,13 +160,15 @@ void RootFlowVoice::renderNextBlock(juce::AudioBuffer<float>& buffer,
         if ((subSampleCount++ & 15) == 0)
         {
             // Filter Update
-            // Filter Update (Extreme Screaming/Punching Range) - SAFE MAX RESONANCE
+            // Sicherer Cutoff-Bereich: 20Hz bis 18kHz
             float baseCutoff = 52.0f + (growth * growth * 3600.0f) + (currentEnergy * 5800.0f);
             float velMod = juce::jmap(level, 0.0f, 1.0f, 0.0f, 8200.0f);
-            float finalCutoff = juce::jlimit(20.0f, 20000.0f, baseCutoff + velMod);
+            float finalCutoff = juce::jlimit(20.0f, 18000.0f, baseCutoff + velMod);
             
-            // Resonance 'Scream' Mapping (MAX 0.88 for Stability)
-            float res = 0.707f + (currentEnergy * 0.173f); 
+            // Resonanz-Limitierung: 
+            // Wir begrenzen 'res' auf maximal 0.95f, um Instabilität zu vermeiden.
+            float res = juce::jlimit(0.707f, 0.95f, 0.707f + (currentEnergy * 0.25f)); 
+            
             filterL.setCutoffFrequency(finalCutoff);
             filterL.setResonance(res);
             filterR.setCutoffFrequency(finalCutoff);
@@ -187,6 +189,9 @@ void RootFlowVoice::renderNextBlock(juce::AudioBuffer<float>& buffer,
         // Bio-Dynamic Unison Params
         float dynamicDetune = 0.008f + (currentEnergy * 0.042f);
         float dynamicSpread = 0.22f + (currentEnergy * 0.78f);
+        
+        // Basis-PWM durch sapFlow (currentFlow) und LFO moduliert
+        float basePw = 0.5f + (lfoVal * currentFlow * 0.45f);
 
         for (int v = 0; v < unisonVoices; ++v)
         {
@@ -198,7 +203,11 @@ void RootFlowVoice::renderNextBlock(juce::AudioBuffer<float>& buffer,
             float jitter = (noiseGen.nextFloat() - 0.5f) * agitation;
             float voiceFreq = baseFrequency * std::exp2((detuneBase + voiceDrift + unisonDetuneInSemis + jitter) / 12.0f);
             
+            // Individuelle Pulse Width per Stimmer für fetteren lebendigen Sound (via sapFlow)
+            float voicePw = basePw + (std::sin(voiceDrift * 15.0f) * currentFlow * 0.15f);
+            
             unisonOscillators[v].setFrequency(voiceFreq);
+            unisonOscillators[v].setPulseWidth(voicePw);
             float osc = unisonOscillators[v].nextSample();
 
             // Panning per Unison Voice (with randomized movement/bloom)
@@ -228,18 +237,23 @@ void RootFlowVoice::renderNextBlock(juce::AudioBuffer<float>& buffer,
         float L = filterL.processSample(0, leftOut);
         float R = filterR.processSample(0, rightOut); 
         
-        // 5. TEXTURE (Smooth Saturation) - BRUTAL DRIVE/CLIPPING
+        // --- NEU: ORGANIC PROTECTION (Soft Clipping) ---
+        // Anstatt hartem Clipping nutzen wir eine Sättigungskurve.
+        // Das bändigt die Resonanzspitzen des Filters.
+        auto safeSaturate = [](float& sample) {
+            // Schützt vor Extremwerten und fügt Obertöne hinzu
+            sample = std::tanh(sample * 1.2f); 
+        };
+        
+        safeSaturate(L);
+        safeSaturate(R);
+        
+        // 5. TEXTURE (Smooth Saturation)
         if (currentText > 0.02f)
         {
             float drive = (1.0f + (currentText * currentText * 10.5f)) * (1.2f + currentEnergy * 0.85f);
-            
-            auto saturate = [&](float& s) {
-                float x = s * 0.55f * drive;
-                s = x / (1.0f + std::abs(x));
-            };
-            
-            saturate(L);
-            saturate(R);
+            L = std::tanh(L * drive);
+            R = std::tanh(R * drive);
         }
 
         // 6. CANOPY AIR (One-Pole High Shelf) - STABILIZED SHIMMER

@@ -688,7 +688,8 @@ juce::Colour getStatusWarnColour() noexcept
 RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcessor& p)
     : juce::AudioProcessorEditor(p),
       audioProcessor(p),
-      keyboardDrawer(p.getKeyboardState(), juce::MidiKeyboardComponent::horizontalKeyboard)
+      keyboardDrawer(p.getKeyboardState(), juce::MidiKeyboardComponent::horizontalKeyboard),
+      visualizer(p)
 {
 
     setLookAndFeel(&look);
@@ -807,8 +808,8 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
 
     presetBox.setTextWhenNothingSelected("PRESET");
     presetBox.setJustificationType(juce::Justification::centredLeft);
-    presetBox.setColour(juce::ComboBox::backgroundColourId, juce::Colour(52, 34, 20).withAlpha(0.88f));
-    presetBox.setColour(juce::ComboBox::outlineColourId, juce::Colour(138, 112, 78).withAlpha(0.36f));
+    presetBox.setColour(juce::ComboBox::backgroundColourId, juce::Colours::transparentBlack); // Transparent to show custom drawHeader background
+    presetBox.setColour(juce::ComboBox::outlineColourId, juce::Colours::transparentBlack);
     presetBox.setColour(juce::ComboBox::textColourId, juce::Colour(236, 248, 222).withAlpha(0.96f));
     presetBox.setColour(juce::ComboBox::arrowColourId, juce::Colour(186, 255, 198).withAlpha(0.84f));
     presetBox.onChange = [this]
@@ -1014,7 +1015,7 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
             *p = (float)((seqStepsSelector.getSelectedItemIndex() + 1) * 4);
     };
 
-    setSize(900, 640);
+    setSize(950, 700);
     refreshHeaderControlState();
 }
 
@@ -1099,6 +1100,32 @@ void RootFlowAudioProcessorEditor::loadAssets()
 
 
     look.setWoodImage(woodBackground);
+}
+
+void RootFlowAudioProcessorEditor::drawPresetMenu(juce::Graphics& g, juce::Rectangle<int> area)
+{
+    const float energy = audioProcessor.getPlantEnergy();
+    
+    // 1. Der "Glas"-Hintergrund für den Namen
+    g.setColour(juce::Colours::black.withAlpha(0.4f));
+    g.fillRoundedRectangle(area.toFloat(), 4.0f);
+    
+    // 2. Ein dezentes Leuchten passend zur Energie
+    if (energy > 0.05f)
+    {
+        g.setColour(juce::Colour(80, 255, 150).withAlpha(energy * 0.2f));
+        g.drawRoundedRectangle(area.toFloat().reduced(0.5f), 4.0f, 1.5f);
+    }
+
+    // 3. Blatt-Icon links neben dem Namen
+    auto leafArea = area.removeFromLeft(area.getHeight()).reduced(6).toFloat();
+    g.setColour(juce::Colour(120, 220, 150).withAlpha(0.8f + energy * 0.2f));
+    
+    juce::Path leaf;
+    leaf.startNewSubPath(leafArea.getCentreX(), leafArea.getBottom());
+    leaf.quadraticTo(leafArea.getRight(), leafArea.getCentreY(), leafArea.getCentreX(), leafArea.getY());
+    leaf.quadraticTo(leafArea.getX(), leafArea.getCentreY(), leafArea.getCentreX(), leafArea.getBottom());
+    g.fillPath(leaf);
 }
 
 void RootFlowAudioProcessorEditor::drawSequencerPanel(juce::Graphics& g, juce::Rectangle<int> area)
@@ -1295,6 +1322,21 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
 
     drawCanopyPod(g, canopyRect);
     drawInstabilityPod(g, instabilityRect);
+
+    // --- BIO-GLOW IM GEHÄUSE ---
+    // Ein sehr subtiles Leuchten, das den Visualizer umrahmt
+    float energy = audioProcessor.getPlantEnergy();
+    if (energy > 0.05f)
+    {
+        auto glowArea = visualizerFrameRect.expanded(juce::roundToInt(40.0f * (getWidth() / 1100.0f)));
+        juce::ColourGradient glow (juce::Colour(0, 200, 100).withAlpha(energy * 0.12f), 
+                                   (float)visualizerFrameRect.getCentreX(), (float)visualizerFrameRect.getCentreY(),
+                                   juce::Colours::transparentBlack, 
+                                   (float)visualizerFrameRect.getCentreX(), (float)visualizerFrameRect.getY() - 40.0f, true);
+        g.setGradientFill(glow);
+        g.fillRoundedRectangle(glowArea.toFloat(), 12.0f);
+    }
+
     drawVisualizerHousing(g, visualizerFrameRect);
     drawFxModule(g, bloomRect, "BLOOM");
     drawFxModule(g, rainRect, "RAIN");
@@ -1333,319 +1375,117 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
 void RootFlowAudioProcessorEditor::resized()
 {
     auto bounds = getLocalBounds();
-    float w = static_cast<float>(bounds.getWidth());
-    float h = static_cast<float>(bounds.getHeight());
+    const float w = static_cast<float>(bounds.getWidth());
+    const float h = static_cast<float>(bounds.getHeight());
     
-    // TOTAL SCALING OVERHAUL: Internal Design reference 1100x820
-    // This makes the UI smaller, clearer and ensures nothing is cut off on 13" laptops.
-    float scale = juce::jmin(w / 1100.0f, h / 820.0f);
-    
-    float frameInset = 20.0f * scale;
-    innerRect = bounds.reduced((int)frameInset);
+    // --- DIE GOLDENE SKALIERUNG (Reference: 950x700) ---
+    float scaleW = w / 950.0f;
+    float scaleH = h / 700.0f;
+    float scale = juce::jmin(scaleW, scaleH);
 
-    headerBoardRect = juce::Rectangle<int>(
-        innerRect.getX() + juce::roundToInt(innerRect.getWidth() * 0.03f),
-        innerRect.getY() + juce::roundToInt(10.0f * scale),
-        juce::roundToInt(innerRect.getWidth() * 0.94f),
-        juce::roundToInt(142.0f * scale)); // Scaled Header
+    const int frameInset = juce::roundToInt(10.0f * scale);
+    innerRect = bounds.reduced(frameInset);
 
-    sequencerBoardRect = juce::Rectangle<int>(
-        headerBoardRect.getX(),
-        headerBoardRect.getBottom() + juce::roundToInt(8.0f * scale),
-        headerBoardRect.getWidth(),
-        juce::roundToInt(62.0f * scale)); // Scaled Sequencer (was 54)
+    // --- 1. HEADER (Shifted down slightly to avoid cutoff) ---
+    headerBoardRect = juce::Rectangle<int>(innerRect.getX(), innerRect.getY() + juce::roundToInt(10.0f * scale), innerRect.getWidth(), juce::roundToInt(108.0f * scale));
 
-    mainFieldRect = juce::Rectangle<int>(
-        innerRect.getX() + juce::roundToInt(20.0f * scale),
-        sequencerBoardRect.getBottom() + juce::roundToInt(14.0f * scale),
-        innerRect.getWidth() - juce::roundToInt(40.0f * scale),
-        juce::roundToInt(innerRect.getHeight() * 0.58f));
+    // --- 2. SEQUENCER ---
+    sequencerBoardRect = juce::Rectangle<int>(innerRect.getX(), headerBoardRect.getBottom() + juce::roundToInt(6.0f * scale), innerRect.getWidth(), juce::roundToInt(52.0f * scale));
 
-    int knobSize = juce::roundToInt(94.0f * scale); // Scaled Main Knobs (was 78)
-    int sideLabelHeight = juce::roundToInt(26.0f * scale);
-    int labelFontSize = juce::roundToInt(13.0f * scale);
+    // --- 3. MAIN AREA ---
+    mainFieldRect = juce::Rectangle<int>(innerRect.getX(), sequencerBoardRect.getBottom() + juce::roundToInt(10.0f * scale), innerRect.getWidth(), juce::roundToInt(innerRect.getHeight() * 0.54f));
 
-    int sideInset = juce::roundToInt(18.0f * scale);
-    int columnWidth = knobSize + juce::roundToInt(26.0f * scale);
-    int rootX = mainFieldRect.getX() + sideInset;
-    int pulseX = mainFieldRect.getRight() - sideInset - knobSize;
-    int sideTop = mainFieldRect.getY() + juce::roundToInt(38.0f * scale);
-    int sideSpacing = juce::roundToInt((mainFieldRect.getHeight() - knobSize * 3 - 94.0f * scale) / 2.0f);
-    sideSpacing = juce::jmax(sideSpacing, juce::roundToInt(26.0f * scale));
+    const int knobSize = juce::roundToInt(72.0f * scale); 
+    const int labelHeight = 18; 
 
-    rootRect = { rootX - juce::roundToInt(8.0f * scale), mainFieldRect.getY() + juce::roundToInt(4.0f * scale),
-                 columnWidth + juce::roundToInt(20.0f * scale), mainFieldRect.getHeight() - juce::roundToInt(8.0f * scale) };
-    pulseRect = { pulseX - juce::roundToInt(18.0f * scale), mainFieldRect.getY() + juce::roundToInt(4.0f * scale),
-                  columnWidth + juce::roundToInt(30.0f * scale), mainFieldRect.getHeight() - juce::roundToInt(8.0f * scale) };
+    const int sideWidth = knobSize + juce::roundToInt(40.0f * scale);
+    rootRect = { mainFieldRect.getX() + juce::roundToInt(12.0f * scale), mainFieldRect.getY(), sideWidth, mainFieldRect.getHeight() };
+    pulseRect = { mainFieldRect.getRight() - sideWidth - juce::roundToInt(12.0f * scale), mainFieldRect.getY(), sideWidth, mainFieldRect.getHeight() };
 
-    const int rootKnobX = rootRect.getCentreX() - knobSize / 2;
-    const int pulseKnobX = pulseRect.getCentreX() - knobSize / 2;
-
-    for (int i = 0; i < 3; ++i)
-    {
-        int y = sideTop + i * (knobSize + sideSpacing);
-        juce::Rectangle<int> r(rootKnobX, y, knobSize, knobSize);
-        juce::Slider* s[] = { &rootDepthSlider, &rootSoilSlider, &rootAnchorSlider };
-        juce::Label* l[] = { &rootDepthLabel, &rootSoilLabel, &rootAnchorLabel };
-        s[i]->setBounds(r);
-        l[i]->setBounds(r.getX() - 10, r.getBottom() + juce::roundToInt(8.0f * scale), r.getWidth() + 20, sideLabelHeight);
-        l[i]->setFont(juce::FontOptions((float) labelFontSize).withStyle("Bold"));
-    }
-
-    for (int i = 0; i < 3; ++i)
-    {
-        int y = sideTop + i * (knobSize + sideSpacing);
-        juce::Rectangle<int> r(pulseKnobX, y, knobSize, knobSize);
-        juce::Slider* s[] = { &pulseRateSlider, &pulseBreathSlider, &pulseGrowthSlider };
-        juce::Label* l[] = { &pulseRateLabel, &pulseBreathLabel, &pulseGrowthLabel };
-        s[i]->setBounds(r);
-        l[i]->setBounds(r.getX() - 10, r.getBottom() + juce::roundToInt(8.0f * scale), r.getWidth() + 20, sideLabelHeight);
-        l[i]->setFont(juce::FontOptions((float) labelFontSize).withStyle("Bold"));
-    }
-
-    int centreLeft = rootRect.getRight() + juce::roundToInt(20.0f * scale);
-    int centreRight = pulseRect.getX() - juce::roundToInt(20.0f * scale);
-    int centreWidth = centreRight - centreLeft;
-    int sapY = sideTop + juce::roundToInt((knobSize - juce::roundToInt(knobSize * 0.94f)) * 0.5f);
-    int sapGap = juce::roundToInt(centreWidth * 0.075f);
-    int sapKnobSize = juce::roundToInt(knobSize * 0.94f);
-    int sapLabelGap = juce::roundToInt(4.0f * scale);
-    int totalSapWidth = sapKnobSize * 3 + sapGap * 2;
-    int sapStartX = centreLeft + juce::jmax(0, (centreWidth - totalSapWidth) / 2);
-
-    sapRect = { centreLeft, mainFieldRect.getY() + juce::roundToInt(4.0f * scale),
-                centreWidth, (sapY - (mainFieldRect.getY() + juce::roundToInt(4.0f * scale)))
-                           + sapKnobSize + sapLabelGap + sideLabelHeight + juce::roundToInt(10.0f * scale) };
-
-    for (int i = 0; i < 3; ++i)
-    {
-        juce::Rectangle<int> r(sapStartX + i * (sapKnobSize + sapGap), sapY, sapKnobSize, sapKnobSize);
-        juce::Slider* s[] = { &sapFlowSlider, &sapVitalitySlider, &sapTextureSlider };
-        juce::Label* l[] = { &sapFlowLabel, &sapVitalityLabel, &sapTextureLabel };
-        s[i]->setBounds(r);
-        l[i]->setBounds(r.getX() - 8, r.getBottom() + sapLabelGap, r.getWidth() + 16, sideLabelHeight);
-        l[i]->setFont(juce::FontOptions((float) labelFontSize).withStyle("Bold"));
-    }
-
-    const int canopyPodWidth = juce::roundToInt(150.0f * scale);
-    const int canopyPodHeight = juce::roundToInt(108.0f * scale);
-    const int instabilityPodWidth = juce::roundToInt(184.0f * scale);
-    const int centrePodGap = juce::roundToInt(12.0f * scale);
-    const int centrePodStartX = centreLeft + juce::jmax(0, (centreWidth - (canopyPodWidth + instabilityPodWidth + centrePodGap)) / 2);
-    const int centrePodY = sapRect.getBottom() + juce::roundToInt(8.0f * scale);
-    canopyRect = { centrePodStartX, centrePodY, canopyPodWidth, canopyPodHeight };
-    instabilityRect = { canopyRect.getRight() + centrePodGap, centrePodY, instabilityPodWidth, canopyPodHeight };
-
-    const int canopyKnobSize = juce::roundToInt(70.0f * scale);
-    auto canopySliderBounds = juce::Rectangle<int>(
-        canopyRect.getCentreX() - canopyKnobSize / 2,
-        canopyRect.getY() + juce::roundToInt(14.0f * scale), // Raised from 26
-        canopyKnobSize,
-        canopyKnobSize);
-    canopySlider.setBounds(canopySliderBounds);
-    canopyLabel.setBounds(canopyRect.getX() + juce::roundToInt(12.0f * scale),
-                          canopySliderBounds.getBottom() + juce::roundToInt(2.0f * scale),
-                          canopyRect.getWidth() - juce::roundToInt(24.0f * scale),
-                          sideLabelHeight);
-    canopyLabel.setFont(juce::FontOptions((float) juce::roundToInt(12.0f * scale)).withStyle("Bold"));
-
-    const int instabilityKnobSize = juce::roundToInt(58.0f * scale);
-    auto instabilitySliderBounds = juce::Rectangle<int>(
-        instabilityRect.getX() + juce::roundToInt(14.0f * scale),
-        instabilityRect.getY() + juce::roundToInt(12.0f * scale), // Raised from 20
-        instabilityKnobSize,
-        instabilityKnobSize);
-    instabilitySlider.setBounds(instabilitySliderBounds);
-    instabilityLabel.setBounds(instabilityRect.getX() + juce::roundToInt(12.0f * scale),
-                               instabilityRect.getBottom() - sideLabelHeight - juce::roundToInt(8.0f * scale),
-                               instabilityRect.getWidth() - juce::roundToInt(24.0f * scale),
-                               sideLabelHeight);
-    instabilityLabel.setFont(juce::FontOptions((float) juce::roundToInt(11.0f * scale)).withStyle("Bold"));
-
-    const int macroPodWidth = juce::roundToInt(146.0f * scale);
-    const int macroPodHeight = juce::roundToInt(68.0f * scale);
-    const int macroKnobSize = juce::roundToInt(46.0f * scale);
-    const int macroKnobY = headerBoardRect.getY() + juce::roundToInt(72.0f * scale);
-
-    atmosRect = {
-        headerBoardRect.getX() + juce::roundToInt(18.0f * scale),
-        headerBoardRect.getY() + juce::roundToInt(62.0f * scale),
-        macroPodWidth,
-        macroPodHeight
+    auto layoutColumn = [&](juce::Rectangle<int> area, juce::Slider* sliders[], juce::Label* labels[]) {
+        int spacing = (area.getHeight() - (knobSize * 3)) / 4;
+        for (int i = 0; i < 3; ++i) {
+            int y = area.getY() + spacing + i * (knobSize + spacing);
+            sliders[i]->setBounds(area.getCentreX() - knobSize/2, y, knobSize, knobSize);
+            labels[i]->setBounds(area.getX(), sliders[i]->getBottom() - 1, area.getWidth(), labelHeight);
+        }
     };
-    atmosSlider.setBounds(atmosRect.getRight() - macroKnobSize - juce::roundToInt(10.0f * scale),
-                          macroKnobY,
-                          macroKnobSize,
-                          macroKnobSize);
+    layoutColumn(rootRect, (juce::Slider*[]){&rootDepthSlider, &rootSoilSlider, &rootAnchorSlider}, (juce::Label*[]){&rootDepthLabel, &rootSoilLabel, &rootAnchorLabel});
+    layoutColumn(pulseRect, (juce::Slider*[]){&pulseRateSlider, &pulseBreathSlider, &pulseGrowthSlider}, (juce::Label*[]){&pulseRateLabel, &pulseBreathLabel, &pulseGrowthLabel});
 
-    seasonsRect = {
-        headerBoardRect.getRight() - macroPodWidth - juce::roundToInt(18.0f * scale),
-        headerBoardRect.getY() + juce::roundToInt(62.0f * scale),
-        macroPodWidth,
-        macroPodHeight
-    };
-    seasonsSlider.setBounds(seasonsRect.getX() + juce::roundToInt(10.0f * scale),
-                            macroKnobY,
-                            macroKnobSize,
-                            macroKnobSize);
+    int centreX = rootRect.getRight() + 4;
+    int centreW = pulseRect.getX() - centreX - 4;
 
-    visualizerFrameRect = {
-        centreLeft + juce::roundToInt(2.0f * scale),
-        juce::jmax(canopyRect.getBottom(), instabilityRect.getBottom()) + juce::roundToInt(12.0f * scale),
-        centreWidth - juce::roundToInt(4.0f * scale),
-        mainFieldRect.getBottom() - juce::jmax(canopyRect.getBottom(), instabilityRect.getBottom()) - juce::roundToInt(18.0f * scale)
-    };
-
-    visualizerRect = juce::Rectangle<int>(
-        visualizerFrameRect.getX() + juce::roundToInt(17.0f * scale),
-        visualizerFrameRect.getY() + juce::roundToInt(44.0f * scale),
-        visualizerFrameRect.getWidth() - juce::roundToInt(34.0f * scale),
-        visualizerFrameRect.getHeight() - juce::roundToInt(64.0f * scale));
-    visualizer.setBounds(visualizerRect);
-
-    int fxY = mainFieldRect.getBottom() + juce::roundToInt(18.0f * scale);
-    int fxHeight = innerRect.getBottom() - fxY - juce::roundToInt(14.0f * scale);
-    int fxGap = juce::roundToInt(14.0f * scale);
-    int fxWidth = (mainFieldRect.getWidth() - fxGap * 2) / 3;
-
-    bloomRect = { mainFieldRect.getX(), fxY, fxWidth, fxHeight };
-    rainRect = { bloomRect.getRight() + fxGap, fxY, fxWidth, fxHeight };
-    sunRect = { rainRect.getRight() + fxGap, fxY, fxWidth, fxHeight };
-
-    juce::Rectangle<int> moduleRects[] = { bloomRect, rainRect, sunRect };
-    juce::Slider* fxSliders[] = { &bloomSlider, &rainSlider, &sunSlider };
-    juce::Label* fxLabels[] = { &bloomLabel, &rainLabel, &sunLabel };
-    int fxKnobSize = juce::roundToInt(72.0f * scale); // Compact FX Knobs (was 108)
-
-    for (int i = 0; i < 3; ++i)
-    {
-        auto module = moduleRects[i];
-        auto sliderBounds = juce::Rectangle<int>(module.getCentreX() - fxKnobSize / 2,
-                                                 module.getY() + juce::roundToInt(32.0f * scale),
-                                                 fxKnobSize, fxKnobSize);
-        fxSliders[i]->setBounds(sliderBounds);
-        fxLabels[i]->setBounds(sliderBounds.getX() - 16, sliderBounds.getBottom() + juce::roundToInt(4.0f * scale),
-                               sliderBounds.getWidth() + 32, sideLabelHeight);
-        fxLabels[i]->setFont(juce::FontOptions((float) juce::roundToInt(14.0f * scale)).withStyle("Bold"));
+    int sapSize = juce::roundToInt(68.0f * scale);
+    int sapSpacing = (centreW - (sapSize * 3)) / 4;
+    for (int i = 0; i < 3; ++i) {
+        juce::Slider* sls[] = { &sapFlowSlider, &sapVitalitySlider, &sapTextureSlider };
+        juce::Label* labs[] = { &sapFlowLabel, &sapVitalityLabel, &sapTextureLabel };
+        int x = centreX + sapSpacing + i * (sapSize + sapSpacing);
+        sls[i]->setBounds(x, mainFieldRect.getY() + 6, sapSize, sapSize);
+        labs[i]->setBounds(x - 10, sls[i]->getBottom() - 1, sapSize + 20, labelHeight);
     }
 
-    // --- UNIFIED HEADER LAYOUT ---
-    const int controlHeight = juce::roundToInt(28.0f * scale);
-    const int lane1Top = headerBoardRect.getY() + juce::roundToInt(10.0f * scale);
-    const int lane2Top = lane1Top + controlHeight + juce::roundToInt(10.0f * scale);
-    const int controlGap = juce::roundToInt(6.0f * scale);
-    const int presetWidth = juce::roundToInt(184.0f * scale);
-    const int smallButtonWidth = juce::roundToInt(66.0f * scale);
+    const int podWidth = juce::roundToInt(185.0f * scale);
+    const int podHeight = juce::roundToInt(84.0f * scale);
+    const int podY = sapFlowLabel.getBottom() + 12;
+    canopyRect = { centreX + (centreW / 2) - podWidth - 8, podY, podWidth, podHeight };
+    instabilityRect = { centreX + (centreW / 2) + 8, podY, podWidth, podHeight };
 
-    // --- LANE 1: GLOBAL & PRESETS (HEADER) ---
-    const int waveWidth = juce::roundToInt(scale * 84.0f);
-    waveSelector.setBounds(headerBoardRect.getX() + juce::roundToInt(16.0f * scale),
-                           lane1Top,
-                           waveWidth,
-                           controlHeight);
+    canopySlider.setBounds(canopyRect.getCentreX() - 25, canopyRect.getY() + 14, 50, 50);
+    canopyLabel.setBounds(canopyRect.getX(), canopySlider.getBottom() - 2, canopyRect.getWidth(), labelHeight);
+    instabilitySlider.setBounds(instabilityRect.getX() + 8, instabilityRect.getY() + 18, 44, 44);
 
-    presetBox.setBounds(waveSelector.getRight() + controlGap,
-                        lane1Top,
-                        presetWidth,
-                        controlHeight);
+    visualizerFrameRect = juce::Rectangle<int>(centreX + 8, canopyRect.getBottom() + 12, centreW - 16, mainFieldRect.getBottom() - canopyRect.getBottom() - 14);
+    visualizer.setBounds(visualizerFrameRect.reduced(10, 24));
 
-    mutateButton.setBounds(presetBox.getRight() + controlGap,
-                           lane1Top,
-                           juce::roundToInt(84.0f * scale),
-                           controlHeight);
+    const int macroW = juce::roundToInt(200.0f * scale);
+    const int macroH = juce::roundToInt(62.0f * scale);
+    const int macroY = headerBoardRect.getY() + juce::roundToInt(40.0f * scale);
+    atmosRect = { headerBoardRect.getX() + 8, macroY, macroW, macroH };
+    atmosSlider.setBounds(atmosRect.getRight() - 42, macroY + 14, 34, 34);
+    seasonsRect = { headerBoardRect.getRight() - macroW - 8, macroY, macroW, macroH };
+    seasonsSlider.setBounds(seasonsRect.getX() + 6, macroY + 14, 34, 34);
 
-    presetSaveButton.setBounds(mutateButton.getRight() + controlGap,
-                               lane1Top,
-                               juce::roundToInt(58.0f * scale),
-                               controlHeight);
-    presetDeleteButton.setBounds(presetSaveButton.getRight() + controlGap,
-                                 lane1Top,
-                                 juce::roundToInt(52.0f * scale),
-                                 controlHeight);
+    int kShift = (keyboardDrawerOpenAmount > 0) ? juce::roundToInt(50.0f * keyboardDrawerOpenAmount * scale) : 0;
+    int fxTop = mainFieldRect.getBottom() + juce::roundToInt(10.0f * scale) - kShift;
+    int fxBottom = innerRect.getBottom() - juce::roundToInt(6.0f * scale) - kShift;
+    int fxW = (innerRect.getWidth() - 36) / 3;
+    bloomRect = { innerRect.getX(), fxTop, fxW, fxBottom - fxTop };
+    rainRect = { bloomRect.getRight() + 18, fxTop, fxW, fxBottom - fxTop };
+    sunRect = { rainRect.getRight() + 18, fxTop, fxW, fxBottom - fxTop };
 
-    // Other buttons on the right of Header
-    int rightButtonX = headerBoardRect.getRight() - juce::roundToInt(16.0f * scale);
-    
-    auto placeRight = [&](juce::Component& c, int w) {
-        rightButtonX -= w;
-        c.setBounds(rightButtonX, lane1Top, w, controlHeight);
-        rightButtonX -= controlGap;
-    };
-
-    if (isKeyboardDrawerAvailable())
-        placeRight(keyboardDrawerButton, juce::roundToInt(72.0f * scale));
-    else
-        keyboardDrawerButton.setVisible(false);
-    
-    placeRight(testToneButton, juce::roundToInt(64.0f * scale));
-    placeRight(midiClearButton, smallButtonWidth);
-    placeRight(mpkDefaultButton, smallButtonWidth);
-    placeRight(midiLearnButton, smallButtonWidth);
-
-    // --- BIO-SEQUENCER (DEDICATED PANEL) ---
-    const int seqLaneTop = sequencerBoardRect.getY() + juce::roundToInt(24.0f * scale);
-    const int seqToggleWidth = juce::roundToInt(scale * 86.0f);
-    const int seqRateWidth = juce::roundToInt(scale * 74.0f);
-    const int seqStepsWidth = juce::roundToInt(scale * 80.0f);
-    
-    seqToggle.setBounds(sequencerBoardRect.getX() + juce::roundToInt(16.0f * scale),
-                         seqLaneTop - juce::roundToInt(4.0f * scale),
-                         seqToggleWidth,
-                         controlHeight);
-
-    seqRateSelector.setBounds(seqToggle.getRight() + controlGap,
-                               seqLaneTop - juce::roundToInt(4.0f * scale),
-                               seqRateWidth,
-                               controlHeight);
-
-    seqStepsSelector.setBounds(seqRateSelector.getRight() + controlGap,
-                                seqLaneTop - juce::roundToInt(4.0f * scale),
-                                seqStepsWidth,
-                                controlHeight);
-
-    // Grid: Extended to fill the remaining horizontal space in the panel
-    const int gridLeft = seqStepsSelector.getRight() + controlGap * 3;
-    const int gridRight = sequencerBoardRect.getRight() - juce::roundToInt(20.0f * scale);
-    
-    sequencerRect = juce::Rectangle<int>(
-        gridLeft,
-        seqLaneTop,
-        gridRight - gridLeft,
-        juce::roundToInt(24.0f * scale)
-    );
-
-    if (isKeyboardDrawerAvailable())
-    {
-        const int drawerMargin = juce::roundToInt(4.0f * scale);
-        const int drawerHeight = juce::roundToInt(108.0f * scale); // Slimmer Keyboard
-        const int hiddenY = bounds.getBottom() + juce::roundToInt(10.0f * scale);
-        const int visibleY = bounds.getBottom() - drawerHeight - drawerMargin;
-        const int drawerY = juce::roundToInt(hiddenY + (visibleY - hiddenY) * keyboardDrawerOpenAmount);
-
-        keyboardDrawerRect = {
-            mainFieldRect.getX(),
-            drawerY,
-            mainFieldRect.getWidth(),
-            drawerHeight
-        };
-
-        auto keyboardBounds = keyboardDrawerRect.reduced(juce::roundToInt(14.0f * scale), juce::roundToInt(16.0f * scale));
-        keyboardBounds.removeFromTop(juce::roundToInt(26.0f * scale));
-        keyboardBounds.removeFromBottom(juce::roundToInt(6.0f * scale));
-        keyboardDrawer.setBounds(keyboardBounds);
-        keyboardDrawer.setKeyWidth(juce::jlimit(14.0f, 28.0f, keyboardBounds.getWidth() / 29.0f));
-        keyboardDrawer.setVisible(keyboardDrawerOpenAmount > 0.001f || keyboardDrawerTarget > 0.0f);
-    }
-    else
-    {
-        keyboardDrawer.setVisible(false);
-        keyboardDrawerRect = {};
+    for (int i = 0; i < 3; ++i) {
+        juce::Slider* sls[] = { &bloomSlider, &rainSlider, &sunSlider };
+        sls[i]->setBounds(juce::Rectangle<int>(bloomRect.getX() + i * (fxW + 18), fxTop, fxW, fxBottom - fxTop).getCentreX() - 30, fxTop + 24, 60, 60);
     }
 
-    // Position hidden LED buttons over the plant energy frame
-    auto r = visualizerFrameRect;
-    vizModeButton.setBounds(r.getRight() - 32, r.getY() + 10, 20, 20);
-    vizColorButton.setBounds(r.getRight() - 54, r.getY() + 10, 20, 20);
+    waveSelector.setBounds(headerBoardRect.getX() + 10, headerBoardRect.getY() + 8, 80, 22);
+    presetBox.setBounds(waveSelector.getRight() + 4, headerBoardRect.getY() + 8, 140, 22);
+    mutateButton.setBounds(presetBox.getRight() + 4, headerBoardRect.getY() + 8, 74, 22);
+    presetSaveButton.setBounds(mutateButton.getRight() + 4, headerBoardRect.getY() + 8, 50, 22);
+    presetDeleteButton.setBounds(presetSaveButton.getRight() + 4, headerBoardRect.getY() + 8, 46, 22);
+    
+    int rX = headerBoardRect.getRight() - 10;
+    auto placeR = [&](juce::Component& c, int w) { rX -= w; c.setBounds(rX, headerBoardRect.getY() + 8, w, 22); rX -= 4; };
+    if (isKeyboardDrawerAvailable()) placeR(keyboardDrawerButton, 64);
+    placeR(testToneButton, 54); placeR(midiClearButton, 60); placeR(mpkDefaultButton, 60); placeR(midiLearnButton, 60);
+
+    seqToggle.setBounds(sequencerBoardRect.getX() + 10, sequencerBoardRect.getY() + 14, 88, 22);
+    seqRateSelector.setBounds(seqToggle.getRight() + 4, sequencerBoardRect.getY() + 14, 88, 22);
+    seqStepsSelector.setBounds(seqRateSelector.getRight() + 4, sequencerBoardRect.getY() + 14, 88, 22);
+    sequencerRect = { seqStepsSelector.getRight() + 12, sequencerBoardRect.getY() + 18, sequencerBoardRect.getRight() - seqStepsSelector.getRight() - 25, 20 };
+
+    if (isKeyboardDrawerAvailable()) {
+        int targetVY = bounds.getBottom() - 102;
+        int dY = juce::roundToInt(bounds.getBottom() + 10 + (targetVY - (bounds.getBottom() + 10)) * keyboardDrawerOpenAmount);
+        keyboardDrawerRect = { mainFieldRect.getX(), dY, mainFieldRect.getWidth(), 100 };
+        auto kBounds = keyboardDrawerRect.reduced(10, 10); kBounds.removeFromTop(20);
+        keyboardDrawer.setBounds(kBounds);
+        keyboardDrawer.setVisible(keyboardDrawerOpenAmount > 0.001f);
+    }
+    vizModeButton.setBounds(visualizerFrameRect.getRight() - 28, visualizerFrameRect.getY() + 8, 18, 18);
+    vizColorButton.setBounds(visualizerFrameRect.getRight() - 50, visualizerFrameRect.getY() + 10, 18, 18);
 }
 
 void RootFlowAudioProcessorEditor::setMidiStatusMessage(const juce::String& text, juce::Colour colour)
@@ -1866,18 +1706,30 @@ void RootFlowAudioProcessorEditor::toggleKeyboardDrawer()
     if (! isKeyboardDrawerAvailable())
         return;
 
-    keyboardDrawerTarget = keyboardDrawerTarget > 0.5f ? 0.0f : 1.0f;
+    // Zielwert umschalten (0.0 = zu, 1.0 = offen)
+    keyboardDrawerTarget = (keyboardDrawerTarget > 0.5f) ? 0.0f : 1.0f;
     keyboardDrawer.setVisible(true);
-    
-    // SLIM SLIDE-UP Window Extension
+
+    const int baseWidth = 900;
+    const int baseHeight = 640;
+    const int drawerExtension = 90; // Kompakte Höhe für 13" MacBooks
+
     if (keyboardDrawerTarget > 0.5f)
     {
-        setSize(900, 640 + 94); // Minimal extension
+        // Fenster nur vergrößern, wenn es aktuell zu klein für die Tasten ist
+        if (getHeight() < baseHeight + drawerExtension)
+        {
+            setSize(getWidth(), baseHeight + drawerExtension);
+        }
         grabKeyboardFocus();
     }
     else
     {
-        setSize(900, 640);
+        // Beim Schließen auf Standardhöhe zurückgehen, falls nicht manuell groß gezogen
+        if (getHeight() <= baseHeight + drawerExtension + 10)
+        {
+            setSize(getWidth(), baseHeight);
+        }
         releaseVirtualKeyboardNotes();
     }
 }
@@ -2017,7 +1869,7 @@ void RootFlowAudioProcessorEditor::refreshHeaderControlState()
 void RootFlowAudioProcessorEditor::updateAnimationTimerState()
 {
     if (isShowing())
-        startTimerHz(40);
+        startTimerHz(60);
     else
         stopTimer();
 }
@@ -2354,12 +2206,15 @@ void RootFlowAudioProcessorEditor::drawHeader(juce::Graphics& g, juce::Rectangle
                     indicatorColour.withAlpha(0.30f + midiIndicatorLevel * 0.70f),
                     3.8f + midiIndicatorLevel * 1.8f);
 
-    drawGlowText(g, midiStatusText, statusArea.withTrimmedLeft(18),
+                 drawGlowText(g, midiStatusText, statusArea.withTrimmedLeft(18),
                  juce::Font(juce::FontOptions(11.5f * scale).withStyle("Bold")),
                  statusTextColour.withAlpha(0.92f),
                  indicatorColour.withAlpha(0.16f + midiIndicatorLevel * 0.10f),
                  juce::Colours::transparentBlack,
                  juce::Justification::centredLeft);
+
+    // Render the custom glassy background for the preset selector component
+    drawPresetMenu(g, presetBox.getBounds());
 }
 
 void RootFlowAudioProcessorEditor::drawMainPanel(juce::Graphics& g, juce::Rectangle<int> area)
@@ -2650,44 +2505,46 @@ void RootFlowAudioProcessorEditor::drawInstabilityPod(juce::Graphics& g, juce::R
     g.setColour(juce::Colours::black.withAlpha(0.68f));
     g.drawRoundedRectangle(r.reduced(0.5f), 12.0f, 1.8f);
 
-    auto titleArea = juce::Rectangle<int>(area.getX() + 10, area.getY() + 4, area.getWidth() - 20, 14);
+    const float scale = juce::jmin(area.getWidth() / 185.0f, area.getHeight() / 88.0f);
+
+    auto titleArea = juce::Rectangle<int>(area.getX() + 10, area.getY() + 6, area.getWidth() - 20, 18);
     drawGlowText(g, "INSTABILITY", titleArea,
-                 juce::Font(juce::FontOptions(10.8f).withStyle("Bold")),
-                 juce::Colour(242, 248, 232).withAlpha(0.92f),
-                 instabilityInfo.glow.withAlpha(0.10f),
+                 juce::Font(juce::FontOptions(11.0f * scale).withStyle("Bold")),
+                 juce::Colour(245, 250, 235).withAlpha(0.96f),
+                 instabilityInfo.glow.withAlpha(0.12f),
                  juce::Colours::transparentBlack,
                  juce::Justification::centredLeft);
 
     const int knobRight = instabilitySlider.getRight();
-    auto nameArea = juce::Rectangle<int>(knobRight + 10,
-                                         area.getY() + 30,
-                                         area.getRight() - knobRight - 18,
-                                         18);
+    auto nameArea = juce::Rectangle<int>(knobRight + juce::roundToInt(12.0f * scale),
+                                         area.getY() + 28,
+                                         area.getRight() - knobRight - juce::roundToInt(16.0f * scale),
+                                         20);
     drawGlowText(g, instabilityInfo.name, nameArea,
-                 juce::Font(juce::FontOptions(15.5f).withStyle("Bold")),
+                 juce::Font(juce::FontOptions(16.0f * scale).withStyle("Bold")),
                  instabilityInfo.core.withAlpha(0.98f),
-                 instabilityInfo.glow.withAlpha(0.14f),
+                 instabilityInfo.glow.withAlpha(0.18f),
                  juce::Colours::transparentBlack,
                  juce::Justification::centredLeft);
 
-    auto descriptorArea = juce::Rectangle<int>(knobRight + 10,
-                                               nameArea.getBottom() + 1,
-                                               area.getRight() - knobRight - 18,
+    auto descriptorArea = juce::Rectangle<int>(knobRight + juce::roundToInt(12.0f * scale),
+                                               nameArea.getBottom() - 1,
+                                               area.getRight() - knobRight - juce::roundToInt(16.0f * scale),
                                                14);
     drawGlowText(g, instabilityInfo.descriptor, descriptorArea,
-                 juce::Font(juce::FontOptions(9.2f).withStyle("Bold")),
-                 instabilityInfo.rim.withAlpha(0.86f),
-                 instabilityInfo.glow.withAlpha(0.08f),
+                 juce::Font(juce::FontOptions(10.0f * scale).withStyle("Bold")),
+                 instabilityInfo.rim.withAlpha(0.94f),
+                 instabilityInfo.glow.withAlpha(0.10f),
                  juce::Colours::transparentBlack,
                  juce::Justification::centredLeft);
 
-    auto valueArea = juce::Rectangle<int>(area.getRight() - 62,
+    auto valueArea = juce::Rectangle<int>(area.getRight() - 65,
                                           area.getY() + 6,
-                                          48,
-                                          14);
+                                          55,
+                                          18);
     drawGlowText(g, formatReadoutText(instabilitySlider.getValue() * 100.0f, 0, "%"), valueArea,
-                 juce::Font(juce::FontOptions(10.4f).withStyle("Bold")),
-                 instabilityInfo.rim.withAlpha(0.94f),
+                 juce::Font(juce::FontOptions(11.0f).withStyle("Bold")),
+                 instabilityInfo.rim.withAlpha(0.96f),
                  instabilityInfo.glow.withAlpha(0.08f),
                  juce::Colours::transparentBlack,
                  juce::Justification::centredRight);
@@ -2743,45 +2600,47 @@ void RootFlowAudioProcessorEditor::drawAtmosPod(juce::Graphics& g, juce::Rectang
     g.setColour(juce::Colours::black.withAlpha(0.56f));
     g.drawRoundedRectangle(r.reduced(0.5f), 10.0f, 1.5f);
 
-    auto titleArea = juce::Rectangle<int>(area.getX() + 10, area.getY() + 4, area.getWidth() - 54, 14);
+    const float scale = juce::jmin(area.getWidth() / 195.0f, area.getHeight() / 64.0f);
+
+    auto titleArea = juce::Rectangle<int>(area.getX() + 10, area.getY() + 4, area.getWidth() - 80, 18);
     drawGlowText(g, "ATMOS", titleArea,
-                 juce::Font(juce::FontOptions(10.5f).withStyle("Bold")),
-                 juce::Colour(236, 246, 228).withAlpha(0.92f),
-                 atmos.glow.withAlpha(0.10f),
+                 juce::Font(juce::FontOptions(11.5f * scale).withStyle("Bold")),
+                 juce::Colour(245, 250, 235).withAlpha(0.98f),
+                 atmos.glow.withAlpha(0.14f),
                  juce::Colours::transparentBlack,
                  juce::Justification::centredLeft);
 
-    auto atmosValueArea = juce::Rectangle<int>(area.getRight() - 44,
+    auto atmosValueArea = juce::Rectangle<int>(area.getRight() - 60,
                                                area.getY() + 4,
-                                               34,
-                                               14);
+                                               50,
+                                               18);
     drawGlowText(g, formatReadoutText(atmosSlider.getValue() * 100.0f, 0, "%"), atmosValueArea,
-                 juce::Font(juce::FontOptions(10.5f).withStyle("Bold")),
-                 atmos.rim.withAlpha(0.94f),
-                 atmos.glow.withAlpha(0.08f),
+                 juce::Font(juce::FontOptions(11.0f * scale).withStyle("Bold")),
+                 atmos.rim.withAlpha(0.96f),
+                 atmos.glow.withAlpha(0.14f),
                  juce::Colours::transparentBlack,
                  juce::Justification::centredRight);
 
-    const int textRight = juce::jmax(area.getX() + 24, atmosSlider.getX() - 10);
+    const int knobLeft = atmosSlider.getX();
     auto atmosNameArea = juce::Rectangle<int>(area.getX() + 10,
-                                              area.getY() + 20,
-                                              textRight - area.getX() - 12,
-                                              18);
+                                              area.getY() + 26,
+                                              knobLeft - area.getX() - 10,
+                                              22);
     drawGlowText(g, atmos.name, atmosNameArea,
-                 juce::Font(juce::FontOptions(16.0f).withStyle("Bold")),
+                 juce::Font(juce::FontOptions(16.5f * scale).withStyle("Bold")),
                  atmos.core.withAlpha(0.98f),
-                 atmos.glow.withAlpha(0.16f),
+                 atmos.glow.withAlpha(0.20f),
                  juce::Colours::transparentBlack,
                  juce::Justification::centredLeft);
 
     auto descriptorArea = juce::Rectangle<int>(area.getX() + 10,
-                                               atmosNameArea.getBottom() + 1,
-                                               textRight - area.getX() - 12,
-                                               13);
+                                               atmosNameArea.getBottom() - 1,
+                                               knobLeft - area.getX() - 10,
+                                               14);
     drawGlowText(g, atmos.descriptor, descriptorArea,
-                 juce::Font(juce::FontOptions(9.4f).withStyle("Bold")),
-                 atmos.rim.withAlpha(0.88f),
-                 atmos.glow.withAlpha(0.10f),
+                 juce::Font(juce::FontOptions(10.0f * scale).withStyle("Bold")),
+                 atmos.rim.withAlpha(0.94f),
+                 atmos.glow.withAlpha(0.12f),
                  juce::Colours::transparentBlack,
                  juce::Justification::centredLeft);
 
@@ -2833,45 +2692,47 @@ void RootFlowAudioProcessorEditor::drawSeasonPod(juce::Graphics& g, juce::Rectan
     g.setColour(juce::Colours::black.withAlpha(0.56f));
     g.drawRoundedRectangle(r.reduced(0.5f), 10.0f, 1.5f);
 
-    auto titleArea = juce::Rectangle<int>(area.getX() + 10, area.getY() + 4, area.getWidth() - 54, 14);
+    const float scale = juce::jmin(area.getWidth() / 195.0f, area.getHeight() / 64.0f);
+
+    auto titleArea = juce::Rectangle<int>(area.getX() + 10, area.getY() + 4, area.getWidth() - 80, 18);
     drawGlowText(g, "SEASONS", titleArea,
-                 juce::Font(juce::FontOptions(10.5f).withStyle("Bold")),
-                 juce::Colour(236, 246, 228).withAlpha(0.92f),
-                 season.glow.withAlpha(0.10f),
+                 juce::Font(juce::FontOptions(11.5f * scale).withStyle("Bold")),
+                 juce::Colour(245, 250, 235).withAlpha(0.98f),
+                 season.glow.withAlpha(0.14f),
                  juce::Colours::transparentBlack,
                  juce::Justification::centredLeft);
 
-    auto seasonValueArea = juce::Rectangle<int>(area.getRight() - 44,
+    auto seasonValueArea = juce::Rectangle<int>(area.getRight() - 60,
                                                 area.getY() + 4,
-                                                34,
-                                                14);
+                                                50,
+                                                18);
     drawGlowText(g, formatReadoutText(seasonsSlider.getValue() * 100.0f, 0, "%"), seasonValueArea,
-                 juce::Font(juce::FontOptions(10.5f).withStyle("Bold")),
-                 season.rim.withAlpha(0.94f),
-                 season.glow.withAlpha(0.08f),
+                 juce::Font(juce::FontOptions(11.0f * scale).withStyle("Bold")),
+                 season.rim.withAlpha(0.96f),
+                 season.glow.withAlpha(0.14f),
                  juce::Colours::transparentBlack,
                  juce::Justification::centredRight);
 
     const int knobRight = seasonsSlider.getRight();
-    auto seasonNameArea = juce::Rectangle<int>(knobRight + 12,
-                                               area.getY() + 20,
-                                               area.getRight() - knobRight - 18,
-                                               18);
+    auto seasonNameArea = juce::Rectangle<int>(knobRight + 10,
+                                               area.getY() + 26,
+                                               area.getRight() - knobRight - 15,
+                                               22);
     drawGlowText(g, season.name, seasonNameArea,
-                 juce::Font(juce::FontOptions(16.0f).withStyle("Bold")),
+                 juce::Font(juce::FontOptions(16.5f * scale).withStyle("Bold")),
                  season.core.withAlpha(0.98f),
-                 season.glow.withAlpha(0.16f),
+                 season.glow.withAlpha(0.20f),
                  juce::Colours::transparentBlack,
                  juce::Justification::centredLeft);
 
-    auto descriptorArea = juce::Rectangle<int>(knobRight + 12,
-                                               seasonNameArea.getBottom() + 1,
-                                               area.getRight() - knobRight - 18,
-                                               13);
+    auto descriptorArea = juce::Rectangle<int>(knobRight + 10,
+                                               seasonNameArea.getBottom() - 1,
+                                               area.getRight() - knobRight - 15,
+                                               14);
     drawGlowText(g, season.descriptor, descriptorArea,
-                 juce::Font(juce::FontOptions(9.4f).withStyle("Bold")),
-                 season.rim.withAlpha(0.88f),
-                 season.glow.withAlpha(0.10f),
+                 juce::Font(juce::FontOptions(10.0f * scale).withStyle("Bold")),
+                 season.rim.withAlpha(0.94f),
+                 season.glow.withAlpha(0.12f),
                  juce::Colours::transparentBlack,
                  juce::Justification::centredLeft);
 
@@ -2980,24 +2841,29 @@ void RootFlowAudioProcessorEditor::drawFxModule(juce::Graphics& g, juce::Rectang
         g.drawEllipse(recess, 2.2f);
     }
 
-    auto iconArea = juce::Rectangle<float>(r.getX() + 24.0f, r.getY() + r.getHeight() * 0.50f - 16.0f, 28.0f, 28.0f);
+    const float modScale = juce::jmin(area.getWidth() / 250.0f, area.getHeight() / 120.0f);
+
+    auto iconArea = juce::Rectangle<float>(r.getX() + 18.0f * modScale, r.getBottom() - 40.0f * modScale, 28.0f * modScale, 28.0f * modScale);
     drawFxIcon(g, iconArea, title);
 
-    auto valueArea = juce::Rectangle<int>(area.getRight() - 90, area.getY() + 48, 74, 32);
+    auto valueArea = juce::Rectangle<int>(area.getRight() - juce::roundToInt(90.0f * modScale), 
+                                         area.getBottom() - juce::roundToInt(38.0f * modScale), 
+                                         juce::roundToInt(84.0f * modScale), 
+                                         juce::roundToInt(30.0f * modScale));
     float val = 0.0f;
     juce::String suffix;
     int decimals = 0;
 
     if (title == "BLOOM")      { val = bloomSlider.getValue() * 100.0f; suffix = "%"; }
-    else if (title == "RAIN")  { val = getRainDelayTimeSeconds((float) rainSlider.getValue()) * 1000.0f; suffix = " ms"; decimals = 2; }
+    else if (title == "RAIN")  { val = getRainDelayTimeSeconds((float) rainSlider.getValue()) * 1000.0f; suffix = " ms"; decimals = 0; }
     else if (title == "SUN")   { val = sunSlider.getValue() * 100.0f; suffix = "%"; }
 
     drawGlowText(g, formatReadoutText(val, decimals, suffix), valueArea,
-                 juce::Font(juce::FontOptions(title == "RAIN" ? 17.0f : 19.0f).withStyle("Bold")),
-                 juce::Colour(198, 255, 208).withAlpha(0.98f),
-                 juce::Colour(118, 255, 138).withAlpha(0.18f),
+                 juce::Font(juce::FontOptions(17.0f * modScale).withStyle("Bold")),
+                 juce::Colour(245, 250, 235).withAlpha(0.98f),
+                 juce::Colour(118, 255, 138).withAlpha(0.12f),
                  juce::Colours::transparentBlack,
-                 juce::Justification::centred);
+                 juce::Justification::centredRight);
 
     drawScrew(g, { r.getX() + 12.0f, r.getY() + 12.0f }, 4.8f);
     drawScrew(g, { r.getRight() - 12.0f, r.getY() + 12.0f }, 4.8f);

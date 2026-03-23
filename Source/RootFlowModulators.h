@@ -23,8 +23,19 @@ public:
     void prepare(double sr, int)
     {
         sampleRate = sr;
-        smoothedPlantEnergy.reset(sr, 0.1); 
+        smoothedPlantEnergy.reset(sr, 0.05); 
         
+        // Initialize Parameter Smoothing
+        s_rootAmt.reset(sr, 0.02);
+        s_rootAnchorAmt.reset(sr, 0.02);
+        s_rootSpeed.reset(sr, 0.05);
+        s_sapAmt.reset(sr, 0.02);
+        s_sapSpeed.reset(sr, 0.05);
+        s_sapTextureAmt.reset(sr, 0.02);
+        s_pulseAmt.reset(sr, 0.02);
+        s_pulseSens.reset(sr, 0.02);
+        s_pulseGrowthAmt.reset(sr, 0.02);
+
         phase = 0.0f;
         currentSap = 0.0f;
         targetSap = 0.0f;
@@ -37,21 +48,17 @@ public:
                     float flow, float vitality, float texture,
                     float rate, float breath, float growth)
     {
-        // ROOT (Stability): Slow, deep movements
-        rootAmt = depth;
-        rootAnchorAmt = anchor;
-        // Quadratic scaling for finer control over ultra-slow drift
-        rootSpeed = 0.00015f + (soil * soil * 0.0125f); 
+        s_rootAmt.setTargetValue(depth);
+        s_rootAnchorAmt.setTargetValue(anchor);
+        s_rootSpeed.setTargetValue(0.00015f + (soil * soil * 0.0125f));
         
-        // SAP (Vitality): Fluid Drift and Organic 'Juice' flow
-        sapAmt = flow;
-        sapSpeed = 0.001f + vitality * 0.035f;
-        sapTextureAmt = texture;
+        s_sapAmt.setTargetValue(flow);
+        s_sapSpeed.setTargetValue(0.001f + vitality * 0.035f);
+        s_sapTextureAmt.setTargetValue(texture);
         
-        // PULSE (Interaction): Reaction to Audio Input / Envelopes
-        pulseAmt = rate;
-        pulseSens = breath;
-        pulseGrowthAmt = growth;
+        s_pulseAmt.setTargetValue(rate);
+        s_pulseSens.setTargetValue(breath);
+        s_pulseGrowthAmt.setTargetValue(growth);
     }
 
     void update(juce::AudioBuffer<float>& buffer)
@@ -59,29 +66,33 @@ public:
         const int numSamples = buffer.getNumSamples();
         if (numSamples <= 0) return;
 
+        // Fetch Smoothed Parameters for this block
+        float rootAmt = s_rootAmt.getNextValue();
+        float rootAnchorAmt = s_rootAnchorAmt.getNextValue();
+        float rootSpeed = s_rootSpeed.getNextValue();
+        float sapAmt = s_sapAmt.getNextValue();
+        float sapSpeed = s_sapSpeed.getNextValue();
+        float sapTextureAmt = s_sapTextureAmt.getNextValue();
+        float pulseAmt = s_pulseAmt.getNextValue();
+        float pulseSens = s_pulseSens.getNextValue();
+        float pulseGrowthAmt = s_pulseGrowthAmt.getNextValue();
+
         // 1. ROOT (The Foundation)
-        // Very slow organic sine wave.
         phase += rootSpeed;
         if (phase > juce::MathConstants<float>::twoPi) phase -= juce::MathConstants<float>::twoPi;
         
         float root = (std::sin(phase) * 0.5f + 0.5f) * rootAmt;
-        // Mix in Anchor (static bias)
         root = root * (1.0f - rootAnchorAmt * 0.75f) + (rootAnchorAmt * 0.45f);
 
         // 2. SAP (The Vitality Loop)
-        // Random walk for unpredictable but smooth changes.
         if (random.nextFloat() > (1.0f - sapSpeed)) 
             targetSap = random.nextFloat();
         
-        // Approx. 30ms smoothing for the sap drift
         currentSap += (targetSap - currentSap) * 0.0055f;
         float sap = currentSap * sapAmt;
-        
-        // Texture creates micro-nervousness
         float textureNoise = (random.nextFloat() * 2.0f - 1.0f) * sapTextureAmt * 0.12f;
 
         // 3. PULSE (The Dynamic Reaction)
-        // Envelope Follower tracking the input magnitude.
         float env = 0.0f;
         if (buffer.getNumChannels() > 0)
         {
@@ -89,17 +100,14 @@ public:
                 env = juce::jmax(env, buffer.getMagnitude(ch, 0, numSamples));
         }
 
-        // Sensitivity scaling
         env = juce::jlimit(0.0f, 1.0f, env * (1.15f + pulseSens * 14.0f));
 
-        // Attack/Release characteristic
         float attack = 0.42f;
         float release = 0.024f;
         pulseFollower += (env - pulseFollower) * (env > pulseFollower ? attack : release) * (0.15f + pulseAmt * 0.85f);
         pulseFollower = juce::jlimit(0.0f, 1.0f, pulseFollower);
 
-        // 4. SYNERGY (Combining into beautiful creature)
-        // Base energy ensures heartbeat even when silent.
+        // 4. SYNERGY
         float rawEnergy = 0.12f 
                         + (root * 0.22f) 
                         + (sap * 0.28f) 
@@ -109,7 +117,6 @@ public:
         plantEnergy = juce::jlimit(0.0f, 1.0f, rawEnergy);
         smoothedPlantEnergy.setTargetValue(plantEnergy);
 
-        // Map internal states to the Snapshot for the Visualizer
         bioFeedback.plantEnergy = smoothedPlantEnergy.getNextValue();
         bioFeedback.growthCycle = juce::jlimit(0.0f, 1.0f, root * 1.15f + pulseFollower * 0.25f);
         bioFeedback.leafJitter = juce::jlimit(0.0f, 1.0f, currentSap + std::abs(textureNoise) * 4.0f);
@@ -124,10 +131,12 @@ private:
     juce::Random random;
     juce::LinearSmoothedValue<float> smoothedPlantEnergy;
     
+    // Parameter Smoothing
+    juce::LinearSmoothedValue<float> s_rootAmt, s_rootAnchorAmt, s_rootSpeed;
+    juce::LinearSmoothedValue<float> s_sapAmt, s_sapSpeed, s_sapTextureAmt;
+    juce::LinearSmoothedValue<float> s_pulseAmt, s_pulseSens, s_pulseGrowthAmt;
+
     float phase = 0;
-    float rootAmt = 0.5f, rootSpeed = 0.005f, rootAnchorAmt = 0.5f;
-    float sapAmt = 0.5f, sapSpeed = 0.01f, sapTextureAmt = 0.5f;
-    float pulseAmt = 0.5f, pulseSens = 0.5f, pulseGrowthAmt = 0.5f;
     float currentSap = 0, targetSap = 0;
     float pulseFollower = 0;
     float plantEnergy = 0;

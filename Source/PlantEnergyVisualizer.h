@@ -63,7 +63,7 @@ public:
     }
 
 
-    PlantEnergyVisualizer()
+    PlantEnergyVisualizer (RootFlowAudioProcessor& p) : processor (p)
     {
         updateAnimationTimerState();
     }
@@ -447,9 +447,28 @@ private:
 
         updateMyceliumPulses();
         
-        // --- NEW: Spectrum-to-Mycelium Mapping ---
+        // --- NEW: Sequencer Beat Pulse (Magic Glow) ---
+        const float rawEnergy = currentState.plantEnergy;
+        if (processor.sequencerTriggered.load())
+        {
+            processor.sequencerTriggered.store(false);
+            
+            // "Zündet" das Netzwerk: Globaler Beat-Flash
+            globalBeatCharge = 1.0f + rawEnergy * 1.5f;
+            
+            // Die physische Energie des Beats lässt die Myzel-Äste kurz zittern
+            myceliumDriftPhase += 0.2f * (0.5f + rawEnergy);
+        }
+        else
+        {
+            // Abklingrate des Leuchtens (langsamer bei hoher Energie)
+            const float decay = 0.92f + (rawEnergy * 0.04f);
+            globalBeatCharge *= decay;
+        }
+
+        // --- Spectrum-to-Mycelium Mapping ---
         const int numRows = (int) myceliumRowStarts.size();
-        auto graphArea = getGraphArea(getLocalBounds().toFloat());
+        auto area = getGraphArea(getLocalBounds().toFloat());
         
         for (int r = 0; r < numRows; ++r)
         {
@@ -466,12 +485,12 @@ private:
                 if (juce::isPositiveAndBelow(nodeIdx, (int) myceliumNodeCharge.size()))
                 {
                     const float shiver = 0.04f * std::sin(phaseA * 2.2f + (float) nodeIdx);
-                    const float targetCharge = juce::jlimit(0.0f, 1.0f, bandLevel * (0.85f + shiver));
-                    myceliumNodeCharge[(size_t) nodeIdx] = juce::jmax(myceliumNodeCharge[(size_t) nodeIdx], targetCharge);
+                    // Kombiniere Band-Level mit dem globalen Beat-Flash
+                    const float targetCharge = juce::jlimit(0.0f, 1.0f, bandLevel * (0.85f + shiver)) + globalBeatCharge * 0.4f;
+                    myceliumNodeCharge[(size_t) nodeIdx] = juce::jmax(myceliumNodeCharge[(size_t) nodeIdx], juce::jlimit(0.0f, 2.5f, targetCharge));
                     
                     // --- NEW: Seed Interaction ---
-                    // If the energy seed (traveling point) is near this node's horizontal position, charge it!
-                    const float nodeXNorm = (myceliumNodes[(size_t) nodeIdx].anchor.x - graphArea.getX()) / graphArea.getWidth();
+                    const float nodeXNorm = (myceliumNodes[(size_t) nodeIdx].anchor.x - area.getX()) / area.getWidth();
                     const float distToSeed = std::abs(nodeXNorm - energySeedPhase);
                     if (distToSeed < 0.06f)
                     {
@@ -985,9 +1004,23 @@ private:
         const auto rainColour = juce::Colour(112, 212, 255);
         const auto sunColour = juce::Colour(255, 215, 144);
 
+        const auto flashColour = juce::Colours::white.withAlpha(0.7f);
         const auto threadColour = soilColour.interpolatedWith(vitalityColour, 0.16f + currentState.sapVitality * 0.34f)
                                             .interpolatedWith(rainColour, currentState.rain * 0.16f)
-                                            .interpolatedWith(sunColour, currentState.sun * 0.12f);
+                                            .interpolatedWith(sunColour, currentState.sun * 0.12f)
+                                            .interpolatedWith(flashColour, juce::jlimit(0.0f, 1.0f, globalBeatCharge * 0.5f));
+
+        const float edgeCharge = juce::jlimit(0.0f, 1.0f, globalBeatCharge * 0.8f);
+        
+        // 1. Hintergrund-Aura (Vignette-Glow)
+        if (glowEnergy > 0.3f || edgeCharge > 0.3f)
+        {
+            auto auraAlpha = juce::jlimit(0.0f, 0.32f, (glowEnergy * 0.25f) + (edgeCharge * 0.15f));
+            juce::ColourGradient grad (juce::Colours::transparentBlack, area.getCentreX(), area.getCentreY(),
+                                       vitalityColour.withAlpha(auraAlpha), area.getCentreX(), area.getCentreY(), true);
+            g.setGradientFill(grad);
+            g.fillAll();
+        }
 
         // --- Multi-Mode Root System with Peak-Snapping ---
         const float snapStrength = glowEnergy * 25.0f;
@@ -1011,6 +1044,20 @@ private:
             juce::Path thread;
             thread.startNewSubPath(start);
             thread.quadraticTo(control, end);
+
+            // --- DER SUPER-GLOW EFFEKT ---
+            float branchAlpha = juce::jlimit(0.15f, 1.0f, glowEnergy + edgeCharge);
+            
+            // Ebene A: Äußerer Glow (Dicke Linie, weich)
+            g.setColour(vitalityColour.withAlpha(branchAlpha * 0.35f));
+            g.strokePath(thread, juce::PathStrokeType(edge.thickness * 3.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+
+            // Ebene B: Helles Zentrum (Dünne Linie, scharf)
+            auto coreCol = threadColour;
+            if (edgeCharge > 0.7f) coreCol = coreCol.interpolatedWith(juce::Colours::white, (edgeCharge - 0.7f) * 1.4f);
+            
+            g.setColour(coreCol.withAlpha(branchAlpha * 0.95f));
+            g.strokePath(thread, juce::PathStrokeType(edge.thickness * 1.1f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
 
             if (currentSpecies == SpeciesMode::lightFlow)
@@ -1464,6 +1511,9 @@ private:
     bool queuedImpulseMapped = false;
     static constexpr size_t maxMyceliumPulses = 96;
     static constexpr size_t maxSpores = 480;
+
+    RootFlowAudioProcessor& processor;
+    float globalBeatCharge = 0.0f;
 
     SpeciesMode currentSpecies = SpeciesMode::lightFlow;
     GrowthColor currentColor = GrowthColor::emerald;
