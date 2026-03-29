@@ -4,6 +4,7 @@ project(RootFlow VERSION 0.1.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+option(ROOTFLOW_COPY_PLUGIN_AFTER_BUILD "Install plugin artifacts after building." ON)
 
 # Optimization and Universal Binaries for macOS
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
@@ -11,23 +12,40 @@ if(APPLE)
     set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "Build architectures for macOS" FORCE)
 endif()
 
-find_package(JUCE CONFIG REQUIRED)
+find_package(JUCE CONFIG QUIET)
+if(NOT TARGET juce::juce_audio_utils)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/JUCE/CMakeLists.txt")
+        add_subdirectory(external/JUCE EXCLUDE_FROM_ALL)
+    else()
+        message(FATAL_ERROR
+            "JUCE was not found. Set JUCE_DIR to an installed JUCE package or clone JUCE into external/JUCE.")
+    endif()
+endif()
+
+set(ROOTFLOW_FORMATS VST3 Standalone)
+set(ROOTFLOW_PLATFORM_PLUGIN_ARGS)
+if(APPLE)
+    list(APPEND ROOTFLOW_FORMATS AU)
+    list(APPEND ROOTFLOW_PLATFORM_PLUGIN_ARGS
+        PLIST_TO_MERGE "${CMAKE_CURRENT_SOURCE_DIR}/Source/Info-App.plist"
+        MACOS_ENTITLEMENTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/RootFlow.entitlements"
+    )
+endif()
 
 juce_add_plugin(RootFlow
     COMPANY_NAME "Funky Moose Audio"
     BUNDLE_ID at.uwefelchle.rootflow.synth
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
-    COPY_PLUGIN_AFTER_BUILD TRUE
+    COPY_PLUGIN_AFTER_BUILD ${ROOTFLOW_COPY_PLUGIN_AFTER_BUILD}
     PLUGIN_MANUFACTURER_CODE FMAA
     PLUGIN_CODE RTFL
     PLUGIN_NAME "Funky Moose Rootflow Synth"
     DESCRIPTION "Funky Moose Rootflow Synth"
     SUPPRESS_AU_PLIST_RESOURCE_USAGE TRUE
-    FORMATS AU VST3 Standalone
+    FORMATS ${ROOTFLOW_FORMATS}
     PRODUCT_NAME "Funky Moose Rootflow Synth"
-    PLIST_TO_MERGE "${CMAKE_CURRENT_SOURCE_DIR}/Source/Info-App.plist"
-    MACOS_ENTITLEMENTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/RootFlow.entitlements"
+    ${ROOTFLOW_PLATFORM_PLUGIN_ARGS}
 )
 
 target_compile_definitions(RootFlow PUBLIC

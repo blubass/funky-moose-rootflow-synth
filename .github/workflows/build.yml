@@ -1,0 +1,77 @@
+name: Build Plugins
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS Release
+            os: macos-14
+            configure_cmd: cmake -S . -B build-ci -DCMAKE_BUILD_TYPE=Release -DROOTFLOW_COPY_PLUGIN_AFTER_BUILD=OFF
+            build_cmd: cmake --build build-ci --parallel
+            artifact_name: funky-moose-rootflow-synth-macos
+          - name: Windows Release
+            os: windows-2022
+            configure_cmd: cmake -S . -B build-ci -A x64 -DROOTFLOW_COPY_PLUGIN_AFTER_BUILD=OFF
+            build_cmd: cmake --build build-ci --config Release --parallel
+            artifact_name: funky-moose-rootflow-synth-windows
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch JUCE 8.0.10
+        shell: bash
+        run: |
+          git clone --depth 1 --branch 8.0.10 https://github.com/juce-framework/JUCE.git external/JUCE
+
+      - name: Configure
+        shell: bash
+        run: ${{ matrix.configure_cmd }}
+
+      - name: Build
+        shell: bash
+        run: ${{ matrix.build_cmd }}
+
+      - name: Stage macOS artifacts
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          mkdir -p dist
+          find build-ci -type d \( \
+            -name "Funky Moose Rootflow Synth.component" -o \
+            -name "Funky Moose Rootflow Synth.vst3" -o \
+            -name "Funky Moose Rootflow Synth.app" \
+          \) -exec cp -R "{}" dist/ \;
+          ls -la dist
+
+      - name: Stage Windows artifacts
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Get-ChildItem -Path build-ci -Recurse -Filter 'Funky Moose Rootflow Synth.vst3' | Copy-Item -Destination dist -Recurse -Force
+          Get-ChildItem -Path build-ci -Recurse -Filter 'Funky Moose Rootflow Synth.exe' | Copy-Item -Destination dist -Force
+          Get-ChildItem -Path dist -Recurse
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: dist
+          if-no-files-found: error
