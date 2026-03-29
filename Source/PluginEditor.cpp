@@ -5,7 +5,7 @@ namespace
 {
 constexpr int headerHeight = 80;
 
-constexpr float getRainDelayTimeSeconds(float amount) noexcept
+float getRainDelayTimeSeconds(float amount) noexcept
 {
     return (85.0f + std::pow(juce::jlimit(0.0f, 1.0f, amount), 0.84f) * 390.0f) / 1000.0f;
 }
