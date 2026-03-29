@@ -13,6 +13,14 @@ struct FactoryPreset
     std::array<float, 16> values;
 };
 
+struct FactoryPresetMasterSettings
+{
+    float compressor = 0.0f;
+    float mix = 1.0f;
+    bool mono = false;
+    float monoFreqHz = 80.0f;
+};
+
 struct FactoryPresetSectionDefinition
 {
     const char* title;
@@ -62,7 +70,22 @@ SeasonMorph getSeasonMorph(float value) noexcept
     return morph;
 }
 
-constexpr std::array<const char*, 21> presetParameterIDs {
+constexpr std::array<const char*, 16> factoryPresetValueParameterIDs {
+    "rootDepth", "rootSoil", "rootAnchor",
+    "sapFlow", "sapVitality", "sapTexture",
+    "pulseRate", "pulseBreath", "pulseGrowth",
+    "canopy", "atmosphere",
+    "instability",
+    "bloom", "rain", "sun",
+    "ecoSystem"
+};
+
+constexpr std::array<const char*, 5> factoryPresetUtilityParameterIDs {
+    "sequencerOn", "sequencerRate", "sequencerSteps", "sequencerGate",
+    "oscWave"
+};
+
+constexpr std::array<const char*, 26> managedParameterIDs {
     "rootDepth", "rootSoil", "rootAnchor",
     "sapFlow", "sapVitality", "sapTexture",
     "pulseRate", "pulseBreath", "pulseGrowth",
@@ -71,7 +94,21 @@ constexpr std::array<const char*, 21> presetParameterIDs {
     "bloom", "rain", "sun",
     "ecoSystem",
     "sequencerOn", "sequencerRate", "sequencerSteps", "sequencerGate",
-    "oscWave"
+    "oscWave",
+    "masterVolume", "masterCompressor", "masterMix", "monoMakerToggle", "monoMakerFreq"
+};
+
+constexpr std::array<const char*, 24> mutationParameterIDs {
+    "rootDepth", "rootSoil", "rootAnchor",
+    "sapFlow", "sapVitality", "sapTexture",
+    "pulseRate", "pulseBreath", "pulseGrowth",
+    "canopy", "atmosphere",
+    "instability",
+    "bloom", "rain", "sun",
+    "ecoSystem",
+    "sequencerOn", "sequencerRate", "sequencerSteps", "sequencerGate",
+    "oscWave",
+    "masterCompressor", "masterMix", "monoMakerFreq"
 };
 
 const std::array<FactoryPreset, 86> factoryPresets {{
@@ -224,6 +261,76 @@ constexpr auto nodeSystemTag = "NodeSystem";
 constexpr auto nodeTag = "Node";
 constexpr auto connectionTag = "Connection";
 
+bool presetNameContainsAny(juce::String name, std::initializer_list<const char*> needles)
+{
+    name = name.trim().toUpperCase();
+    for (const auto* needle : needles)
+    {
+        if (name.contains(juce::String(needle).trim().toUpperCase()))
+            return true;
+    }
+
+    return false;
+}
+
+FactoryPresetMasterSettings getFactoryPresetMasterSettings(int index, const FactoryPreset& preset) noexcept
+{
+    const auto name = juce::String(preset.name).trim();
+    const auto& values = preset.values;
+
+    const float rootWeight = (values[0] + values[1] + values[2]) / 3.0f;
+    const float motionWeight = (values[6] + values[7] + values[8]) / 3.0f;
+    const float airWeight = (values[9] + values[10] + values[15]) / 3.0f;
+    const float fxWeight = (values[12] + values[13] + values[14]) / 3.0f;
+    const float instability = values[11];
+
+    FactoryPresetMasterSettings settings;
+    settings.compressor = juce::jlimit(0.05f, 0.58f,
+                                       0.06f
+                                       + rootWeight * 0.14f
+                                       + motionWeight * 0.10f
+                                       + instability * 0.20f
+                                       + fxWeight * 0.05f);
+
+    settings.mix = juce::jlimit(0.76f, 1.0f,
+                                0.90f
+                                + airWeight * 0.07f
+                                + fxWeight * 0.06f
+                                - rootWeight * 0.08f
+                                - instability * 0.05f);
+
+    settings.monoFreqHz = juce::jlimit(42.0f, 220.0f,
+                                       52.0f
+                                       + rootWeight * 90.0f
+                                       + motionWeight * 28.0f
+                                       + instability * 18.0f);
+
+    settings.mono = rootWeight > 0.76f
+                 || ((index >= 17 && index <= 22) && rootWeight > 0.56f)
+                 || (index >= 61 && index <= 65)
+                 || presetNameContainsAny(name, { "ROOT", "MYCEL", "CAVE", "LOAM", "HUMUS", "TRUFFLE", "SAGUARO", "CAVITATION" });
+
+    if (presetNameContainsAny(name, { "LEAD", "BURST", "PULSE", "STATIC", "SWARM", "CORDYCEPS" }))
+        settings.compressor = juce::jlimit(0.05f, 0.64f, settings.compressor + 0.08f);
+
+    if (presetNameContainsAny(name, { "DRIFT", "WIND", "LOTUS", "LILY", "BROOK", "RIVER", "WILLOW", "LUNAR", "GLASS" }))
+        settings.mix = juce::jlimit(0.76f, 1.0f, settings.mix + 0.04f);
+
+    if (settings.mono)
+    {
+        settings.mix = juce::jlimit(0.72f, 0.94f, settings.mix - 0.05f);
+        settings.compressor = juce::jlimit(0.08f, 0.68f, settings.compressor + 0.05f);
+    }
+
+    if (index >= 80)
+    {
+        settings.compressor = juce::jlimit(0.06f, 0.48f, settings.compressor + 0.04f);
+        settings.mix = juce::jlimit(0.82f, 1.0f, settings.mix - 0.03f);
+    }
+
+    return settings;
+}
+
 float onePoleCoeffFromCutoff(float cutoffHz, float sampleRate) noexcept
 {
     const float safeSampleRate = juce::jmax(1.0f, sampleRate);
@@ -290,9 +397,9 @@ RootFlowAudioProcessor::RootFlowAudioProcessor()
                      ),
       tree(*this, nullptr, "PARAMETERS", createParameterLayout())
 {
-    for (size_t i = 0; i < presetParameterIDs.size(); ++i)
+    for (size_t i = 0; i < managedParameterIDs.size(); ++i)
     {
-        mappedParameters[i] = tree.getParameter(presetParameterIDs[i]);
+        mappedParameters[i] = tree.getParameter(managedParameterIDs[i]);
         pendingMappedParameterValues[i].store(mappedParameters[i] != nullptr ? mappedParameters[i]->getValue() : 0.0f,
                                               std::memory_order_relaxed);
         pendingMappedParameterDirty[i].store(0, std::memory_order_relaxed);
@@ -314,7 +421,7 @@ RootFlowAudioProcessor::RootFlowAudioProcessor()
 
     nodeSystem.initialise(tree);
 
-    for (const auto* paramID : presetParameterIDs)
+    for (const auto* paramID : managedParameterIDs)
         tree.addParameterListener(paramID, this);
 
     startTimer(33);
@@ -324,7 +431,7 @@ RootFlowAudioProcessor::~RootFlowAudioProcessor()
 {
     stopTimer();
 
-    for (const auto* paramID : presetParameterIDs)
+    for (const auto* paramID : managedParameterIDs)
         tree.removeParameterListener(paramID, this);
 
     clearPendingMappedParameterChanges();
@@ -369,6 +476,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout RootFlowAudioProcessor::crea
                                                                  juce::NormalisableRange<float>(-48.0f, +12.0f, 0.1f, 1.5f), 0.0f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID("masterCompressor", 1), "Compressor",
                                                                  juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.0f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID("masterMix", 1), "Mix", 0.0f, 1.0f, 1.0f));
+    params.push_back(std::make_unique<juce::AudioParameterBool>(juce::ParameterID("monoMakerToggle", 1), "Mono Maker", false));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID("monoMakerFreq", 1), "Mono Freq",
+                                                                 juce::NormalisableRange<float>(20.0f, 400.0f, 1.0f, 0.5f), 80.0f));
 
     return { params.begin(), params.end() };
 }
@@ -396,6 +507,7 @@ void RootFlowAudioProcessor::prepareToPlay(double sr, int bs)
     {
         auto* voice = new RootFlowVoice();
         voice->setEngine(&modulation); // Link to bio-feedback engine
+        voice->setMidiExpressionState(&midiExpressionState);
         voice->setSampleRate(sr, bs);
         synth.addVoice(voice);
     }
@@ -433,6 +545,14 @@ void RootFlowAudioProcessor::prepareToPlay(double sr, int bs)
         filter.setCutoffFrequency(clampStateVariableCutoff(7600.0f, safeSampleRate));
     }
 
+    for (auto& filter : monoMakerFilters)
+    {
+        filter.reset();
+        filter.prepare(monoSpec);
+        filter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
+        filter.setCutoffFrequency(clampStateVariableCutoff(80.0f, safeSampleRate));
+    }
+
     masterDriveSmoothed.reset(safeSampleRate, 0.08);
     masterDriveSmoothed.setCurrentAndTargetValue(1.0f);
     masterToneCutoffSmoothed.reset(safeSampleRate, 0.10);
@@ -443,8 +563,21 @@ void RootFlowAudioProcessor::prepareToPlay(double sr, int bs)
     soilDriveSmoothed.setCurrentAndTargetValue(1.0f);
     soilMixSmoothed.reset(safeSampleRate, 0.12);
     soilMixSmoothed.setCurrentAndTargetValue(0.0f);
+    masterMixSmoothed.reset(safeSampleRate, 0.10);
+    masterMixSmoothed.setCurrentAndTargetValue(tree.getRawParameterValue("masterMix") != nullptr
+                                                   ? tree.getRawParameterValue("masterMix")->load()
+                                                   : 1.0f);
+    monoMakerFreqSmoothed.reset(safeSampleRate, 0.10);
+    monoMakerFreqSmoothed.setCurrentAndTargetValue(tree.getRawParameterValue("monoMakerFreq") != nullptr
+                                                       ? tree.getRawParameterValue("monoMakerFreq")->load()
+                                                       : 80.0f);
+    monoMakerEnabled.store(tree.getRawParameterValue("monoMakerToggle") != nullptr
+                               && tree.getRawParameterValue("monoMakerToggle")->load() > 0.5f,
+                           std::memory_order_relaxed);
     masterVolumeSmoothed.reset(safeSampleRate, 0.05);
-    masterVolumeSmoothed.setCurrentAndTargetValue(1.0f);
+    masterVolumeSmoothed.setCurrentAndTargetValue(tree.getRawParameterValue("masterVolume") != nullptr
+                                                      ? juce::Decibels::decibelsToGain(tree.getRawParameterValue("masterVolume")->load())
+                                                      : 1.0f);
     finalCompressor.prepare(fxSpec);
     soilBodyCutoffSmoothed.reset(safeSampleRate, 0.14);
     soilBodyCutoffSmoothed.setCurrentAndTargetValue(360.0f);
@@ -826,6 +959,15 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                           - seasonMorph.autumn * 260.0f
                                           - seasonMorph.winter * 1300.0f);
 
+    if (auto* mixParam = tree.getRawParameterValue("masterMix"))
+        masterMixSmoothed.setTargetValue(mixParam->load());
+
+    if (auto* freqParam = tree.getRawParameterValue("monoMakerFreq"))
+        monoMakerFreqSmoothed.setTargetValue(freqParam->load());
+
+    if (auto* toggleParam = tree.getRawParameterValue("monoMakerToggle"))
+        monoMakerEnabled.store(toggleParam->load() > 0.5f, std::memory_order_relaxed);
+
     auto* leftData = buffer.getWritePointer(0);
     auto* rightData = numChannels > 1 ? buffer.getWritePointer(1) : nullptr;
     const float testTonePhaseDelta = juce::MathConstants<double>::twoPi * 440.0 / (double) sampleRate;
@@ -911,6 +1053,13 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             filter.setCutoffFrequency(clampStateVariableCutoff(masterToneCutoffSmoothed.getCurrentValue(), sampleRate));
         }
 
+        for (auto& filter : monoMakerFilters)
+        {
+            filter.reset();
+            filter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
+            filter.setCutoffFrequency(clampStateVariableCutoff(monoMakerFreqSmoothed.getCurrentValue(), sampleRate));
+        }
+
         soilBodyState.fill(0.0f);
         soilToneState.fill(0.0f);
         postFxDcBlockPrevInput.fill(0.0f);
@@ -994,6 +1143,8 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             soilMixedR = glueR * (1.0f - soilMix) + soilShapedR * soilMix;
         }
 
+        const float outDryL = soilMixedL;
+        const float outDryR = soilMixedR;
         float tonedL = masterToneFilters[0].processSample(0, soilMixedL);
         float tonedR = rightData != nullptr ? masterToneFilters[1].processSample(0, soilMixedR) : tonedL;
 
@@ -1021,6 +1172,9 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         float finalL = juce::jmap(juce::jlimit(0.0f, 0.24f, juce::jmax(0.0f, drive - 1.0f) * 0.40f),
                                   tonedL,
                                   drivenL) * seasonOutputTrim * canopyOutputTrim;
+        const float mix = masterMixSmoothed.getNextValue();
+        const float monoFreq = monoMakerFreqSmoothed.getNextValue();
+        const bool monoEnabled = monoMakerEnabled.load(std::memory_order_relaxed);
         if (rightData != nullptr)
         {
             const float drivenR = std::tanh(tonedR * drive) * driveComp * 0.98f;
@@ -1037,6 +1191,25 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             finalL = boostedL / (1.15f + std::abs(boostedL * 0.18f));
             finalR = boostedR / (1.15f + std::abs(boostedR * 0.18f));
 
+            if (monoEnabled)
+            {
+                const float cutoff = clampStateVariableCutoff(monoFreq, sampleRate);
+                monoMakerFilters[0].setCutoffFrequency(cutoff);
+                monoMakerFilters[1].setCutoffFrequency(cutoff);
+
+                const float lowL = monoMakerFilters[0].processSample(0, finalL);
+                const float lowR = monoMakerFilters[1].processSample(0, finalR);
+                const float highL = finalL - lowL;
+                const float highR = finalR - lowR;
+                const float monoLow = (lowL + lowR) * 0.5f;
+
+                finalL = monoLow + highL;
+                finalR = monoLow + highR;
+            }
+
+            finalL = finalL * mix + outDryL * (1.0f - mix);
+            finalR = finalR * mix + outDryR * (1.0f - mix);
+
             invalidAudioDetected = invalidAudioDetected || (! std::isfinite(finalL)) || (! std::isfinite(finalR));
             rawOutputPeak = juce::jmax(rawOutputPeak, std::abs(finalL));
             rawOutputPeak = juce::jmax(rawOutputPeak, std::abs(finalR));
@@ -1052,6 +1225,7 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         {
             const float testTone = std::sin(testTonePhase) * 0.06f * testToneLevelSmoothed.getNextValue();
             finalL += testTone;
+            finalL = finalL * mix + outDryL * (1.0f - mix);
             invalidAudioDetected = invalidAudioDetected || (! std::isfinite(finalL));
             rawOutputPeak = juce::jmax(rawOutputPeak, std::abs(finalL));
             finalL = applyOutputDcBlock(finalL, 0);
@@ -1238,6 +1412,7 @@ void RootFlowAudioProcessor::applyFactoryPreset(int index)
         return;
 
     const auto& preset = factoryPresets[(size_t) index];
+    const auto masterSettings = getFactoryPresetMasterSettings(index, preset);
     presetLoadInProgress.fetch_add(1, std::memory_order_acq_rel);
 
     // Bio-Jitter: each load is subtly unique, like a plant that never
@@ -1245,16 +1420,33 @@ void RootFlowAudioProcessor::applyFactoryPreset(int index)
     juce::Random bioRng (juce::Time::getCurrentTime().toMilliseconds());
     const size_t numPresetValues = preset.values.size(); // 16
 
-    for (size_t i = 0; i < presetParameterIDs.size(); ++i)
+    for (size_t i = 0; i < factoryPresetValueParameterIDs.size(); ++i)
     {
-        if (auto* parameter = tree.getParameter(presetParameterIDs[i]))
+        if (auto* parameter = tree.getParameter(factoryPresetValueParameterIDs[i]))
         {
-            float base = (i < numPresetValues) ? preset.values[i] : 0.0f;
-            // Only jitter the core 16 bio-values; leave sequencer params exact
-            float jitter = (i < numPresetValues) ? (bioRng.nextFloat() * 0.02f - 0.01f) : 0.0f;
+            const float base = (i < numPresetValues) ? preset.values[i] : 0.0f;
+            const float jitter = (i < numPresetValues) ? (bioRng.nextFloat() * 0.02f - 0.01f) : 0.0f;
             parameter->setValueNotifyingHost(juce::jlimit(0.0f, 1.0f, base + jitter));
         }
     }
+
+    for (const auto* paramID : factoryPresetUtilityParameterIDs)
+    {
+        if (auto* parameter = tree.getParameter(paramID))
+            parameter->setValueNotifyingHost(0.0f);
+    }
+
+    if (auto* parameter = tree.getParameter("masterCompressor"))
+        parameter->setValueNotifyingHost(masterSettings.compressor);
+
+    if (auto* parameter = tree.getParameter("masterMix"))
+        parameter->setValueNotifyingHost(masterSettings.mix);
+
+    if (auto* parameter = tree.getParameter("monoMakerToggle"))
+        parameter->setValueNotifyingHost(masterSettings.mono ? 1.0f : 0.0f);
+
+    if (auto* parameter = dynamic_cast<juce::RangedAudioParameter*>(tree.getParameter("monoMakerFreq")))
+        parameter->setValueNotifyingHost(parameter->convertTo0to1(masterSettings.monoFreqHz));
 
     presetLoadInProgress.fetch_sub(1, std::memory_order_acq_rel);
     clearPendingMappedParameterChanges();
@@ -1388,17 +1580,17 @@ void RootFlowAudioProcessor::hiResTimerCallback()
 
 juce::String RootFlowAudioProcessor::getMappedParameterIDForSlot(int parameterSlot) const
 {
-    if (! juce::isPositiveAndBelow(parameterSlot, (int) presetParameterIDs.size()))
+    if (! juce::isPositiveAndBelow(parameterSlot, (int) managedParameterIDs.size()))
         return {};
 
-    return presetParameterIDs[(size_t) parameterSlot];
+    return managedParameterIDs[(size_t) parameterSlot];
 }
 
 int RootFlowAudioProcessor::getMappedParameterSlotForID(const juce::String& paramID) const noexcept
 {
-    for (size_t i = 0; i < presetParameterIDs.size(); ++i)
+    for (size_t i = 0; i < managedParameterIDs.size(); ++i)
     {
-        if (paramID == presetParameterIDs[i])
+        if (paramID == managedParameterIDs[i])
             return (int) i;
     }
 
@@ -2023,6 +2215,7 @@ void RootFlowAudioProcessor::recordMidiActivity(const juce::MidiMessage& message
 void RootFlowAudioProcessor::resetMidiExpressionState() noexcept
 {
     midiExpressionState.pitchBendRangeSemitones.fill(2.0f);
+    midiExpressionState.modWheelNormalized.fill(0.0f);
     midiRpnMsb.fill(-1);
     midiRpnLsb.fill(-1);
     midiDataEntryMsb.fill(0);
@@ -2035,6 +2228,10 @@ void RootFlowAudioProcessor::handleMidiExpressionController(int channel, int con
 
     switch (controllerNumber)
     {
+        case 1:
+            midiExpressionState.modWheelNormalized[index] = juce::jlimit(0.0f, 1.0f, (float) controllerValue / 127.0f);
+            break;
+
         case 101:
             midiRpnMsb[index] = controllerValue;
             if (controllerValue == 127 && midiRpnLsb[index] == 127)
@@ -2225,6 +2422,7 @@ void RootFlowAudioProcessor::performPendingProcessingStateReset() noexcept
         if (auto* voice = dynamic_cast<RootFlowVoice*>(synth.getVoice(i)))
         {
             voice->setEngine(&modulation);
+            voice->setMidiExpressionState(&midiExpressionState);
             voice->setSampleRate(safeSampleRate, safeBlockSize);
         }
     }
@@ -2241,13 +2439,35 @@ void RootFlowAudioProcessor::performPendingProcessingStateReset() noexcept
         filter.setCutoffFrequency(clampStateVariableCutoff(7600.0f, safeSampleRate));
     }
 
+    for (auto& filter : monoMakerFilters)
+    {
+        filter.reset();
+        filter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
+        filter.setCutoffFrequency(clampStateVariableCutoff(tree.getRawParameterValue("monoMakerFreq") != nullptr
+                                                               ? tree.getRawParameterValue("monoMakerFreq")->load()
+                                                               : 80.0f,
+                                                           safeSampleRate));
+    }
+
     masterDriveSmoothed.setCurrentAndTargetValue(1.0f);
     masterToneCutoffSmoothed.setCurrentAndTargetValue(7600.0f);
     masterCrossfeedSmoothed.setCurrentAndTargetValue(0.0f);
     soilDriveSmoothed.setCurrentAndTargetValue(1.0f);
     soilMixSmoothed.setCurrentAndTargetValue(0.0f);
+    masterMixSmoothed.setCurrentAndTargetValue(tree.getRawParameterValue("masterMix") != nullptr
+                                                   ? tree.getRawParameterValue("masterMix")->load()
+                                                   : 1.0f);
+    monoMakerFreqSmoothed.setCurrentAndTargetValue(tree.getRawParameterValue("monoMakerFreq") != nullptr
+                                                       ? tree.getRawParameterValue("monoMakerFreq")->load()
+                                                       : 80.0f);
+    monoMakerEnabled.store(tree.getRawParameterValue("monoMakerToggle") != nullptr
+                               && tree.getRawParameterValue("monoMakerToggle")->load() > 0.5f,
+                           std::memory_order_relaxed);
     soilBodyCutoffSmoothed.setCurrentAndTargetValue(360.0f);
     soilToneCutoffSmoothed.setCurrentAndTargetValue(3600.0f);
+    masterVolumeSmoothed.setCurrentAndTargetValue(tree.getRawParameterValue("masterVolume") != nullptr
+                                                      ? juce::Decibels::decibelsToGain(tree.getRawParameterValue("masterVolume")->load())
+                                                      : 1.0f);
     testToneLevelSmoothed.setCurrentAndTargetValue(isTestToneEnabled() ? 1.0f : 0.0f);
     soilBodyState.fill(0.0f);
     soilToneState.fill(0.0f);
@@ -2535,7 +2755,7 @@ void RootFlowAudioProcessor::mutatePlant()
 
     // The user requested MUTATE to affect EVERYTHING: OSC, Ambient Field,
     // Root Field, Pulse Field, Center panel, and Sequencer parameters.
-    for (const auto* id : presetParameterIDs)
+    for (const auto* id : mutationParameterIDs)
     {
         if (auto* param = tree.getParameter(id))
         {
@@ -2547,6 +2767,10 @@ void RootFlowAudioProcessor::mutatePlant()
             juce::String paramID (id);
             if (paramID.startsWith("sequencer") || paramID.startsWith("osc"))
                 mutation *= 1.5f;
+            else if (paramID.startsWith("master"))
+                mutation *= 0.55f;
+            else if (paramID == "monoMakerFreq")
+                mutation *= 0.35f;
 
             param->setValueNotifyingHost(juce::jlimit(0.0f, 1.0f, currentVal + mutation));
         }

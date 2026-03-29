@@ -16,16 +16,28 @@ public:
         : rootPanel(), pulsePanel(), centerComponent(), bottomPanel(), bioSeq(p)
     {
         titleLabel.setText("FUNKY MOOSE", juce::dontSendNotification);
-        titleLabel.setFont(juce::Font(juce::FontOptions(34.0f).withStyle("Light")).withExtraKerningFactor(0.22f));
-        titleLabel.setJustificationType(juce::Justification::centred);
+        titleLabel.setFont(juce::Font(juce::FontOptions(26.0f).withStyle("Light")).withExtraKerningFactor(0.18f));
+        titleLabel.setJustificationType(juce::Justification::centredRight);
         titleLabel.setColour(juce::Label::textColourId, RootFlow::text);
 
         // Bioluminescent Glow Effect for Title
         auto* glow = new juce::GlowEffect();
-        glow->setGlowProperties(10.0f, RootFlow::accent.withAlpha(0.34f));
+        glow->setGlowProperties(7.0f, RootFlow::accent.withAlpha(0.22f));
         titleLabel.setComponentEffect(glow);
 
         addAndMakeVisible(titleLabel);
+
+        rootflowLabel.setText("ROOTFLOW SYNTH", juce::dontSendNotification);
+        rootflowLabel.setFont(juce::Font(juce::FontOptions(18.0f).withStyle("SemiBold")).withExtraKerningFactor(0.24f));
+        rootflowLabel.setJustificationType(juce::Justification::centredLeft);
+        rootflowLabel.setColour(juce::Label::textColourId,
+                                RootFlow::accent.interpolatedWith(RootFlow::accentSoft, 0.24f));
+
+        auto* rootflowGlow = new juce::GlowEffect();
+        rootflowGlow->setGlowProperties(13.5f, RootFlow::accent.withAlpha(0.56f));
+        rootflowLabel.setComponentEffect(rootflowGlow);
+
+        addAndMakeVisible(rootflowLabel);
 
         // --- EVOLUTIONARY MUTATE BUTTON ---
         mutateButton.setButtonText("");
@@ -40,22 +52,69 @@ public:
         addAndMakeVisible(masterVolumeSlider);
         masterVolumeSlider.setPopupDisplayEnabled(true, true, this);
         masterVolumeSlider.setTextValueSuffix(" dB");
+        masterVolumeSlider.getProperties().set("rootflowStyle", "side-vertical");
+        masterVolumeSlider.setName("VOLUME");
+
+        addAndMakeVisible(masterMixSlider);
+        masterMixSlider.setPopupDisplayEnabled(true, true, this);
+        masterMixSlider.textFromValueFunction = [] (double value)
+        {
+            return juce::String(juce::roundToInt(value * 100.0)) + " %";
+        };
+        masterMixSlider.valueFromTextFunction = [] (const juce::String& text)
+        {
+            const auto numeric = text.upToFirstOccurrenceOf("%", false, false).trim().getDoubleValue();
+            return juce::jlimit(0.0, 1.0, numeric / 100.0);
+        };
+        masterMixSlider.getProperties().set("rootflowStyle", "side-vertical");
+        masterMixSlider.setName("MIX");
+
+        addAndMakeVisible(monoMakerFreqSlider);
+        monoMakerFreqSlider.setPopupDisplayEnabled(true, true, this);
+        monoMakerFreqSlider.textFromValueFunction = [] (double value)
+        {
+            return juce::String(juce::roundToInt(value)) + " Hz";
+        };
+        monoMakerFreqSlider.valueFromTextFunction = [] (const juce::String& text)
+        {
+            return juce::jlimit(20.0, 400.0, text.getDoubleValue());
+        };
+        monoMakerFreqSlider.getProperties().set("rootflowStyle", "side-vertical");
+        monoMakerFreqSlider.setName("FREQUENCY");
+
+        addAndMakeVisible(monoMakerToggle);
+        monoMakerToggle.setButtonText("MONO");
 
         addAndMakeVisible(masterCompressorSlider);
         masterCompressorSlider.setPopupDisplayEnabled(true, true, this);
         masterCompressorSlider.setTextValueSuffix(" Amt");
+        masterCompressorSlider.getProperties().set("rootflowStyle", "side-vertical");
+        masterCompressorSlider.setName("COMPRESSOR");
 
         addAndMakeVisible(volLabel);
         volLabel.setJustificationType(juce::Justification::centred);
         volLabel.setColour(juce::Label::textColourId, RootFlow::accentSoft);
-        volLabel.setFont(juce::Font(juce::FontOptions(10.0f)));
+        volLabel.setFont(juce::Font(juce::FontOptions(9.0f)));
+
+        addAndMakeVisible(mixLabel);
+        mixLabel.setJustificationType(juce::Justification::centred);
+        mixLabel.setColour(juce::Label::textColourId, RootFlow::accentSoft);
+        mixLabel.setFont(juce::Font(juce::FontOptions(9.0f)));
+
+        addAndMakeVisible(freqLabel);
+        freqLabel.setJustificationType(juce::Justification::centred);
+        freqLabel.setColour(juce::Label::textColourId, RootFlow::accentSoft);
+        freqLabel.setFont(juce::Font(juce::FontOptions(9.0f)));
 
         addAndMakeVisible(compLabel);
         compLabel.setJustificationType(juce::Justification::centred);
         compLabel.setColour(juce::Label::textColourId, RootFlow::accentSoft);
-        compLabel.setFont(juce::Font(juce::FontOptions(10.0f)));
+        compLabel.setFont(juce::Font(juce::FontOptions(9.0f)));
 
         volAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(p.tree, "masterVolume", masterVolumeSlider);
+        mixAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(p.tree, "masterMix", masterMixSlider);
+        monoFreqAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(p.tree, "monoMakerFreq", monoMakerFreqSlider);
+        monoToggleAttach = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(p.tree, "monoMakerToggle", monoMakerToggle);
         compAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(p.tree, "masterCompressor", masterCompressorSlider);
 
         addAndMakeVisible(rootPanel);
@@ -100,7 +159,11 @@ public:
         g.setColour(RootFlow::textMuted.withAlpha(0.028f + idleBreath * 0.018f));
         g.drawRoundedRectangle(shell.reduced(8.0f, 6.0f), 22.0f, 1.0f);
 
-        auto titleCanopy = titleLabel.getBounds().toFloat().expanded(26.0f, 8.0f).translated(0.0f, 1.0f);
+        auto titleCanopy = titleLabel.getBounds()
+                              .getUnion(rootflowLabel.getBounds())
+                              .toFloat()
+                              .expanded(24.0f, 8.0f)
+                              .translated(0.0f, 1.0f);
         RootFlow::drawGlassPanel(g, titleCanopy, titleCanopy.getHeight() * 0.5f, 0.46f + idleBreath * 0.07f);
         g.setColour(systemTint.withAlpha(0.022f + idleBreath * 0.018f));
         g.fillRoundedRectangle(titleCanopy.reduced(2.0f), titleCanopy.getHeight() * 0.42f);
@@ -113,8 +176,22 @@ public:
         g.setColour(juce::Colours::white.withAlpha(0.028f + idleBreath * 0.016f));
         g.strokePath(titleSheen, juce::PathStrokeType(0.9f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
+        const auto rootflowBounds = rootflowLabel.getBounds().toFloat();
+        juce::ColourGradient rootflowAura(RootFlow::accent.withAlpha(0.18f + idleBreath * 0.06f),
+                                          rootflowBounds.getCentreX(), rootflowBounds.getCentreY(),
+                                          RootFlow::violet.withAlpha(0.12f + idleBreath * 0.05f),
+                                          rootflowBounds.getX(), rootflowBounds.getBottom(), true);
+        g.setGradientFill(rootflowAura);
+        g.fillRoundedRectangle(rootflowBounds.expanded(12.0f, 6.0f), rootflowBounds.getHeight() * 0.54f);
+
+        const auto dividerX = (float) ((titleLabel.getRight() + rootflowLabel.getX()) / 2);
+        g.setColour(RootFlow::textMuted.withAlpha(0.18f + idleBreath * 0.06f));
+        g.drawLine(dividerX, titleCanopy.getY() + 8.0f, dividerX, titleCanopy.getBottom() - 8.0f, 1.0f);
+
         RootFlow::drawGlowOrb(g, { titleCanopy.getX() + 20.0f, titleCanopy.getCentreY() }, 2.8f, RootFlow::accentSoft, 0.24f + idleBreath * 0.08f);
         RootFlow::drawGlowOrb(g, { titleCanopy.getRight() - 20.0f, titleCanopy.getCentreY() }, 2.8f, RootFlow::amber, 0.20f + idleBreath * 0.07f);
+        RootFlow::drawGlowOrb(g, { rootflowBounds.getX() + 8.0f, rootflowBounds.getCentreY() }, 3.2f, RootFlow::accent, 0.34f + idleBreath * 0.10f);
+        RootFlow::drawGlowOrb(g, { rootflowBounds.getRight() - 8.0f, rootflowBounds.getCentreY() }, 2.8f, RootFlow::violet, 0.26f + idleBreath * 0.08f);
 
         juce::Path bridge;
         auto bridgeY = shell.getBottom() - 126.0f;
@@ -182,11 +259,6 @@ public:
         g.setColour(RootFlow::amber.withAlpha(mutateHovered ? 0.88f : 0.64f));
         g.drawFittedText(mutatePressed ? "MUTATING" : "EVOLVE", mutateCaption.toNearestInt(), juce::Justification::centred, 1);
 
-        auto subtitleArea = titleLabel.getBounds().toFloat().translated(0.0f, 24.0f).withHeight(16.0f);
-        g.setColour(RootFlow::textMuted.withAlpha(0.68f));
-        g.setFont(RootFlow::getFont(11.2f));
-        g.drawFittedText("ROOTFLOW SYNTH", subtitleArea.toNearestInt(), juce::Justification::centred, 1);
-
         RootFlow::drawGlowOrb(g, { shell.getX() + 30.0f, shell.getY() + 26.0f }, 7.0f, RootFlow::accent, 0.8f);
         RootFlow::drawGlowOrb(g, { shell.getRight() - 30.0f, shell.getY() + 26.0f }, 7.0f, RootFlow::amber, 0.7f);
     }
@@ -213,6 +285,23 @@ public:
         RootFlow::drawTabLabel(g, seqTabArea, "BIO-SEQUENCER");
         RootFlow::drawTabLabel(g, coreTabArea, "CENTER PANEL");
         RootFlow::drawTabLabel(g, pulseTabArea, "PULSE FIELD");
+        auto masterSectionBounds = volLabel.getBounds()
+                                       .getUnion(masterVolumeSlider.getBounds())
+                                       .getUnion(mixLabel.getBounds())
+                                       .getUnion(masterMixSlider.getBounds())
+                                       .getUnion(freqLabel.getBounds())
+                                       .getUnion(monoMakerFreqSlider.getBounds())
+                                       .getUnion(monoMakerToggle.getBounds())
+                                       .getUnion(compLabel.getBounds())
+                                       .getUnion(masterCompressorSlider.getBounds());
+        if (! masterSectionBounds.isEmpty())
+        {
+            auto masterTabArea = juce::Rectangle<float>((float) masterSectionBounds.getX() + 8.0f,
+                                                        seqTabArea.getY(),
+                                                        juce::jmax(120.0f, (float) masterSectionBounds.getWidth() - 16.0f),
+                                                        28.0f);
+            RootFlow::drawTabLabel(g, masterTabArea, "MASTER SECTION");
+        }
 
         struct FocusSnapshot
         {
@@ -379,37 +468,94 @@ public:
 
     void resized() override
     {
-        auto bounds = getLocalBounds().reduced(22, 12);
+        const bool compactLayout = getWidth() < 1120 || getHeight() < 610;
+        auto bounds = getLocalBounds().reduced(compactLayout ? 18 : 22,
+                                               compactLayout ? 10 : 12);
 
-        auto headerArea = bounds.removeFromTop(juce::jlimit(66, 86, juce::roundToInt(getHeight() * 0.085f)));
-        auto brandArea = headerArea.removeFromTop(44);
-        const int mutateSize = juce::jlimit(30, 38, brandArea.getHeight() - 4);
-        auto mutateArea = brandArea.removeFromRight(mutateSize + 8);
+        auto headerArea = bounds.removeFromTop(juce::jlimit(compactLayout ? 60 : 66,
+                                                            compactLayout ? 80 : 86,
+                                                            juce::roundToInt(getHeight() * (compactLayout ? 0.078f : 0.085f))));
+        auto brandArea = headerArea.removeFromTop(compactLayout ? 40 : 44);
+        const int mutateSize = juce::jlimit(compactLayout ? 28 : 30,
+                                            compactLayout ? 36 : 38,
+                                            brandArea.getHeight() - 4);
+        auto mutateArea = brandArea.removeFromRight(mutateSize + (compactLayout ? 6 : 8));
         mutateButton.setBounds(mutateArea.withSizeKeepingCentre(mutateSize, mutateSize));
-        titleLabel.setBounds(brandArea.reduced(mutateSize + 18, 0));
+        titleLabel.setFont(juce::Font(juce::FontOptions(compactLayout ? 23.0f : 26.0f).withStyle("Light"))
+                               .withExtraKerningFactor(compactLayout ? 0.16f : 0.18f));
+        rootflowLabel.setFont(juce::Font(juce::FontOptions(compactLayout ? 15.0f : 18.0f).withStyle("SemiBold"))
+                                  .withExtraKerningFactor(compactLayout ? 0.18f : 0.24f));
 
-        auto seqArea = bounds.removeFromTop(juce::jlimit(162, 214, juce::roundToInt(getHeight() * 0.215f)));
-        const int seqWidth = juce::jlimit(620, 1040, juce::roundToInt(bounds.getWidth() * 0.78f));
-        auto seqRect = seqArea.withSizeKeepingCentre(seqWidth, seqArea.getHeight() - 2).translated(0, 4);
+        auto titleBounds = brandArea.reduced(mutateSize + (compactLayout ? 14 : 18), 0)
+                                   .withTrimmedBottom(compactLayout ? 10 : 8);
+        const int clusterGap = compactLayout ? 14 : 20;
+        const int rootflowWidth = juce::jlimit(compactLayout ? 170 : 190,
+                                               compactLayout ? 240 : 280,
+                                               juce::roundToInt(titleBounds.getWidth() * (compactLayout ? 0.34f : 0.31f)));
+        auto titleCluster = titleBounds.withSizeKeepingCentre(titleBounds.getWidth(), titleBounds.getHeight());
+        auto rootflowArea = titleCluster.removeFromRight(rootflowWidth);
+        titleCluster.removeFromRight(clusterGap);
+        titleLabel.setBounds(titleCluster);
+        rootflowLabel.setBounds(rootflowArea);
+
+        auto seqArea = bounds.removeFromTop(juce::jlimit(compactLayout ? 152 : 162,
+                                                         compactLayout ? 198 : 214,
+                                                         juce::roundToInt(getHeight() * (compactLayout ? 0.208f : 0.215f))));
+        const int masterGap = compactLayout ? 16 : 22;
+        const int masterWidth = juce::jlimit(compactLayout ? 208 : 224,
+                                             compactLayout ? 288 : 320,
+                                             juce::roundToInt(bounds.getWidth() * (compactLayout ? 0.26f : 0.28f)));
+        const int seqMaxWidth = juce::jmax(compactLayout ? 548 : 580, bounds.getWidth() - masterWidth - masterGap);
+        const int seqWidth = juce::jlimit(compactLayout ? 548 : 580,
+                                          seqMaxWidth,
+                                          juce::roundToInt(bounds.getWidth() * (compactLayout ? 0.64f : 0.66f)));
+        const int topWidth = juce::jmin(bounds.getWidth(), seqWidth + masterGap + masterWidth);
+        auto topRow = seqArea.withSizeKeepingCentre(topWidth, seqArea.getHeight() - (compactLayout ? 0 : 2))
+                             .translated(0, compactLayout ? 2 : 4);
+        auto seqRect = topRow.removeFromLeft(seqWidth);
+        topRow.removeFromLeft(masterGap);
         bioSeq.setBounds(seqRect);
 
-        // Position Volume and Compressor side-by-side to the right of the Sequencer, matching its exact height
-        auto fxArea = seqRect.withLeft(seqRect.getRight() + 16).withRight(seqRect.getRight() + 88);
+        auto masterArea = topRow;
+        masterArea.removeFromTop(compactLayout ? 14 : 18);
+        const int columnWidth = juce::jmax(compactLayout ? 44 : 46, masterArea.getWidth() / 4);
 
-        auto volArea = fxArea.removeFromLeft(fxArea.getWidth() / 2).reduced(2, 0);
-        volLabel.setBounds(volArea.removeFromTop(14));
-        masterVolumeSlider.setBounds(volArea);
+        auto volArea = masterArea.removeFromLeft(columnWidth).reduced(compactLayout ? 3 : 4, 0);
+        volLabel.setBounds(volArea.removeFromTop(compactLayout ? 11 : 12));
+        masterVolumeSlider.setBounds(volArea.withTrimmedTop(compactLayout ? 2 : 3)
+                                           .withTrimmedBottom(compactLayout ? 4 : 6));
 
-        auto compArea = fxArea.reduced(2, 0);
-        compLabel.setBounds(compArea.removeFromTop(14));
-        masterCompressorSlider.setBounds(compArea);
+        auto mixArea = masterArea.removeFromLeft(columnWidth).reduced(compactLayout ? 3 : 4, 0);
+        mixLabel.setBounds(mixArea.removeFromTop(compactLayout ? 11 : 12));
+        masterMixSlider.setBounds(mixArea.withTrimmedTop(compactLayout ? 2 : 3)
+                                         .withTrimmedBottom(compactLayout ? 4 : 6));
 
-        bounds.removeFromTop(18);
+        auto freqArea = masterArea.removeFromLeft(columnWidth).reduced(compactLayout ? 3 : 4, 0);
+        freqLabel.setBounds(freqArea.removeFromTop(compactLayout ? 11 : 12));
+        freqArea.removeFromTop(compactLayout ? 2 : 3);
+        auto toggleArea = freqArea.removeFromBottom(compactLayout ? 18 : 20);
+        monoMakerFreqSlider.setBounds(freqArea.withTrimmedBottom(compactLayout ? 3 : 4));
+        monoMakerToggle.setBounds(toggleArea.reduced(0, compactLayout ? 1 : 2));
 
-        auto bottom = bounds.removeFromBottom(juce::jlimit(112, 138, juce::roundToInt(getHeight() * 0.13f)));
-        const int sideWidth = juce::jlimit(176, 274, juce::roundToInt(bounds.getWidth() * 0.22f));
-        const int centerInset = juce::jlimit(6, 18, juce::roundToInt(bounds.getWidth() * 0.012f));
-        const int bottomInset = juce::jlimit(18, 72, juce::roundToInt(bounds.getWidth() * 0.07f));
+        auto compArea = masterArea.reduced(compactLayout ? 3 : 4, 0);
+        compLabel.setBounds(compArea.removeFromTop(compactLayout ? 11 : 12));
+        masterCompressorSlider.setBounds(compArea.withTrimmedTop(compactLayout ? 2 : 3)
+                                                 .withTrimmedBottom(compactLayout ? 4 : 6));
+
+        bounds.removeFromTop(compactLayout ? 14 : 18);
+
+        auto bottom = bounds.removeFromBottom(juce::jlimit(compactLayout ? 100 : 112,
+                                                           compactLayout ? 128 : 138,
+                                                           juce::roundToInt(getHeight() * (compactLayout ? 0.118f : 0.13f))));
+        const int sideWidth = juce::jlimit(compactLayout ? 160 : 176,
+                                           274,
+                                           juce::roundToInt(bounds.getWidth() * (compactLayout ? 0.20f : 0.22f)));
+        const int centerInset = juce::jlimit(compactLayout ? 4 : 6,
+                                             compactLayout ? 14 : 18,
+                                             juce::roundToInt(bounds.getWidth() * (compactLayout ? 0.010f : 0.012f)));
+        const int bottomInset = juce::jlimit(compactLayout ? 14 : 18,
+                                             compactLayout ? 54 : 72,
+                                             juce::roundToInt(bounds.getWidth() * (compactLayout ? 0.05f : 0.07f)));
 
         auto left  = bounds.removeFromLeft(sideWidth).reduced(2, 0);
         auto right = bounds.removeFromRight(sideWidth).reduced(2, 0);
@@ -529,6 +675,7 @@ private:
     }
 
     juce::Label           titleLabel;
+    juce::Label           rootflowLabel;
     juce::TextButton      mutateButton;
     RootPanel             rootPanel;
     PulsePanel            pulsePanel;
@@ -536,10 +683,18 @@ private:
     BottomPanel           bottomPanel;
     BioSequencerComponent bioSeq;
     juce::Slider masterVolumeSlider { juce::Slider::LinearVertical, juce::Slider::NoTextBox };
+    juce::Slider masterMixSlider { juce::Slider::LinearVertical, juce::Slider::NoTextBox };
+    juce::Slider monoMakerFreqSlider { juce::Slider::LinearVertical, juce::Slider::NoTextBox };
+    juce::ToggleButton monoMakerToggle;
     juce::Slider masterCompressorSlider { juce::Slider::LinearVertical, juce::Slider::NoTextBox };
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> volAttach;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> mixAttach;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> monoFreqAttach;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> compAttach;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> monoToggleAttach;
     juce::Label volLabel { "Vol", "VOL" };
+    juce::Label mixLabel { "Mix", "MIX" };
     juce::Label compLabel { "Comp", "COMP" };
+    juce::Label freqLabel { "Freq", "FREQ" };
     float                 pulsePhase = 0.0f;
 };

@@ -435,10 +435,10 @@ namespace RootFlow
     static inline void drawMyceliumNetwork(juce::Graphics& g, juce::Rectangle<float> r, juce::Colour colour, float intensity = 0.12f, int seed = 42)
     {
         juce::Random rnd (seed);
-        g.setColour(colour.withAlpha(intensity * 0.45f));
-        
-        for (int i = 0; i < 18; ++i)
+
+        for (int i = 0; i < 22; ++i)
         {
+            g.setColour(colour.withAlpha(intensity * (0.3f + rnd.nextFloat() * 0.2f)));
             juce::Path branch;
             float x1 = r.getX() + rnd.nextFloat() * r.getWidth();
             float y1 = r.getY() + rnd.nextFloat() * r.getHeight();
@@ -446,21 +446,30 @@ namespace RootFlow
             float y2 = r.getY() + rnd.nextFloat() * r.getHeight();
             
             branch.startNewSubPath(x1, y1);
-            branch.cubicTo(x1 + (x2 - x1) * 0.3f + rnd.nextFloat() * 40.0f, y1 + (y2 - y1) * 0.7f - rnd.nextFloat() * 40.0f,
-                           x1 + (x2 - x1) * 0.7f - rnd.nextFloat() * 40.0f, y1 + (y2 - y1) * 0.3f + rnd.nextFloat() * 40.0f,
+            branch.cubicTo(x1 + (x2 - x1) * 0.3f + rnd.nextFloat() * 60.0f - 30.0f, y1 + (y2 - y1) * 0.7f - rnd.nextFloat() * 60.0f + 30.0f,
+                           x1 + (x2 - x1) * 0.7f - rnd.nextFloat() * 60.0f + 30.0f, y1 + (y2 - y1) * 0.3f + rnd.nextFloat() * 60.0f - 30.0f,
                            x2, y2);
-            
-            g.strokePath(branch, juce::PathStrokeType(0.6f + rnd.nextFloat() * 0.8f));
-            
-            if (rnd.nextFloat() > 0.6f)
+
+            g.strokePath(branch, juce::PathStrokeType(0.8f + rnd.nextFloat() * 1.2f));
+
+            if (rnd.nextFloat() > 0.4f)
             {
-                float xMid = x1 + (x2 - x1) * 0.5f;
-                float yMid = y1 + (y2 - y1) * 0.5f;
-                juce::Path sub;
-                sub.startNewSubPath(xMid, yMid);
-                sub.quadraticTo(xMid + rnd.nextFloat() * 30.0f - 15.0f, yMid + rnd.nextFloat() * 30.0f - 15.0f,
-                                r.getX() + rnd.nextFloat() * r.getWidth(), r.getY() + rnd.nextFloat() * r.getHeight());
-                g.strokePath(sub, juce::PathStrokeType(0.4f));
+                g.setColour(colour.brighter(0.2f).withAlpha(intensity * 0.6f));
+                juce::Path fine;
+                const float t = 0.3f + rnd.nextFloat() * 0.4f;
+                const auto p = branch.getPointAlongPath(t * branch.getLength());
+                fine.startNewSubPath(p);
+                fine.quadraticTo(p.x + rnd.nextFloat() * 40.0f - 20.0f, p.y + rnd.nextFloat() * 40.0f - 20.0f,
+                                 p.x + rnd.nextFloat() * 80.0f - 40.0f, p.y + rnd.nextFloat() * 80.0f - 40.0f);
+                g.strokePath(fine, juce::PathStrokeType(0.3f + rnd.nextFloat() * 0.2f));
+            }
+
+            if (rnd.nextFloat() > 0.85f)
+            {
+                const auto p = branch.getPointAlongPath(rnd.nextFloat() * branch.getLength());
+                const float glowSize = 2.0f + rnd.nextFloat() * 4.0f;
+                g.setColour(colour.brighter(0.6f).withAlpha(intensity * 0.8f));
+                g.fillEllipse(p.x - glowSize * 0.5f, p.y - glowSize * 0.5f, glowSize, glowSize);
             }
         }
     }

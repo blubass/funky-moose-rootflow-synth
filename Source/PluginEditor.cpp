@@ -3,7 +3,15 @@
 
 namespace
 {
-constexpr int headerHeight = 80;
+constexpr int getHeaderHeightForSize(int editorHeight)
+{
+    return juce::jlimit(72, 80, juce::roundToInt((float) editorHeight * 0.095f));
+}
+
+constexpr int getKeyboardHeightForSize(int editorHeight)
+{
+    return juce::jlimit(92, 118, juce::roundToInt((float) editorHeight * 0.13f));
+}
 
 float getRainDelayTimeSeconds(float amount) noexcept
 {
@@ -226,7 +234,7 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
     setLookAndFeel(&look);
     setOpaque(true);
     setResizable(true, true);
-    setResizeLimits(1080, 760, 1800, 1300);
+    setResizeLimits(960, 690, 1800, 1300);
 
     styleKeyboardDrawer(keyboardDrawer);
 
@@ -384,7 +392,7 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
 
     refreshHeaderControlState();
     updateAnimationTimerState();
-    setSize(1360, 920);
+    setSize(1240, 820);
 }
 
 RootFlowAudioProcessorEditor::~RootFlowAudioProcessorEditor()
@@ -412,6 +420,7 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
     auto full = getLocalBounds().toFloat();
     RootFlow::fillBackdrop(g, full);
 
+    const auto headerHeight = getHeaderHeightForSize(getHeight());
     auto headerArea = full.removeFromTop((float) headerHeight);
     juce::ColourGradient headerGrad(juce::Colour(0xff09140f).withAlpha(0.92f), headerArea.getTopLeft(),
                                     juce::Colour(0xff07110d).withAlpha(0.82f), headerArea.getBottomRight(), false);
@@ -800,32 +809,43 @@ void RootFlowAudioProcessorEditor::resized()
 {
     auto bounds = getLocalBounds();
 
-    auto headerContent = bounds.removeFromTop(headerHeight).reduced(24, 8);
-    auto controlRow = headerContent.removeFromBottom(36);
-    waveSelector.setBounds(controlRow.removeFromLeft(100));
-    controlRow.removeFromLeft(8);
-    presetBox.setBounds(controlRow.removeFromLeft(228));
-    controlRow.removeFromLeft(8);
-    presetSaveButton.setBounds(controlRow.removeFromLeft(54));
-    controlRow.removeFromLeft(4);
-    presetDeleteButton.setBounds(controlRow.removeFromLeft(42));
-    controlRow.removeFromLeft(8);
-    mutateButton.setBounds(controlRow.removeFromLeft(80));
+    const int headerHeight = getHeaderHeightForSize(getHeight());
+    const int keyboardHeight = getKeyboardHeightForSize(getHeight());
+    const bool compactHeaderLayout = getWidth() < 1280 || getHeight() < 780;
+    const int outerInsetX = compactHeaderLayout ? 18 : 24;
+    const int outerInsetY = compactHeaderLayout ? 7 : 8;
+    const int controlHeight = compactHeaderLayout ? 34 : 36;
+    const int clusterGap = compactHeaderLayout ? 6 : 8;
+    const int microGap = compactHeaderLayout ? 4 : 6;
 
-    testToneButton.setBounds(controlRow.removeFromRight(76));
-    controlRow.removeFromRight(6);
-    midiLearnButton.setBounds(controlRow.removeFromRight(70));
-    controlRow.removeFromRight(6);
-    popupToggleButton.setBounds(controlRow.removeFromRight(78));
-    controlRow.removeFromRight(6);
-    idleToggleButton.setBounds(controlRow.removeFromRight(68));
-    controlRow.removeFromRight(6);
-    hoverToggleButton.setBounds(controlRow.removeFromRight(76));
+    auto headerContent = bounds.removeFromTop(headerHeight).reduced(outerInsetX, outerInsetY);
+    auto controlRow = headerContent.removeFromBottom(controlHeight);
+    waveSelector.setBounds(controlRow.removeFromLeft(compactHeaderLayout ? 88 : 100));
+    controlRow.removeFromLeft(clusterGap);
+    presetBox.setBounds(controlRow.removeFromLeft(compactHeaderLayout ? 190 : 228));
+    controlRow.removeFromLeft(clusterGap);
+    presetSaveButton.setBounds(controlRow.removeFromLeft(compactHeaderLayout ? 50 : 54));
+    controlRow.removeFromLeft(microGap);
+    presetDeleteButton.setBounds(controlRow.removeFromLeft(compactHeaderLayout ? 40 : 42));
+    controlRow.removeFromLeft(clusterGap);
+    mutateButton.setBounds(controlRow.removeFromLeft(compactHeaderLayout ? 72 : 80));
 
-    keyboardDrawer.setBounds(bounds.removeFromBottom(118).reduced(28, 16));
+    testToneButton.setBounds(controlRow.removeFromRight(compactHeaderLayout ? 64 : 76));
+    controlRow.removeFromRight(microGap);
+    midiLearnButton.setBounds(controlRow.removeFromRight(compactHeaderLayout ? 62 : 70));
+    controlRow.removeFromRight(microGap);
+    popupToggleButton.setBounds(controlRow.removeFromRight(compactHeaderLayout ? 68 : 78));
+    controlRow.removeFromRight(microGap);
+    idleToggleButton.setBounds(controlRow.removeFromRight(compactHeaderLayout ? 62 : 68));
+    controlRow.removeFromRight(microGap);
+    hoverToggleButton.setBounds(controlRow.removeFromRight(compactHeaderLayout ? 68 : 76));
+
+    keyboardDrawer.setBounds(bounds.removeFromBottom(keyboardHeight)
+                                   .reduced(compactHeaderLayout ? 20 : 28,
+                                            compactHeaderLayout ? 12 : 16));
 
     if (mainLayout != nullptr)
-        mainLayout->setBounds(bounds.reduced(10, 0));
+        mainLayout->setBounds(bounds.reduced(compactHeaderLayout ? 8 : 10, 0));
 }
 
 void RootFlowAudioProcessorEditor::timerCallback()

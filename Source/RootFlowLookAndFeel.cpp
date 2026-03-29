@@ -32,6 +32,18 @@ SliderPalette getSliderPalette(const juce::String& name,
     if (upper.contains("AIR") || upper.contains("RAIN") || upper.contains("ATMOS") || upper.contains("FLOW") || upper.contains("RATE"))
         return { accent, accentSoft };
 
+    if (upper.contains("VOLUME"))
+        return { accent, accentSoft };
+
+    if (upper.contains("MIX"))
+        return { accentSoft, accent };
+
+    if (upper.contains("FREQUENCY"))
+        return { violet, accent };
+
+    if (upper.contains("COMPRESSOR"))
+        return { amber, accent };
+
     return { accent, accentSoft };
 }
 }
@@ -137,6 +149,23 @@ void RootFlowLookAndFeel::drawRotarySlider(juce::Graphics& g,
     g.setGradientFill(coreGrad);
     g.fillEllipse(coreBounds);
 
+    g.saveState();
+    juce::Path coreClip;
+    coreClip.addEllipse(coreBounds);
+    g.reduceClipRegion(coreClip);
+    juce::Random woodRnd (slider.getName().hashCode());
+    g.setColour(juce::Colours::black.withAlpha(0.12f));
+    for (int i = 0; i < 12; ++i)
+    {
+        const float gx = coreBounds.getX() + woodRnd.nextFloat() * coreBounds.getWidth();
+        juce::Path grain;
+        grain.startNewSubPath(gx, coreBounds.getY());
+        grain.quadraticTo(gx + woodRnd.nextFloat() * 20.0f - 10.0f, coreBounds.getCentreY(),
+                          gx + woodRnd.nextFloat() * 40.0f - 20.0f, coreBounds.getBottom());
+        g.strokePath(grain, juce::PathStrokeType(0.5f + woodRnd.nextFloat() * 1.0f));
+    }
+    g.restoreState();
+
     g.setColour(juce::Colours::white.withAlpha(0.10f));
     g.fillEllipse(coreBounds.withHeight(coreBounds.getHeight() * 0.46f).translated(0.0f, -coreBounds.getHeight() * 0.08f));
     g.setColour(primary.withAlpha(0.18f));
@@ -189,17 +218,17 @@ void RootFlowLookAndFeel::drawLinearSlider(juce::Graphics& g,
 
     if (vertical)
     {
-        auto housing = juce::Rectangle<float>(sideVertical ? juce::jmax(16.0f, bounds.getWidth() * 0.26f)
-                                                           : juce::jmax(24.0f, bounds.getWidth() * 0.44f),
+        const float minWidth = sideVertical ? 9.0f : 20.0f;
+        auto housing = juce::Rectangle<float>(juce::jmax(minWidth, bounds.getWidth() * (sideVertical ? 0.50f : 0.44f)),
                                               bounds.getHeight() - (sideVertical ? 2.0f : 6.0f))
                            .withCentre(bounds.getCentre());
-        auto track = juce::Rectangle<float>(sideVertical ? juce::jmax(6.5f, housing.getWidth() * 0.34f)
-                                                         : juce::jmax(11.0f, housing.getWidth() * 0.48f),
+        const float trackWidthFactor = sideVertical ? 0.26f : 0.48f;
+        auto track = juce::Rectangle<float>(juce::jmax(4.0f, housing.getWidth() * trackWidthFactor),
                                             housing.getHeight() - (sideVertical ? 10.0f : 16.0f))
                          .withCentre(housing.getCentre());
 
         g.setColour(juce::Colours::black.withAlpha(0.28f));
-        g.fillRoundedRectangle(housing.expanded(sideVertical ? 4.0f : 6.0f, sideVertical ? 3.0f : 4.0f),
+        g.fillRoundedRectangle(housing.expanded(sideVertical ? 1.2f : 6.0f, sideVertical ? 1.4f : 4.0f),
                                housing.getWidth() * 0.58f);
 
         juce::ColourGradient shellGrad(panel.brighter(0.16f), housing.getCentreX(), housing.getY(),
@@ -248,11 +277,11 @@ void RootFlowLookAndFeel::drawLinearSlider(juce::Graphics& g,
                                              housing.getWidth() * (sideVertical ? 0.56f : 0.72f))
                           .withCentre({ housing.getCentreX(), track.getBottom() + (sideVertical ? 4.0f : 5.0f) }));
 
-        auto knobBounds = juce::Rectangle<float>(housing.getWidth() * (sideVertical ? 1.04f : 1.18f),
-                                                 housing.getWidth() * (sideVertical ? 0.64f : 0.84f))
+        auto knobBounds = juce::Rectangle<float>(housing.getWidth() * (sideVertical ? 0.84f : 1.18f),
+                                                 housing.getWidth() * (sideVertical ? 0.48f : 0.84f))
                               .withCentre({ housing.getCentreX(), juce::jlimit(track.getY(), track.getBottom(), sliderPos) });
         g.setColour(primary.withAlpha(hot ? 0.30f : 0.22f));
-        g.fillRoundedRectangle(knobBounds.expanded(sideVertical ? 3.0f : 5.0f, sideVertical ? 2.0f : 3.0f),
+        g.fillRoundedRectangle(knobBounds.expanded(sideVertical ? 2.0f : 5.0f, sideVertical ? 1.4f : 3.0f),
                                knobBounds.getHeight() * 0.54f);
 
         juce::ColourGradient knobGrad(secondary.brighter(0.16f), knobBounds.getCentreX(), knobBounds.getY(),
@@ -517,23 +546,31 @@ void RootFlowLookAndFeel::drawButtonText(juce::Graphics& g,
                                          bool,
                                          bool)
 {
-    g.setFont(juce::Font(juce::FontOptions(12.0f).withStyle("SemiBold")).withExtraKerningFactor(0.18f));
+    const float fontHeight = button.getHeight() < 34 || button.getWidth() < 68 ? 11.0f : 12.0f;
+    const float kerning = button.getWidth() < 72 ? 0.12f : 0.18f;
+    g.setFont(juce::Font(juce::FontOptions(fontHeight).withStyle("SemiBold")).withExtraKerningFactor(kerning));
     g.setColour(button.findColour(button.getToggleState() ? juce::TextButton::textColourOnId
                                                           : juce::TextButton::textColourOffId));
-    g.drawText(button.getButtonText(), button.getLocalBounds(), juce::Justification::centred, false);
+    g.drawFittedText(button.getButtonText(), button.getLocalBounds().reduced(4, 0), juce::Justification::centred, 1);
 }
 
 void RootFlowLookAndFeel::drawLabel(juce::Graphics& g, juce::Label& l)
 {
-    g.setColour(text);
-    g.setFont(juce::Font(juce::FontOptions(13.0f)).withExtraKerningFactor(0.12f));
+    auto font = l.getFont();
+    if (font.getHeight() <= 0.0f)
+        font = juce::Font(juce::FontOptions(13.0f));
+
+    const float fittedHeight = juce::jlimit(8.0f, font.getHeight(), (float) juce::jmax(8, l.getHeight() - 1));
+    font = font.withHeight(fittedHeight).withExtraKerningFactor(fittedHeight <= 10.0f ? 0.16f : 0.12f);
+    const auto colour = l.findColour(juce::Label::textColourId);
 
     // Subtle Bio-Glow for labels
-    g.setColour(text.withAlpha(0.15f));
-    g.drawText(l.getText(), l.getLocalBounds().translated(0, 1), juce::Justification::centred);
-    
-    g.setColour(text);
-    g.drawText(l.getText(), l.getLocalBounds(), juce::Justification::centred);
+    g.setFont(font);
+    g.setColour(colour.withAlpha(0.15f));
+    g.drawFittedText(l.getText(), l.getLocalBounds().translated(0, 1), l.getJustificationType(), 1);
+
+    g.setColour(colour);
+    g.drawFittedText(l.getText(), l.getLocalBounds(), l.getJustificationType(), 1);
 }
 
 void RootFlowLookAndFeel::drawComboBox(juce::Graphics& g, int width, int height, bool,

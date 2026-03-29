@@ -121,7 +121,7 @@ public:
 
 private:
     static constexpr int fftQueueCapacity = 8;
-    static constexpr int mappedParameterSlotCount = 16;
+    static constexpr int mappedParameterSlotCount = 32;
     static constexpr uint32_t mappedParameterGestureTimeoutMs = 180;
 
     enum class MidiMappingMode : int
@@ -248,6 +248,7 @@ private:
     RootFlowDSP::RainProcessor rain;
     RootFlowDSP::SunProcessor sun;
     std::array<juce::dsp::StateVariableTPTFilter<float>, 2> masterToneFilters;
+    std::array<juce::dsp::StateVariableTPTFilter<float>, 2> monoMakerFilters;
     juce::SmoothedValue<float> masterDriveSmoothed;
     juce::SmoothedValue<float> masterToneCutoffSmoothed;
     juce::SmoothedValue<float> masterCrossfeedSmoothed;
@@ -256,6 +257,9 @@ private:
     juce::SmoothedValue<float> soilBodyCutoffSmoothed;
     juce::SmoothedValue<float> soilToneCutoffSmoothed;
     juce::SmoothedValue<float> testToneLevelSmoothed;
+    juce::SmoothedValue<float> masterMixSmoothed;
+    juce::SmoothedValue<float> monoMakerFreqSmoothed;
+    std::atomic<bool> monoMakerEnabled { false };
 
     // Final Master FX
     juce::dsp::Compressor<float> finalCompressor;

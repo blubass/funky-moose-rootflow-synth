@@ -26,6 +26,7 @@ public:
     struct MidiExpressionState
     {
         std::array<float, 16> pitchBendRangeSemitones {};
+        std::array<float, 16> modWheelNormalized {};
     };
 
     RootFlowVoice();
@@ -60,10 +61,15 @@ public:
     void setCanopy(float v);
     void setInstability(float v);
     void setWaveform(int typeIndex);
-    
+    void setMidiExpressionState(const MidiExpressionState* state) { midiExpressionState = state; }
     void setEngine(const RootFlowModulationEngine* e) { engine = e; }
 
 private:
+    int getActiveMidiChannel() const noexcept;
+    float getPitchBendRangeForChannel(int midiChannel) const noexcept;
+    float getModWheelValueForChannel(int midiChannel) const noexcept;
+    float pitchWheelToSemitones(int midiChannel, int pitchWheelValue) const noexcept;
+
     double sampleRate = 44100.0;
 
     // ROOT (Unison Bank)
@@ -78,6 +84,7 @@ private:
     juce::dsp::Oscillator<float> oscSub;
     juce::dsp::Oscillator<float> lfo;      // PULSE LFO
     juce::dsp::Oscillator<float> driftLfo; // Slow Analog Drift
+    juce::dsp::Oscillator<float> vibratoLfo;
     
     // NOISE (Organic Roots Texture)
     juce::Random noiseGen;
@@ -94,6 +101,10 @@ private:
     float baseFrequency = 440.0f;
     float voicePan = 0.0f;
     float voiceDetuneRatio = 0.0f;
+    int lastPitchWheelValue = 8192;
+    const MidiExpressionState* midiExpressionState = nullptr;
+    juce::LinearSmoothedValue<float> smoothedPitchBendSemitones { 0.0f };
+    juce::LinearSmoothedValue<float> smoothedModWheel { 0.0f };
 
     // --- Smoothed Parameters ---
     juce::LinearSmoothedValue<float> smoothedFlow { 0.5f };

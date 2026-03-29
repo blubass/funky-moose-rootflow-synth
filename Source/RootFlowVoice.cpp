@@ -19,6 +19,7 @@ RootFlowVoice::RootFlowVoice()
     lfo.initialise(sine);
     driftLfo.initialise(sine);
     oscSub.initialise(sine);
+    vibratoLfo.initialise(sine);
 
     filterL.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
     filterL.setResonance(0.707f);
@@ -47,6 +48,7 @@ void RootFlowVoice::setSampleRate(double sr, int blockSize)
     oscSub.prepare(spec);
     lfo.prepare(spec);
     driftLfo.prepare(spec);
+    vibratoLfo.prepare(spec);
     filterL.prepare(spec);
     filterL.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
     filterL.setResonance(0.707f);
@@ -69,6 +71,8 @@ void RootFlowVoice::setSampleRate(double sr, int blockSize)
     smoothedCanopy.reset(sr, 0.02);
     smoothedInstability.reset(sr, 0.02);
     smoothedEnergy.reset(sr, 0.05);
+    smoothedPitchBendSemitones.reset(sr, 0.01);
+    smoothedModWheel.reset(sr, 0.04);
 
     // Bio-Filter states
     lastLeftFilterOut = 0.0f;
@@ -76,9 +80,13 @@ void RootFlowVoice::setSampleRate(double sr, int blockSize)
 }
 
 void RootFlowVoice::startNote(int midiNoteNumber, float velocity,
-                              juce::SynthesiserSound*, int)
+                              juce::SynthesiserSound*, int currentPitchWheelPosition)
 {
+    const int midiChannel = getActiveMidiChannel();
+    lastPitchWheelValue = currentPitchWheelPosition;
     baseFrequency = (float)juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber);
+    smoothedPitchBendSemitones.setCurrentAndTargetValue(pitchWheelToSemitones(midiChannel, currentPitchWheelPosition));
+    smoothedModWheel.setCurrentAndTargetValue(getModWheelValueForChannel(midiChannel));
 
     // personality per voice
     auto& r = juce::Random::getSystemRandom();
@@ -98,6 +106,7 @@ void RootFlowVoice::startNote(int midiNoteNumber, float velocity,
 
     // random drift speed
     driftLfo.setFrequency(0.05f + r.nextFloat() * 0.25f);
+    vibratoLfo.setFrequency(4.6f + r.nextFloat() * 0.9f);
 
     level = velocity;
     adsr.noteOn();
@@ -111,8 +120,17 @@ void RootFlowVoice::stopNote(float, bool allowTailOff)
         clearCurrentNote();
 }
 
-void RootFlowVoice::pitchWheelMoved(int) {}
-void RootFlowVoice::controllerMoved(int, int) {}
+void RootFlowVoice::pitchWheelMoved(int newPitchWheelValue)
+{
+    lastPitchWheelValue = newPitchWheelValue;
+    smoothedPitchBendSemitones.setTargetValue(pitchWheelToSemitones(getActiveMidiChannel(), newPitchWheelValue));
+}
+
+void RootFlowVoice::controllerMoved(int controllerNumber, int newControllerValue)
+{
+    if (controllerNumber == 1)
+        smoothedModWheel.setTargetValue(juce::jlimit(0.0f, 1.0f, (float) newControllerValue / 127.0f));
+}
 void RootFlowVoice::aftertouchChanged(int) {}
 void RootFlowVoice::channelPressureChanged(int) {}
 
@@ -146,6 +164,8 @@ void RootFlowVoice::renderNextBlock(juce::AudioBuffer<float>& buffer,
     float targetEnergy = (engine != nullptr) ? engine->getPlantEnergy() : 0.5f;
     smoothedEnergy.setTargetValue(targetEnergy);
     float currentEnergy = smoothedEnergy.getNextValue();
+    float currentPitchBendSemitones = smoothedPitchBendSemitones.getNextValue();
+    float currentModWheel = smoothedModWheel.getNextValue();
 
     float masterScale = level * 0.088f * (0.58f + currentEnergy * 0.42f);
 
@@ -169,6 +189,8 @@ void RootFlowVoice::renderNextBlock(juce::AudioBuffer<float>& buffer,
         currentInstability = smoothedInstability.getNextValue();
         float currentCanopy = smoothedCanopy.getNextValue();
         currentEnergy = smoothedEnergy.getNextValue();
+        currentPitchBendSemitones = smoothedPitchBendSemitones.getNextValue();
+        currentModWheel = smoothedModWheel.getNextValue();
 
         // 2. Sub-Sample Parameter Updates (Every 16 samples)
         if ((subSampleCount++ & 15) == 0)
@@ -176,10 +198,11 @@ void RootFlowVoice::renderNextBlock(juce::AudioBuffer<float>& buffer,
             // Filter Update
             // Organic Touch Filter Dynamics (Velocity mapping to Timbre)
             float baseCutoff = 32.0f + (growth * growth * 2400.0f) + (currentEnergy * 3200.0f);
+            const float modWheelLift = currentModWheel * (900.0f + currentVital * 1800.0f);
             float velMod = juce::jmap(level * level, 0.0f, 1.0f, 0.0f, 12800.0f); // Non-linear velocity pop
             // Analog Filter Instability Jitter (VCF Drift)
             float filterJitter = (noiseGen.nextFloat() - 0.5f) * 15.0f * currentInstability;
-            float finalCutoff = clampStateVariableCutoff(baseCutoff + velMod + filterJitter, sampleRate);
+            float finalCutoff = clampStateVariableCutoff(baseCutoff + modWheelLift + velMod + filterJitter, sampleRate);
 
             // Resonance Limitation (Slightly dampened for analog warmth)
             float maxRes = 0.92f - (growth * 0.1f);
@@ -191,6 +214,11 @@ void RootFlowVoice::renderNextBlock(juce::AudioBuffer<float>& buffer,
             filterR.setResonance(res);
         }     // Osc Frequency Update (Heavy Math)
         float lfoVal = lfo.processSample(0.0f);
+        const float vibratoRateHz = 4.2f + currentPulseR * 2.4f;
+        vibratoLfo.setFrequency(vibratoRateHz);
+        const float vibratoLfoValue = vibratoLfo.processSample(0.0f);
+        const float vibratoDepthSemitones = currentModWheel * (0.08f + currentVital * 0.42f + growth * 0.18f);
+        const float expressivePitchSemitones = currentPitchBendSemitones + vibratoLfoValue * vibratoDepthSemitones;
         float env = adsr.getNextSample();
 
         float leftSum = 0.0f;
@@ -220,7 +248,8 @@ void RootFlowVoice::renderNextBlock(juce::AudioBuffer<float>& buffer,
             float analogWow = std::sin((float)i * 0.0001f + unisonOffsets[v]) * 0.005f; // Slow tape-like wow
             float flutter = (noiseGen.nextFloat() - 0.5f) * 0.002f; // Fast flutter
 
-            float voiceFreq = baseFrequency * std::exp2((detuneBase + voiceDrift + unisonDetuneInSemis + jitter + analogWow + flutter) / 12.0f);
+            float voiceFreq = baseFrequency * std::exp2((expressivePitchSemitones + detuneBase + voiceDrift
+                                                         + unisonDetuneInSemis + jitter + analogWow + flutter) / 12.0f);
 
             // Individuelle Pulse Width per Stimmer für fetteren lebendigen Sound (via sapFlow)
             float voicePw = basePw + (std::sin(voiceDrift * 15.0f) * currentFlow * 0.15f);
@@ -238,7 +267,7 @@ void RootFlowVoice::renderNextBlock(juce::AudioBuffer<float>& buffer,
         }
 
         float sSub = oscSub.processSample(0.0f);
-        oscSub.setFrequency(baseFrequency * 0.5f);
+        oscSub.setFrequency(baseFrequency * 0.5f * std::exp2(expressivePitchSemitones / 12.0f));
 
         float subAmt = (currentDepth * currentDepth * 0.74f) + (currentEnergy * 0.18f);
 
@@ -338,4 +367,39 @@ void RootFlowVoice::setWaveform(int typeIndex)
 {
     for (int i = 0; i < maxUnison; ++i)
         unisonOscillators[i].setWaveform(typeIndex);
+}
+
+int RootFlowVoice::getActiveMidiChannel() const noexcept
+{
+    for (int channel = 1; channel <= 16; ++channel)
+    {
+        if (isPlayingChannel(channel))
+            return channel;
+    }
+
+    return 1;
+}
+
+float RootFlowVoice::getPitchBendRangeForChannel(int midiChannel) const noexcept
+{
+    const auto index = (size_t) juce::jlimit(1, 16, midiChannel) - 1;
+    if (midiExpressionState == nullptr)
+        return 2.0f;
+
+    return juce::jlimit(0.0f, 96.0f, midiExpressionState->pitchBendRangeSemitones[index]);
+}
+
+float RootFlowVoice::getModWheelValueForChannel(int midiChannel) const noexcept
+{
+    const auto index = (size_t) juce::jlimit(1, 16, midiChannel) - 1;
+    if (midiExpressionState == nullptr)
+        return 0.0f;
+
+    return juce::jlimit(0.0f, 1.0f, midiExpressionState->modWheelNormalized[index]);
+}
+
+float RootFlowVoice::pitchWheelToSemitones(int midiChannel, int pitchWheelValue) const noexcept
+{
+    const float normalized = juce::jlimit(-1.0f, 1.0f, ((float) pitchWheelValue - 8192.0f) / 8192.0f);
+    return normalized * getPitchBendRangeForChannel(midiChannel);
 }

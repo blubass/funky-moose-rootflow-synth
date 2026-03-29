@@ -1,16 +1,19 @@
 
 cmake_minimum_required(VERSION 3.22)
-project(RootFlow VERSION 0.1.0)
+
+if(APPLE)
+    set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "Build architectures for macOS" FORCE)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" CACHE STRING "Minimum macOS deployment target" FORCE)
+endif()
+
+project(RootFlow VERSION 1.1.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(ROOTFLOW_COPY_PLUGIN_AFTER_BUILD "Install plugin artifacts after building." ON)
 
-# Optimization and Universal Binaries for macOS
+# Optimization for release artifacts
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-if(APPLE)
-    set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "Build architectures for macOS" FORCE)
-endif()
 
 find_package(JUCE CONFIG QUIET)
 if(NOT TARGET juce::juce_audio_utils)
