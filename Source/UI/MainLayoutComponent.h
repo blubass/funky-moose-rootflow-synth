@@ -185,7 +185,7 @@ public:
         auto subtitleArea = titleLabel.getBounds().toFloat().translated(0.0f, 24.0f).withHeight(16.0f);
         g.setColour(RootFlow::textMuted.withAlpha(0.68f));
         g.setFont(RootFlow::getFont(11.2f));
-        g.drawFittedText("BIO-LUMINESCENT SYNTHESIS INTERFACE", subtitleArea.toNearestInt(), juce::Justification::centred, 1);
+        g.drawFittedText("ROOTFLOW SYNTH", subtitleArea.toNearestInt(), juce::Justification::centred, 1);
 
         RootFlow::drawGlowOrb(g, { shell.getX() + 30.0f, shell.getY() + 26.0f }, 7.0f, RootFlow::accent, 0.8f);
         RootFlow::drawGlowOrb(g, { shell.getRight() - 30.0f, shell.getY() + 26.0f }, 7.0f, RootFlow::amber, 0.7f);

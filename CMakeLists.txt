@@ -21,9 +21,11 @@ juce_add_plugin(RootFlow
     COPY_PLUGIN_AFTER_BUILD TRUE
     PLUGIN_MANUFACTURER_CODE FMAA
     PLUGIN_CODE RTFL
+    PLUGIN_NAME "Funky Moose Rootflow Synth"
+    DESCRIPTION "Funky Moose Rootflow Synth"
     SUPPRESS_AU_PLIST_RESOURCE_USAGE TRUE
     FORMATS AU VST3 Standalone
-    PRODUCT_NAME "RootFlow"
+    PRODUCT_NAME "Funky Moose Rootflow Synth"
     PLIST_TO_MERGE "${CMAKE_CURRENT_SOURCE_DIR}/Source/Info-App.plist"
     MACOS_ENTITLEMENTS "${CMAKE_CURRENT_SOURCE_DIR}/Source/RootFlow.entitlements"
 )

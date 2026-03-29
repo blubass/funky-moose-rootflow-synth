@@ -28,7 +28,7 @@ public:
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
 
-    const juce::String getName() const override { return "Funky Moose - Root Flow"; }
+    const juce::String getName() const override { return "Funky Moose Rootflow Synth"; }
     bool acceptsMidi() const override { return true; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
