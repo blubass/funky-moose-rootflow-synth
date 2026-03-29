@@ -3,12 +3,12 @@
 
 namespace
 {
-constexpr int getHeaderHeightForSize(int editorHeight)
+int getHeaderHeightForSize(int editorHeight)
 {
     return juce::jlimit(72, 80, juce::roundToInt((float) editorHeight * 0.095f));
 }
 
-constexpr int getKeyboardHeightForSize(int editorHeight)
+int getKeyboardHeightForSize(int editorHeight)
 {
     return juce::jlimit(92, 118, juce::roundToInt((float) editorHeight * 0.13f));
 }
