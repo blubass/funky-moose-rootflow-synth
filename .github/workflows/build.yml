@@ -65,9 +65,27 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Get-ChildItem -Path build-ci -Recurse -Filter 'Funky Moose Rootflow Synth.vst3' | Copy-Item -Destination dist -Recurse -Force
-          Get-ChildItem -Path build-ci -Recurse -Filter 'Funky Moose Rootflow Synth.exe' | Copy-Item -Destination dist -Force
-          Get-ChildItem -Path dist -Recurse
+          $vst3Dir = Join-Path 'build-ci' 'RootFlow_artefacts/Release/VST3'
+          $standaloneDir = Join-Path 'build-ci' 'RootFlow_artefacts/Release/Standalone'
+
+          if (Test-Path $vst3Dir) {
+            Get-ChildItem -Path $vst3Dir -Directory -Filter '*.vst3' | ForEach-Object {
+              Copy-Item -Path $_.FullName -Destination dist -Recurse -Force
+            }
+          }
+
+          if (Test-Path $standaloneDir) {
+            Get-ChildItem -Path $standaloneDir -File -Filter '*.exe' | ForEach-Object {
+              Copy-Item -Path $_.FullName -Destination dist -Force
+            }
+          }
+
+          $stagedArtifacts = Get-ChildItem -Path dist -Recurse -Force
+          if (-not $stagedArtifacts) {
+            throw 'No Windows artifacts were staged from build-ci/RootFlow_artefacts/Release.'
+          }
+
+          $stagedArtifacts
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
