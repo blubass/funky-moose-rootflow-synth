@@ -1,57 +1,105 @@
-# RootFlow 🌿
-### *Bio-Acoustic Forest Synthesis Engine*
+# Funky Moose Rootflow Synth
 
-**RootFlow** is a revolutionary physical modeling and additive synthesis engine that simulates the organic growth patterns of a digital forest. From the deep rooting structures of ancient oaks to the luminescent pulses of neon ferns, RootFlow transforms biological metaphors into rich, evolving soundscapes.
+![Funky Moose Rootflow Synth Banner](docs/rootflowsynthbanner.png)
 
----
+![JUCE](https://img.shields.io/badge/Built%20with-JUCE-3A4E6A?style=for-the-badge)
+![C++](https://img.shields.io/badge/C%2B%2B-17-3A4E6A?style=for-the-badge)
+![VST3](https://img.shields.io/badge/VST3-supported-3A4E6A?style=for-the-badge)
+![AudioUnit](https://img.shields.io/badge/AudioUnit-supported-3A4E6A?style=for-the-badge)
+![Standalone](https://img.shields.io/badge/Standalone-supported-3A4E6A?style=for-the-badge)
+![Status](https://img.shields.io/badge/Status-Evolving-5FD1C7?style=for-the-badge)
 
-## ✨ Key Features
+**Funky Moose Rootflow Synth** is an organic, visually reactive software instrument built with **JUCE** and **C++17**.
 
-- **🌲 50 Integrated Bio-Profiles**: Featuring a massive library of 50 hand-crafted biological models—from **Ancient Giant Oaks** to **Luminescent Jungle Moss**.
-- **🧬 Sound Mutation Engine**: Use the `MUTATE` feature to evolve your sound instantly. It randomizes the forest's DNA to discover unpredictable, organic sweet spots.
-- **🌱 Plant Energy Visualization**: A reactive, organic visualizer that pulses with the music's harmonic growth, providing real-time feedback on the synthesis state.
-- **⚙️ Deep Bio-Control Architecture**:
-    - **ROOT**: Adjust Depth, Soil Texture, and Anchor Point.
-    - **SAP**: Master the Flow, Vitality, and sap Viscosity.
-    - **PULSE**: Define the Rate, Breath, and periodic Growth cycles.
-- **💠 Interactive Environment**: Dynamic parameters for **Bloom**, **Rain**, and **Sunlight** allow you to seasonalize your sound.
-- **⚡ Universal Hardware Performance**: Full native support for **Apple Silicon (M1/M2/M3)** and **Intel** Macs using high-performance Universal Binaries.
+It blends ambient synthesis, bio-inspired sequencing, evolving modulation and a living interface into one playable instrument. Instead of feeling sterile or mechanical, Rootflow is designed to breathe, drift, pulse and grow.
 
----
+## Features
 
-## 🚀 Getting Started
+- Organic synth engine for evolving textures, drones, pulses and ambient tones
+- Bio-Sequencer for living rhythmic motion and mutation-driven pattern shaping
+- Reactive center panel with node-based movement and organism-like visual feedback
+- Root, Pulse and Ambient field layout for stable tone, animated motion and spatial shaping
+- Patch workflow with save, delete and mutate actions directly in the main interface
+- Playable keyboard and direct performance controls
+- Available as **Audio Unit**, **VST3** and **Standalone** on macOS
 
-### Installation
+## Interface
 
-1.  Download the latest release for your platform.
-2.  Move the plugin to your standard system directory:
-    - **AU**: `/Library/Audio/Plug-Ins/Components/`
-    - **VST3**: `/Library/Audio/Plug-Ins/VST3/`
-3.  Rescan your DAW (Logic Pro, Ableton Live, Cubase, etc.) and launch **RootFlow**.
+### Bio-Sequencer
 
-### Building from Source
+Controls evolving step activity, rhythmic motion and the internal pulse of a patch.
 
-Requirement: [CMake](https://cmake.org/) and [JUCE 8](https://juce.com/) installed on your system.
+### Center Panel
+
+The living visual field. It reflects movement, modulation and interaction in real time.
+
+### Root Field / Pulse Field / Ambient Field
+
+These sections shape the body of the instrument:
+
+- **Root Field**: depth, soil, anchor and tonal grounding
+- **Pulse Field**: rate, breath, growth and movement
+- **Ambient Field**: air, ground and space balance
+
+## Screenshot
+
+![Funky Moose Rootflow Synth Screenshot](docs/rootflow-screenshot-main.png)
+
+## Installation
+
+### macOS
+
+- **Audio Unit**: copy the `.component` bundle to `~/Library/Audio/Plug-Ins/Components` or `/Library/Audio/Plug-Ins/Components`
+- **VST3**: copy the `.vst3` bundle to `~/Library/Audio/Plug-Ins/VST3` or `/Library/Audio/Plug-Ins/VST3`
+- **Standalone**: move the `.app` bundle to `Applications`
+
+### Notes
+
+- Unsigned builds may need to be opened once via Finder or allowed in `System Settings > Privacy & Security`
+- If you are replacing an older `RootFlow` build, rescan your DAW after installing `Funky Moose Rootflow Synth`
+
+## Build from Source
+
+### Requirements
+
+- CMake 3.22 or newer
+- JUCE 8.0.10
+- C++17 compatible compiler
+- Xcode or Xcode Command Line Tools on macOS
+
+### Quick Build
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-repo/rootflow.git
-cd rootflow
-
-# Create build directory
-mkdir build_release && cd build_release
-
-# Configure & Build (Universal Binary + LTO)
-cmake -DCMAKE_BUILD_TYPE=Release ..
-cmake --build . --config Release -j 8
+git clone https://github.com/blubass/funky-moose-rootflow-synth.git
+cd funky-moose-rootflow-synth
+cmake --preset default
+cmake --build --preset default
 ```
 
----
+The included preset expects JUCE here:
 
-## 🎨 Design & Aesthetic
+```text
+$HOME/Developer/JUCE/install/lib/cmake/JUCE-8.0.10
+```
 
-RootFlow is wrapped in a custom **Walnut & Neon** user interface, blending classic high-end studio gear aesthetics with modern biological glows. Every knob and slider is custom-drawn to ensure a premium, reactive experience.
+If your JUCE install lives elsewhere, pass `-DJUCE_DIR=/path/to/JUCE/lib/cmake/JUCE-8.0.10` when configuring.
 
----
+## Roadmap
 
-*Hand-crafted with 💚 for the organic music makers by **Funky Moose Audio***
+- deeper modulation routing
+- richer voice architecture
+- expanded sequencer behaviors
+- stronger patch and preset handling
+- refined visual polish and release packaging
+
+## Author
+
+Uwe Arthur Felchle
+
+Musician, composer, producer and developer
+
+https://uwefelchle.at
+
+## License
+
+This project is released under the MIT License. See [LICENSE](LICENSE).
