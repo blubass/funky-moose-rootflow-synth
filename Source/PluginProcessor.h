@@ -9,6 +9,7 @@
 #include "RootFlowModulators.h"
 #include "RootFlowDSP.h"
 #include "RootFlowVoice.h"
+#include "UI/NodeSystem.h"
 
 class RootFlowAudioProcessor : public juce::AudioProcessor,
                                private juce::HighResolutionTimer,
@@ -27,11 +28,11 @@ public:
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
 
-    const juce::String getName() const override { return "RootFlow"; }
+    const juce::String getName() const override { return "Funky Moose - Root Flow"; }
     bool acceptsMidi() const override { return true; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
-    bool supportsMPE() const override { return true; }
+    bool supportsMPE() const override { return false; }
     double getTailLengthSeconds() const override { return 1.2; }
 
     int getNumPrograms() override { return 1; }
@@ -100,7 +101,14 @@ public:
     MidiActivitySnapshot getMidiActivitySnapshot() const noexcept;
     void setTestToneEnabled(bool shouldEnable) noexcept;
     bool isTestToneEnabled() const noexcept { return testToneEnabled.load(std::memory_order_relaxed) != 0; }
+    float getRMS() const noexcept { return rmsLevel.load(std::memory_order_relaxed); }
     bool isSequencerEnabled() const noexcept { if (auto* p = tree.getRawParameterValue("sequencerOn")) return *p > 0.5f; return false; }
+
+    float getModulatedValue(const juce::String& paramID) const;
+    NodeSystem& getNodeSystem() { return nodeSystem; }
+
+    // Evolutionary Plant Mutation
+    void mutatePlant();
 
     // Spectrum Analysis for Visualizer
     static constexpr int fftOrder = 10;
@@ -108,7 +116,8 @@ public:
     bool getNextFFTBlock(float* destData);
 
     juce::AudioProcessorValueTreeState tree;
-    std::atomic<bool> sequencerTriggered{ false };
+    std::atomic<bool> sequencerTriggered { false };
+    std::atomic<float> beatPhase { 0.0f };
 
 private:
     static constexpr int fftQueueCapacity = 8;
@@ -182,19 +191,28 @@ private:
     void requestProcessingStateReset() noexcept;
     void performPendingProcessingStateReset() noexcept;
 
-    std::atomic<float> lastPlantEnergy { 0.0f };
-    std::atomic<float> currentOutputPeak { 0.0f };
-    RootFlowBioFeedbackSnapshot currentBioFeedback;
-    std::atomic<int> currentFactoryPresetIndex { 0 };
-    std::atomic<int> currentUserPresetIndex { -1 };
     std::atomic<int> currentPresetDirty { 0 };
     std::atomic<int> presetLoadInProgress { 0 };
     std::atomic<int> processingStateResetPending { 0 };
+    std::atomic<float> lastPlantEnergy { 0.0f };
+    std::atomic<float> rmsLevel { 0.0f };
+    std::atomic<float> currentOutputPeak { 0.0f };
 
+    // --- Organic Dynamics Logic ---
+    bool isRealBotanicsPreset() const noexcept;
+
+    std::array<float, 2> soilCrackleState {0.0f, 0.0f};
+    juce::Random botanicsRng;
+
+    // --- Core Systems ---
     juce::MidiKeyboardState keyboardState;
     juce::Synthesiser synth;
     juce::AudioBuffer<float> drySafetyBuffer;
     RootFlowVoice::MidiExpressionState midiExpressionState;
+    RootFlowBioFeedbackSnapshot currentBioFeedback;
+    std::atomic<int> currentFactoryPresetIndex { 0 };
+    std::atomic<int> currentUserPresetIndex { -1 };
+
     std::array<int, 16> midiRpnMsb {};
     std::array<int, 16> midiRpnLsb {};
     std::array<int, 16> midiDataEntryMsb {};
@@ -238,8 +256,14 @@ private:
     juce::SmoothedValue<float> soilBodyCutoffSmoothed;
     juce::SmoothedValue<float> soilToneCutoffSmoothed;
     juce::SmoothedValue<float> testToneLevelSmoothed;
+
+    // Final Master FX
+    juce::dsp::Compressor<float> finalCompressor;
+    juce::LinearSmoothedValue<float> masterVolumeSmoothed;
+
     std::array<float, 2> soilBodyState {};
     std::array<float, 2> soilToneState {};
+
     std::atomic<int> testToneEnabled { 0 };
     double testTonePhase = 0.0;
     int outputSilenceWatchdogBlocks = 0;
@@ -255,7 +279,9 @@ private:
     juce::dsp::WindowingFunction<float> window { fftSize, juce::dsp::WindowingFunction<float>::hann };
     std::array<float, fftSize> fifo {};
     std::array<float, fftSize * 2> fftData {};
+    std::array<float, fftSize / 2> spectrum {};
     std::array<float, fftSize / 2> scopeData {};
+    std::atomic<bool> fftReady { false };
     std::array<std::array<float, fftSize / 2>, fftQueueCapacity> fftBlockQueue {};
     juce::AbstractFifo fftBlockFifo { fftQueueCapacity };
     // --- Bio-Sequencer ---
@@ -267,12 +293,21 @@ public:
         bool active = true;
     };
 
+    std::array<SequencerStep, 16> getSequencerStepSnapshot() const;
+    int getCurrentSequencerStep() const noexcept { return currentSequencerStep.load(std::memory_order_relaxed); }
+    void clearSequencerSteps();
+    void randomizeSequencerStepVelocity(int stepIndex);
+    void cycleSequencerStepState(int stepIndex);
+    void toggleSequencerStepActive(int stepIndex);
+    void adjustSequencerStepVelocity(int stepIndex, float delta);
+    void previewSequencerStep(int stepIndex);
     void updateSequencer(int numSamples, juce::MidiBuffer& midiMessages);
     void resetSequencer();
 
     std::array<SequencerStep, 16> sequencerSteps;
-    int currentSequencerStep = 0;
+    std::atomic<int> currentSequencerStep { 0 };
 private:
+    mutable juce::SpinLock sequencerStateLock;
     double samplesPerStep = 0.0;
     double sampleCounter = 0.0;
     int lastSequencerNote = -1;
@@ -284,6 +319,8 @@ private:
     int currentArpIndex = 0;
 
     int fifoIndex = 0;
+
+    NodeSystem nodeSystem;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (RootFlowAudioProcessor)
 };

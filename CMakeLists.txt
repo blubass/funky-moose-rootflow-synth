@@ -15,12 +15,13 @@ find_package(JUCE CONFIG REQUIRED)
 
 juce_add_plugin(RootFlow
     COMPANY_NAME "Funky Moose Audio"
-    BUNDLE_ID at.uwefelchle.rootflow
+    BUNDLE_ID at.uwefelchle.rootflow.synth
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     COPY_PLUGIN_AFTER_BUILD TRUE
     PLUGIN_MANUFACTURER_CODE FMAA
     PLUGIN_CODE RTFL
+    SUPPRESS_AU_PLIST_RESOURCE_USAGE TRUE
     FORMATS AU VST3 Standalone
     PRODUCT_NAME "RootFlow"
     PLIST_TO_MERGE "${CMAKE_CURRENT_SOURCE_DIR}/Source/Info-App.plist"
@@ -39,16 +40,20 @@ target_sources(RootFlow PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
     Source/RootFlowVoice.cpp
+    Source/RootFlowLookAndFeel.cpp
+    Source/UI/EnergyDisplay.cpp
+    # NodeSystem and BioSequencerComponent are header-only
 )
 
 juce_add_binary_data(RootFlowAssets
     SOURCES
         Assets/wood_texture.png
+        Assets/metal_texture.png
         Assets/roots_bg.png
+        Assets/roots_overlay.png
         Assets/roots_overlay_soft.png
         Assets/roots_overlay_detail.png
         Assets/moose_logo.png
-
 )
 
 target_link_libraries(RootFlow PRIVATE

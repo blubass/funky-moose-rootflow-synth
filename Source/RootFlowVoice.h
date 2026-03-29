@@ -58,6 +58,7 @@ public:
     void setPulseAmount(float v);
     void setGrowth(float v);
     void setCanopy(float v);
+    void setInstability(float v);
     void setWaveform(int typeIndex);
     
     void setEngine(const RootFlowModulationEngine* e) { engine = e; }
@@ -103,6 +104,7 @@ private:
     juce::LinearSmoothedValue<float> smoothedPulseAmount { 0.5f };
     juce::LinearSmoothedValue<float> smoothedGrowth { 0.5f };
     juce::LinearSmoothedValue<float> smoothedCanopy { 0.5f };
+    juce::LinearSmoothedValue<float> smoothedInstability { 0.0f };
     
     // Bio-Feedback Energy & Filter
     const RootFlowModulationEngine* engine = nullptr;

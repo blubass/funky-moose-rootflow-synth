@@ -1,6 +1,7 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "UI/Utils/DesignTokens.h"
 #include <cmath>
 #include <algorithm>
 
@@ -73,16 +74,19 @@ constexpr std::array<const char*, 21> presetParameterIDs {
     "oscWave"
 };
 
-const std::array<FactoryPreset, 80> factoryPresets {{
-    { "ROOTFLOW INIT", { 0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.65f, 0.18f, 0.28f, 0.00f, 0.00f, 0.00f, 0.34f } },
-    { "DEEP MYCELIUM",   { 0.36f, 0.28f, 0.16f, 0.62f, 0.78f, 0.40f, 0.30f, 0.34f, 0.28f, 0.68f, 0.26f, 0.14f, 0.42f, 0.20f, 0.10f, 0.08f } },
-    { "CHLOROPHYLL SCREAM", { 0.42f, 0.30f, 0.24f, 0.54f, 0.72f, 0.30f, 0.24f, 0.32f, 0.26f, 0.62f, 0.18f, 0.10f, 0.20f, 0.12f, 0.06f, 0.12f } },
-    { "PHOTOSYNTHESIS", { 0.44f, 0.34f, 0.22f, 0.58f, 0.66f, 0.36f, 0.28f, 0.30f, 0.34f, 0.64f, 0.24f, 0.12f, 0.28f, 0.12f, 0.38f, 0.22f } },
-    { "WOODLAND RAIN",  { 0.52f, 0.48f, 0.42f, 0.46f, 0.52f, 0.24f, 0.20f, 0.26f, 0.20f, 0.58f, 0.20f, 0.08f, 0.12f, 0.18f, 0.22f, 0.56f } },
-    { "ANCIENT OAK",    { 0.38f, 0.24f, 0.14f, 0.68f, 0.80f, 0.42f, 0.32f, 0.30f, 0.36f, 0.66f, 0.26f, 0.14f, 0.36f, 0.10f, 0.22f, 0.04f } },
-    { "NEURAL ROOT",    { 0.30f, 0.22f, 0.12f, 0.64f, 0.82f, 0.30f, 0.18f, 0.24f, 0.18f, 0.60f, 0.20f, 0.08f, 0.18f, 0.08f, 0.04f, 0.18f } },
-    { "MORNING DEW",    { 0.32f, 0.24f, 0.14f, 0.72f, 0.86f, 0.38f, 0.26f, 0.28f, 0.22f, 0.64f, 0.28f, 0.10f, 0.34f, 0.06f, 0.18f, 0.14f } },
-    { "SILK CLEARING", { 0.40f, 0.28f, 0.18f, 0.58f, 0.74f, 0.28f, 0.22f, 0.30f, 0.24f, 0.56f, 0.18f, 0.06f, 0.16f, 0.04f, 0.30f, 0.20f } },
+const std::array<FactoryPreset, 86> factoryPresets {{
+    // --- BIO-SIGNATURE PRESETS ---
+    { "NEURAL MYCELIUM",      { 0.30f, 0.45f, 0.20f, 0.85f, 0.60f, 0.40f, 0.25f, 0.50f, 0.35f, 0.70f, 0.80f, 0.15f, 0.20f, 0.05f, 0.10f, 0.50f } },
+    { "SPORE BURST",         { 0.20f, 0.10f, 0.60f, 0.40f, 0.90f, 0.85f, 0.95f, 0.30f, 0.75f, 0.40f, 0.10f, 0.65f, 0.50f, 0.80f, 0.20f, 0.30f } },
+    { "BIO-LUMINESCENT LEAD",{ 0.25f, 0.30f, 0.15f, 0.55f, 0.88f, 0.20f, 0.35f, 0.60f, 0.45f, 0.75f, 0.35f, 0.10f, 0.70f, 0.08f, 0.15f, 0.18f } },
+    { "DEEP ROOT PULSE",     { 0.90f, 0.75f, 0.80f, 0.15f, 0.20f, 0.55f, 0.12f, 0.18f, 0.08f, 0.45f, 0.12f, 0.30f, 0.05f, 0.10f, 0.65f, 0.88f } },
+    { "MEMBRANE DRIFT",      { 0.48f, 0.55f, 0.35f, 0.65f, 0.42f, 0.30f, 0.28f, 0.72f, 0.38f, 0.88f, 0.42f, 0.08f, 0.15f, 0.55f, 0.30f, 0.72f } },
+    { "CELL DIVISION",       { 0.55f, 0.40f, 0.30f, 0.70f, 0.75f, 0.60f, 0.88f, 0.65f, 0.80f, 0.62f, 0.22f, 0.48f, 0.60f, 0.15f, 0.18f, 0.25f } },
+    { "FOSSIL RESONANCE",    { 0.85f, 0.78f, 0.82f, 0.25f, 0.30f, 0.70f, 0.10f, 0.15f, 0.12f, 0.38f, 0.14f, 0.22f, 0.08f, 0.12f, 0.72f, 0.42f } },
+    { "BIOLUMINESCENCE",     { 0.22f, 0.18f, 0.12f, 0.78f, 0.92f, 0.25f, 0.48f, 0.88f, 0.55f, 0.80f, 0.50f, 0.12f, 0.85f, 0.06f, 0.22f, 0.16f } },
+
+    // Organic Stasis
+    { "DEEP MYCELIUM",  { 0.36f, 0.28f, 0.16f, 0.62f, 0.78f, 0.40f, 0.30f, 0.34f, 0.28f, 0.68f, 0.26f, 0.14f, 0.42f, 0.20f, 0.10f, 0.08f } },
 
     // Motion
     { "FOREST DRIFT",  { 0.60f, 0.52f, 0.34f, 0.74f, 0.70f, 0.54f, 0.36f, 0.48f, 0.54f, 0.76f, 0.28f, 0.56f, 0.22f, 0.34f, 0.26f, 0.44f } },
@@ -161,24 +165,33 @@ const std::array<FactoryPreset, 80> factoryPresets {{
     { "Fiber Optic      ", { 0.10f, 0.10f, 0.20f, 0.80f, 0.40f, 0.00f, 0.60f, 0.90f, 0.40f, 0.65f, 0.18f, 0.28f, 0.90f, 0.30f, 0.80f, 0.90f } },
     { "Wire Weed        ", { 0.30f, 0.80f, 0.40f, 0.90f, 0.90f, 1.00f, 0.70f, 0.20f, 0.60f, 0.65f, 0.18f, 0.28f, 0.50f, 0.80f, 0.30f, 0.70f } },
     { "Silicon Petal    ", { 0.20f, 0.00f, 0.30f, 0.40f, 0.10f, 0.00f, 0.40f, 0.70f, 0.30f, 0.65f, 0.18f, 0.28f, 0.70f, 0.20f, 0.70f, 0.80f } },
-    { "Robo Sprout      ", { 0.40f, 0.20f, 0.40f, 0.50f, 0.30f, 0.20f, 1.00f, 0.50f, 0.80f, 0.65f, 0.18f, 0.28f, 0.30f, 0.30f, 0.40f, 0.50f } }
+    { "Robo Sprout      ", { 0.40f, 0.20f, 0.40f, 0.50f, 0.30f, 0.20f, 1.00f, 0.50f, 0.80f, 0.65f, 0.18f, 0.28f, 0.30f, 0.30f, 0.40f, 0.50f } },
+
+    // --- REAL BOTANICS (True Plant Acoustics) ---
+    { "Xylem Cavitation", { 0.10f, 0.20f, 0.80f, 0.10f, 0.40f, 0.90f, 0.80f, 0.90f, 0.50f, 0.80f, 0.40f, 0.90f, 0.20f, 0.90f, 0.10f, 0.80f } },
+    { "Stomata Breath",   { 0.20f, 0.30f, 0.10f, 0.40f, 0.20f, 0.10f, 0.10f, 1.00f, 0.20f, 1.00f, 0.90f, 0.20f, 0.80f, 0.10f, 0.50f, 0.40f } },
+    { "Root Expansion",   { 1.00f, 0.90f, 1.00f, 0.20f, 0.30f, 0.60f, 0.05f, 0.40f, 0.80f, 0.00f, 0.30f, 0.60f, 0.10f, 0.30f, 0.10f, 0.50f } },
+    { "Phloem Rush",      { 0.50f, 0.50f, 0.40f, 1.00f, 0.70f, 0.50f, 0.60f, 0.30f, 0.50f, 0.40f, 0.60f, 0.10f, 0.50f, 0.60f, 0.40f, 0.20f } },
+    { "Osmotic Shift",    { 0.70f, 0.40f, 0.60f, 0.50f, 0.80f, 0.30f, 0.20f, 0.80f, 0.90f, 0.60f, 0.50f, 0.40f, 0.60f, 0.20f, 0.70f, 0.30f } },
+    { "Photosynthesis",   { 0.10f, 0.10f, 0.20f, 0.80f, 1.00f, 0.20f, 0.90f, 0.50f, 0.40f, 0.90f, 0.80f, 0.30f, 0.70f, 0.00f, 1.00f, 0.50f } }
 }};
 
-constexpr std::array<FactoryPresetSectionDefinition, 14> factoryPresetSections {{
-    { "START",    0, 1 },
-    { "FRIENDLY", 1, 8 },
-    { "MOTION",   9, 8 },
-    { "DEEP",    17, 6 },
-    { "WILD",    23, 7 },
+constexpr std::array<FactoryPresetSectionDefinition, 16> factoryPresetSections {{
+    { "BIO-SIGNATURE",  0, 8 },   // The new flagship presets
+    { "ORGANIC STASIS", 8, 1 },   // Deep Mycelium (the old start)
+    { "MOTION",        9, 8 },
+    { "DEEP",         17, 6 },
+    { "WILD",         23, 7 },
     { "BIO: LEGACY",  30, 3 },
     { "BIO: GIANTS",  33, 6 },
     { "BIO: CREEPERS",39, 6 },
     { "BIO: LUMINA",  45, 6 },
     { "BIO: SPORES",  51, 5 },
-    { "BIO: AQUATIC",  56, 5 },
-    { "BIO: DESERT",   61, 5 },
-    { "BIO: HUNTERS",  66, 4 },
-    { "BIO: XENO",     70, 10 }
+    { "BIO: AQUATIC", 56, 5 },
+    { "BIO: DESERT",  61, 5 },
+    { "BIO: HUNTERS", 66, 4 },
+    { "BIO: XENO",    70, 10 },
+    { "REAL BOTANICS", 80, 6 }
 }};
 
 constexpr auto midiBindingsTag = "MidiBindings";
@@ -187,6 +200,9 @@ constexpr auto midiBindingTag = "Binding";
 constexpr auto userPresetsTag = "UserPresets";
 constexpr auto userPresetTag = "UserPreset";
 constexpr auto presetIndexProperty = "factoryPresetIndex";
+constexpr auto hoverEffectsEnabledProperty = "hoverEffectsEnabled";
+constexpr auto idleEffectsEnabledProperty = "idleEffectsEnabled";
+constexpr auto popupOverlaysEnabledProperty = "popupOverlaysEnabled";
 constexpr auto midiMappingVersionProperty = "version";
 constexpr auto midiMappingModeProperty = "mode";
 constexpr int midiMappingSchemaVersion = 1;
@@ -204,11 +220,23 @@ constexpr float outputDcBlockPole = 0.995f;
 constexpr float outputSafetyLimit = 0.98f;
 constexpr int postFxSafetyBypassDurationBlocks = 256;
 
+constexpr auto nodeSystemTag = "NodeSystem";
+constexpr auto nodeTag = "Node";
+constexpr auto connectionTag = "Connection";
+
 float onePoleCoeffFromCutoff(float cutoffHz, float sampleRate) noexcept
 {
     const float safeSampleRate = juce::jmax(1.0f, sampleRate);
     const float clampedCutoff = juce::jlimit(20.0f, safeSampleRate * 0.45f, cutoffHz);
     return 1.0f - std::exp(-juce::MathConstants<float>::twoPi * clampedCutoff / safeSampleRate);
+}
+
+float clampStateVariableCutoff(float cutoffHz, double sampleRate) noexcept
+{
+    const auto safeSampleRate = juce::jmax(1.0, sampleRate);
+    const auto maxCutoff = juce::jmax(10.0f, (float) safeSampleRate * 0.49f);
+    const auto minCutoff = juce::jmin(20.0f, maxCutoff * 0.5f);
+    return juce::jlimit(minCutoff, maxCutoff, cutoffHz);
 }
 
 float emphasizeMacroResponse(float value, float curve = 0.32f) noexcept
@@ -221,7 +249,7 @@ float emphasizeMacroResponse(float value, float curve = 0.32f) noexcept
 
 float emphasizeFxResponse(float value, float curve = 0.20f) noexcept
 {
-    return std::pow(juce::jlimit(0.0f, 1.0f, value), juce::jmax(0.1f, curve));
+    return std::pow(juce::jlimit(0.0f, 1.0f, value), juce::jmax(0.01f, curve));
 }
 
 float shapeAtmosphereResponse(float value) noexcept
@@ -284,6 +312,8 @@ RootFlowAudioProcessor::RootFlowAudioProcessor()
 
     resetSequencer();
 
+    nodeSystem.initialise(tree);
+
     for (const auto* paramID : presetParameterIDs)
         tree.addParameterListener(paramID, this);
 
@@ -324,16 +354,21 @@ juce::AudioProcessorValueTreeState::ParameterLayout RootFlowAudioProcessor::crea
     addParam("rain", "Rain Density", 0.0f);
     addParam("sun", "Sun Flare", 0.0f);
     addParam("ecoSystem", "Seasons", 0.34f);
-    
+
     // Bio-Sequencer
     params.push_back(std::make_unique<juce::AudioParameterBool>(juce::ParameterID("sequencerOn", 1), "Sequencer On", false));
-    params.push_back(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID("sequencerRate", 1), "Seq Rate", 
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID("sequencerRate", 1), "Seq Rate",
                                                                   juce::StringArray { "1/4", "1/8", "1/16", "1/32" }, 2));
     params.push_back(std::make_unique<juce::AudioParameterInt>(juce::ParameterID("sequencerSteps", 1), "Seq Steps", 4, 16, 8));
     params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID("sequencerGate", 1), "Seq Gate", 0.1f, 1.0f, 0.5f));
-    
-    params.push_back(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID("oscWave", 1), "Waveform", 
+
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID("oscWave", 1), "Waveform",
                                                                   juce::StringArray { "Sine", "Saw", "Pulse" }, 0));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID("masterVolume", 1), "Volume",
+                                                                 juce::NormalisableRange<float>(-48.0f, +12.0f, 0.1f, 1.5f), 0.0f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID("masterCompressor", 1), "Compressor",
+                                                                 juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.0f));
 
     return { params.begin(), params.end() };
 }
@@ -354,9 +389,10 @@ bool RootFlowAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts)
 
 void RootFlowAudioProcessor::prepareToPlay(double sr, int bs)
 {
+    const auto safeSampleRate = sr > 0.0 ? sr : 44100.0;
     resetMidiExpressionState();
     synth.clearVoices();
-    for (int i = 0; i < 12; ++i)
+    for (int i = 0; i < 32; ++i)
     {
         auto* voice = new RootFlowVoice();
         voice->setEngine(&modulation); // Link to bio-feedback engine
@@ -394,10 +430,9 @@ void RootFlowAudioProcessor::prepareToPlay(double sr, int bs)
         filter.prepare(monoSpec);
         filter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
         filter.setResonance(0.52f);
-        filter.setCutoffFrequency(7600.0f);
+        filter.setCutoffFrequency(clampStateVariableCutoff(7600.0f, safeSampleRate));
     }
 
-    const auto safeSampleRate = sr > 0.0 ? sr : 44100.0;
     masterDriveSmoothed.reset(safeSampleRate, 0.08);
     masterDriveSmoothed.setCurrentAndTargetValue(1.0f);
     masterToneCutoffSmoothed.reset(safeSampleRate, 0.10);
@@ -408,6 +443,9 @@ void RootFlowAudioProcessor::prepareToPlay(double sr, int bs)
     soilDriveSmoothed.setCurrentAndTargetValue(1.0f);
     soilMixSmoothed.reset(safeSampleRate, 0.12);
     soilMixSmoothed.setCurrentAndTargetValue(0.0f);
+    masterVolumeSmoothed.reset(safeSampleRate, 0.05);
+    masterVolumeSmoothed.setCurrentAndTargetValue(1.0f);
+    finalCompressor.prepare(fxSpec);
     soilBodyCutoffSmoothed.reset(safeSampleRate, 0.14);
     soilBodyCutoffSmoothed.setCurrentAndTargetValue(360.0f);
     soilToneCutoffSmoothed.reset(safeSampleRate, 0.14);
@@ -440,22 +478,69 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     buffer.clear();
     performPendingProcessingStateReset();
 
-    const float rootDepthBase = *tree.getRawParameterValue("rootDepth");
-    const float rootSoilBase = *tree.getRawParameterValue("rootSoil");
-    const float rootAnchorBase = *tree.getRawParameterValue("rootAnchor");
-    const float sapFlowBase = *tree.getRawParameterValue("sapFlow");
-    const float sapVitalityBase = *tree.getRawParameterValue("sapVitality");
-    const float sapTextureBase = *tree.getRawParameterValue("sapTexture");
-    const float pulseRateBase = *tree.getRawParameterValue("pulseRate");
-    const float pulseBreathBase = *tree.getRawParameterValue("pulseBreath");
-    const float pulseGrowthBase = *tree.getRawParameterValue("pulseGrowth");
-    const float canopyBase = *tree.getRawParameterValue("canopy");
-    const float atmosphereBase = *tree.getRawParameterValue("atmosphere");
-    const float instabilityBase = *tree.getRawParameterValue("instability");
-    const float bloomBase = *tree.getRawParameterValue("bloom");
-    const float rainBase = *tree.getRawParameterValue("rain");
-    const float sunBase = *tree.getRawParameterValue("sun");
-    const float seasonMacro = *tree.getRawParameterValue("ecoSystem");
+    std::array<float, 16> baseValues {{
+        *tree.getRawParameterValue("rootDepth"),
+        *tree.getRawParameterValue("rootSoil"),
+        *tree.getRawParameterValue("rootAnchor"),
+        *tree.getRawParameterValue("sapFlow"),
+        *tree.getRawParameterValue("sapVitality"),
+        *tree.getRawParameterValue("sapTexture"),
+        *tree.getRawParameterValue("pulseRate"),
+        *tree.getRawParameterValue("pulseBreath"),
+        *tree.getRawParameterValue("pulseGrowth"),
+        *tree.getRawParameterValue("canopy"),
+        *tree.getRawParameterValue("atmosphere"),
+        *tree.getRawParameterValue("instability"),
+        *tree.getRawParameterValue("bloom"),
+        *tree.getRawParameterValue("rain"),
+        *tree.getRawParameterValue("sun"),
+        *tree.getRawParameterValue("ecoSystem")
+    }};
+    std::array<float, 16> modulationValues {};
+
+    {
+        const juce::ScopedLock nodeLock(nodeSystem.getLock());
+        const auto& nodes = nodeSystem.getNodes();
+        const auto& connections = nodeSystem.getConnections();
+
+        for (const auto& connection : connections)
+        {
+            if (! juce::isPositiveAndBelow(connection.source, (int) nodes.size())
+                || ! juce::isPositiveAndBelow(connection.target, (int) nodes.size()))
+                continue;
+
+            const auto& source = nodes[(size_t) connection.source];
+            const auto& target = nodes[(size_t) connection.target];
+            const int targetSlot = getMappedParameterSlotForID(target.paramID);
+
+            if (! juce::isPositiveAndBelow(targetSlot, (int) modulationValues.size()))
+                continue;
+
+            modulationValues[(size_t) targetSlot] += source.value * connection.amount;
+        }
+    }
+
+    auto getBlockModulatedValue = [&](size_t index)
+    {
+        return juce::jlimit(0.0f, 1.0f, baseValues[index] + modulationValues[index]);
+    };
+
+    const float rootDepthBase = getBlockModulatedValue(0);
+    const float rootSoilBase = getBlockModulatedValue(1);
+    const float rootAnchorBase = getBlockModulatedValue(2);
+    const float sapFlowBase = getBlockModulatedValue(3);
+    const float sapVitalityBase = getBlockModulatedValue(4);
+    const float sapTextureBase = getBlockModulatedValue(5);
+    const float pulseRateBase = getBlockModulatedValue(6);
+    const float pulseBreathBase = getBlockModulatedValue(7);
+    const float pulseGrowthBase = getBlockModulatedValue(8);
+    const float canopyBase = getBlockModulatedValue(9);
+    const float atmosphereBase = getBlockModulatedValue(10);
+    const float instabilityBase = getBlockModulatedValue(11);
+    const float bloomBase = getBlockModulatedValue(12);
+    const float rainBase = getBlockModulatedValue(13);
+    const float sunBase = getBlockModulatedValue(14);
+    const float seasonMacro = getBlockModulatedValue(15);
     const auto seasonMorph = getSeasonMorph(seasonMacro);
 
     auto seasonBlend = [&](float base, float springOffset, float summerOffset, float autumnOffset, float winterOffset)
@@ -480,9 +565,9 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     const float canopy = emphasizeMacroResponse(seasonBlend(canopyBase, 0.12f, 0.22f, -0.04f, -0.32f), 0.09f);
     const float atmosphereAmount = shapeAtmosphereResponse(seasonBlend(atmosphereBase, 0.32f, 0.44f, 0.36f, 0.52f));
     const float instabilityAmount = emphasizeMacroResponse(seasonBlend(instabilityBase, 0.05f, 0.12f, 0.22f, -0.14f), 0.025f);
-    const float bloomAmount = applySeasonalFxScale(bloomBase, seasonMorph, 0.22f, 0.14f, -0.10f, -0.22f, 0.03f);
-    const float rainAmount = applySeasonalFxScale(rainBase, seasonMorph, 0.08f, -0.02f, 0.38f, 0.12f, 0.016f);
-    const float sunAmount = applySeasonalFxScale(sunBase, seasonMorph, 0.40f, 0.16f, 0.00f, -0.16f, 0.006f);
+    const float bloomAmount = applySeasonalFxScale(bloomBase, seasonMorph, 0.22f, 0.14f, -0.10f, -0.22f, 0.65f);
+    const float rainAmount = applySeasonalFxScale(rainBase, seasonMorph, 0.08f, -0.02f, 0.38f, 0.12f, 0.85f);
+    const float sunAmount = applySeasonalFxScale(sunBase, seasonMorph, 0.40f, 0.16f, 0.00f, -0.16f, 1.05f);
     const float sampleRate = (float) juce::jmax(1.0, getSampleRate());
 
     for (int i = 0; i < synth.getNumVoices(); ++i)
@@ -497,6 +582,7 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             voice->setPulseRate(pulseRate);
             voice->setPulseAmount(pulseBreath);
             voice->setCanopy(canopy);
+            voice->setInstability(instabilityAmount);
             voice->setWaveform((int)(*tree.getRawParameterValue("oscWave")));
         }
     }
@@ -523,9 +609,10 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     updateSequencer(numSamples, midiMessages);
     keyboardState.processNextMidiBuffer(midiMessages, 0, numSamples, true);
     synth.renderNextBlock(buffer, midiMessages, 0, numSamples);
-    if (drySafetyBuffer.getNumChannels() != numChannels || drySafetyBuffer.getNumSamples() != numSamples)
-        drySafetyBuffer.setSize(numChannels, numSamples, false, false, true);
-    drySafetyBuffer.makeCopyOf(buffer, true);
+    jassert(drySafetyBuffer.getNumChannels() >= numChannels);
+    jassert(drySafetyBuffer.getNumSamples() >= numSamples);
+    for (int channel = 0; channel < numChannels; ++channel)
+        drySafetyBuffer.copyFrom(channel, 0, buffer, channel, 0, numSamples);
     float preFxPeak = 0.0f;
     for (int channel = 0; channel < numChannels; ++channel)
     {
@@ -556,8 +643,40 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     const float plantEnergy = currentBioFeedback.plantEnergy;
     lastPlantEnergy.store(plantEnergy, std::memory_order_relaxed);
 
+    // --- BPM & BEAT SYNC ---
+    double bpm = 120.0;
+    if (auto* playHead = getPlayHead())
+    {
+        if (auto position = playHead->getPosition())
+        {
+            if (auto bpmOpt = position->getBpm(); bpmOpt && *bpmOpt > 0.0)
+                bpm = *bpmOpt;
+        }
+    }
+
+    float multiplier = 1.0f;
+    float numSamps = (float)buffer.getNumSamples();
+    float phaseDelta = 0.0f;
+
+    if (getSampleRate() > 0.0)
+    {
+        float beatPerSecond = (float)bpm / 60.0f;
+        phaseDelta = (beatPerSecond * multiplier) / (float)getSampleRate();
+
+        float currentPhase = beatPhase.load();
+        currentPhase += phaseDelta * numSamps;
+
+        if (std::isnan(currentPhase) || std::isinf(currentPhase))
+            currentPhase = 0.0f;
+
+        if (currentPhase >= 1.0f)
+            currentPhase = std::fmod(currentPhase, 1.0f);
+
+        beatPhase.store(currentPhase);
+    }
+
     const float ecoRaw = RootFlowDSP::clamp01(*tree.getRawParameterValue("ecoSystem"));
-    const float ecoMaster = std::pow(ecoRaw, 0.70f); // Concave curve: FX gets through more quickly
+    const float ecoMaster = std::pow(ecoRaw, 1.35f); // Convex curve: more space for subtle adjustments
 
     const float seasonalFxLift = seasonMorph.spring * 0.09f
                                + seasonMorph.summer * 0.14f
@@ -581,7 +700,29 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                     canopy,
                     rootAnchor);
     if (! postFxSafetyBypassActive)
+    {
         bloom.process(buffer);
+
+        if (isRealBotanicsPreset())
+        {
+            const float crackleVol = bloomAmount * ecoMaster * 0.06f * (0.2f + fxEnergy);
+            for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+            {
+                float* data = buffer.getWritePointer(ch);
+                for (int i = 0; i < buffer.getNumSamples(); ++i)
+                {
+                    const float white = botanicsRng.nextFloat() * 2.0f - 1.0f;
+                    soilCrackleState[(size_t)ch] = soilCrackleState[(size_t)ch] * 0.985f + white * 0.015f;
+
+                    float pop = 0.0f;
+                    if (botanicsRng.nextFloat() < 0.0003f)
+                        pop = (botanicsRng.nextFloat() > 0.5f ? 1.0f : -1.0f) * 0.35f;
+
+                    data[i] += (soilCrackleState[(size_t)ch] + pop) * crackleVol;
+                }
+            }
+        }
+    }
 
     rain.setParams(rainAmount * ecoMaster,
                    fxEnergy,
@@ -709,6 +850,38 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         return juce::jmap(frostMix, sample, crystalline);
     };
     testToneLevelSmoothed.setTargetValue(isTestToneEnabled() ? 1.0f : 0.0f);
+
+    // Dynamic Master FX
+    if (auto* compParam = tree.getRawParameterValue("masterCompressor"))
+    {
+        float compVal = compParam->load();
+        if (compVal > 0.01f)
+        {
+            finalCompressor.setThreshold(-compVal * 28.0f); // Up to -28 dB
+            finalCompressor.setRatio(1.0f + compVal * 7.0f); // Up to 8:1
+            finalCompressor.setAttack(12.0f);
+            finalCompressor.setRelease(120.0f);
+            juce::dsp::AudioBlock<float> block(buffer);
+            juce::dsp::ProcessContextReplacing<float> context(block);
+            finalCompressor.process(context);
+            // Makeup Gain
+            buffer.applyGain(1.0f + compVal * 1.5f);
+        }
+    }
+
+    if (auto* volParam = tree.getRawParameterValue("masterVolume"))
+    {
+        masterVolumeSmoothed.setTargetValue(juce::Decibels::decibelsToGain(volParam->load()));
+    }
+
+    // Smooth volume ramp
+    float currentVol = masterVolumeSmoothed.getCurrentValue();
+    float targetVol = masterVolumeSmoothed.getNextValue();
+    masterVolumeSmoothed.skip(buffer.getNumSamples() - 1); // Catch up smoothed value
+
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+        buffer.applyGainRamp(ch, 0, buffer.getNumSamples(), currentVol, targetVol);
+
     bool invalidAudioDetected = false;
     float rawOutputPeak = 0.0f;
     float finalOutputPeak = 0.0f;
@@ -735,7 +908,7 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             filter.reset();
             filter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
             filter.setResonance(0.52f);
-            filter.setCutoffFrequency(masterToneCutoffSmoothed.getCurrentValue());
+            filter.setCutoffFrequency(clampStateVariableCutoff(masterToneCutoffSmoothed.getCurrentValue(), sampleRate));
         }
 
         soilBodyState.fill(0.0f);
@@ -785,9 +958,9 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         const float soilToneCoeff = onePoleCoeffFromCutoff(soilToneCutoffSmoothed.getNextValue(), sampleRate);
         const float driveComp = 1.0f / (1.0f + juce::jmax(0.0f, drive - 1.0f) * 0.85f);
 
-        masterToneFilters[0].setCutoffFrequency(toneCutoff * 0.985f);
+        masterToneFilters[0].setCutoffFrequency(clampStateVariableCutoff(toneCutoff * 0.985f, sampleRate));
         if (rightData != nullptr)
-            masterToneFilters[1].setCutoffFrequency(toneCutoff * 1.015f);
+            masterToneFilters[1].setCutoffFrequency(clampStateVariableCutoff(toneCutoff * 1.015f, sampleRate));
 
         const float rawDryL = leftData[i];
         const float rawDryR = rightData != nullptr ? rightData[i] : rawDryL;
@@ -855,11 +1028,11 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                       tonedR,
                                       drivenR) * seasonOutputTrim * canopyOutputTrim;
             const float testTone = std::sin(testTonePhase) * 0.06f * testToneLevelSmoothed.getNextValue();
-            
+
             // Apply Master Boost (approx +9dB) with soft-rounding to prevent 'scratching'
             float boostedL = (finalL + testTone) * 2.85f;
             float boostedR = (finalR + testTone) * 2.85f;
-            
+
             // Deep-Sine Friendly Soft Limiter
             finalL = boostedL / (1.15f + std::abs(boostedL * 0.18f));
             finalR = boostedR / (1.15f + std::abs(boostedR * 0.18f));
@@ -869,7 +1042,7 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             rawOutputPeak = juce::jmax(rawOutputPeak, std::abs(finalR));
             finalL = applyOutputDcBlock(finalL, 0);
             finalR = applyOutputDcBlock(finalR, 1);
-            
+
             leftData[i] = sanitizeOutputSample(finalL, outputSafetyLimit);
             rightData[i] = sanitizeOutputSample(finalR, outputSafetyLimit);
             finalOutputPeak = juce::jmax(finalOutputPeak, std::abs(leftData[i]));
@@ -980,7 +1153,7 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // Feed FFT and track peak
     float maxPeak = 0.0f;
     const int numChansUsed = juce::jmin(2, buffer.getNumChannels());
-    
+
     for (int i = 0; i < numSamples; ++i)
     {
         float sampleMix = 0.0f;
@@ -990,9 +1163,17 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             maxPeak = juce::jmax(maxPeak, std::abs(s));
             sampleMix += s;
         }
-        pushNextSampleIntoFifo(sampleMix * (numChansUsed > 1 ? 0.707f : 1.0f));
+
+        float mixed = sampleMix * (numChansUsed > 1 ? 0.707f : 1.0f);
+
+        // Update RMS
+        const float alpha = 0.005f;
+        float currentRMS = rmsLevel.load(std::memory_order_relaxed);
+        rmsLevel.store(currentRMS + (std::abs(mixed) - currentRMS) * alpha, std::memory_order_relaxed);
+
+        pushNextSampleIntoFifo(mixed);
     }
-    
+
     currentOutputPeak.store(maxPeak, std::memory_order_relaxed);
 }
 
@@ -1058,13 +1239,24 @@ void RootFlowAudioProcessor::applyFactoryPreset(int index)
 
     const auto& preset = factoryPresets[(size_t) index];
     presetLoadInProgress.fetch_add(1, std::memory_order_acq_rel);
+
+    // Bio-Jitter: each load is subtly unique, like a plant that never
+    // grows exactly the same way twice (+/- 1% variation)
+    juce::Random bioRng (juce::Time::getCurrentTime().toMilliseconds());
+    const size_t numPresetValues = preset.values.size(); // 16
+
     for (size_t i = 0; i < presetParameterIDs.size(); ++i)
     {
         if (auto* parameter = tree.getParameter(presetParameterIDs[i]))
-            parameter->setValueNotifyingHost(juce::jlimit(0.0f, 1.0f, preset.values[i]));
+        {
+            float base = (i < numPresetValues) ? preset.values[i] : 0.0f;
+            // Only jitter the core 16 bio-values; leave sequencer params exact
+            float jitter = (i < numPresetValues) ? (bioRng.nextFloat() * 0.02f - 0.01f) : 0.0f;
+            parameter->setValueNotifyingHost(juce::jlimit(0.0f, 1.0f, base + jitter));
+        }
     }
-    presetLoadInProgress.fetch_sub(1, std::memory_order_acq_rel);
 
+    presetLoadInProgress.fetch_sub(1, std::memory_order_acq_rel);
     clearPendingMappedParameterChanges();
     currentFactoryPresetIndex.store(index, std::memory_order_relaxed);
     currentUserPresetIndex.store(-1, std::memory_order_relaxed);
@@ -1113,6 +1305,7 @@ void RootFlowAudioProcessor::saveCurrentStateAsUserPreset()
     if (userPresetIndex >= 0 && juce::isPositiveAndBelow(userPresetIndex, (int) userPresets.size()))
     {
         userPresets[(size_t) userPresetIndex].state = capturedState;
+        currentPresetDirty.store(0, std::memory_order_relaxed);
         return;
     }
 
@@ -1186,6 +1379,11 @@ void RootFlowAudioProcessor::hiResTimerCallback()
 {
     applyPendingMidiLearnBinding();
     flushPendingMappedParameterChanges();
+
+    nodeSystem.update(getRMS(), (float)juce::Time::getMillisecondCounterHiRes() * 0.001f, beatPhase.load());
+
+    if (processingStateResetPending.load(std::memory_order_acquire) != 0)
+        performPendingProcessingStateReset();
 }
 
 juce::String RootFlowAudioProcessor::getMappedParameterIDForSlot(int parameterSlot) const
@@ -1402,10 +1600,30 @@ void RootFlowAudioProcessor::handleIncomingMidiMessages(juce::MidiBuffer& midiMe
 
         if (message.isNoteOn())
         {
-            const juce::ScopedLock sl (noteLock);
-            int note = message.getNoteNumber();
-            if (std::find(heldMidiNotes.begin(), heldMidiNotes.end(), note) == heldMidiNotes.end())
-                heldMidiNotes.push_back(note);
+            const int note = message.getNoteNumber();
+            {
+                const juce::ScopedLock sl (noteLock);
+                if (std::find(heldMidiNotes.begin(), heldMidiNotes.end(), note) == heldMidiNotes.end())
+                    heldMidiNotes.push_back(note);
+            }
+
+            // --- BIO-IMPULSE: NoteOn injects energy into the node matrix ---
+            const float velocity = message.getFloatVelocity();
+            const juce::ScopedLock nodeLock(nodeSystem.getLock());
+            auto& nodes = nodeSystem.getNodes();
+            if (! nodes.empty())
+            {
+                int targetNode = note % (int)nodes.size();
+                nodes[targetNode].energy = juce::jmin(1.0f, nodes[targetNode].energy + velocity * 0.55f);
+
+                // Organic growth jitter – the node breathes from the hit
+                auto& rng = juce::Random::getSystemRandom();
+                nodes[targetNode].position.x = juce::jlimit(0.05f, 0.95f,
+                    nodes[targetNode].position.x + (rng.nextFloat() - 0.5f) * 0.02f);
+                nodes[targetNode].position.y = juce::jlimit(0.05f, 0.95f,
+                    nodes[targetNode].position.y + (rng.nextFloat() - 0.5f) * 0.02f);
+            }
+            sequencerTriggered.store(true);
         }
         else if (message.isNoteOff())
         {
@@ -1490,6 +1708,9 @@ void RootFlowAudioProcessor::addOrReplaceMidiBinding(int channel, int controller
 void RootFlowAudioProcessor::appendCustomState(juce::ValueTree& state) const
 {
     state.setProperty(presetIndexProperty, currentFactoryPresetIndex.load(std::memory_order_relaxed), nullptr);
+    state.setProperty(hoverEffectsEnabledProperty, RootFlow::areHoverEffectsEnabled(), nullptr);
+    state.setProperty(idleEffectsEnabledProperty, RootFlow::areIdleEffectsEnabled(), nullptr);
+    state.setProperty(popupOverlaysEnabledProperty, RootFlow::arePopupOverlaysEnabled(), nullptr);
 
     if (auto existing = state.getChildWithName(midiMappingStateTag); existing.isValid())
         state.removeChild(existing, nullptr);
@@ -1547,12 +1768,41 @@ void RootFlowAudioProcessor::appendCustomState(juce::ValueTree& state) const
 
     userPresetsState.setProperty("currentUserPresetIndex", currentUserPresetIndex.load(std::memory_order_relaxed), nullptr);
     state.addChild(userPresetsState, -1, nullptr);
+
+    // Node System Serialization
+    juce::ValueTree nodeSystemState(nodeSystemTag);
+    {
+        const juce::ScopedLock nodeLock(nodeSystem.getLock());
+        auto& nodes = nodeSystem.getNodes();
+        for (int i = 0; i < (int) nodes.size(); ++i)
+        {
+            juce::ValueTree nState(nodeTag);
+            nState.setProperty("idx", i, nullptr);
+            nState.setProperty("x", nodes[i].position.x, nullptr);
+            nState.setProperty("y", nodes[i].position.y, nullptr);
+            nodeSystemState.addChild(nState, -1, nullptr);
+        }
+
+        auto& connections = nodeSystem.getConnections();
+        for (const auto& c : connections)
+        {
+            juce::ValueTree cState(connectionTag);
+            cState.setProperty("src", c.source, nullptr);
+            cState.setProperty("dst", c.target, nullptr);
+            cState.setProperty("amt", c.amount, nullptr);
+            nodeSystemState.addChild(cState, -1, nullptr);
+        }
+    }
+    state.addChild(nodeSystemState, -1, nullptr);
 }
 
 void RootFlowAudioProcessor::restoreCustomState(const juce::ValueTree& state)
 {
     currentFactoryPresetIndex.store((int) state.getProperty(presetIndexProperty, 0), std::memory_order_relaxed);
     currentUserPresetIndex.store(-1, std::memory_order_relaxed);
+    RootFlow::setHoverEffectsEnabled((bool) state.getProperty(hoverEffectsEnabledProperty, true));
+    RootFlow::setIdleEffectsEnabled((bool) state.getProperty(idleEffectsEnabledProperty, true));
+    RootFlow::setPopupOverlaysEnabled((bool) state.getProperty(popupOverlaysEnabledProperty, true));
 
     std::vector<MidiBinding> restoredBindings;
     std::vector<UserPreset> restoredUserPresets;
@@ -1644,6 +1894,39 @@ void RootFlowAudioProcessor::restoreCustomState(const juce::ValueTree& state)
         }
     }
 
+    // Node System Deserialization
+    if (auto nodeSystemState = state.getChildWithName(nodeSystemTag); nodeSystemState.isValid())
+    {
+        {
+            const juce::ScopedLock nodeLock(nodeSystem.getLock());
+            auto& nodes = nodeSystem.getNodes();
+            auto& connections = nodeSystem.getConnections();
+            connections.clear();
+
+            for (int i = 0; i < nodeSystemState.getNumChildren(); ++i)
+            {
+                auto child = nodeSystemState.getChild(i);
+                if (child.hasType(nodeTag))
+                {
+                    int idx = child.getProperty("idx");
+                    if (idx >= 0 && idx < (int) nodes.size())
+                    {
+                        nodes[idx].position.x = child.getProperty("x");
+                        nodes[idx].position.y = child.getProperty("y");
+                    }
+                }
+                else if (child.hasType(connectionTag))
+                {
+                    connections.push_back({
+                        (int) child.getProperty("src"),
+                        (int) child.getProperty("dst"),
+                        (float) child.getProperty("amt")
+                    });
+                }
+            }
+        }
+    }
+
     clearPendingMappedParameterChanges();
     clearPendingMidiLearnBinding();
     midiLearnTargetParameterSlot.store(-1, std::memory_order_release);
@@ -1684,6 +1967,9 @@ juce::ValueTree RootFlowAudioProcessor::captureStateForUserPreset()
     if (auto child = state.getChildWithName(userPresetsTag); child.isValid())
         state.removeChild(child, nullptr);
     state.removeProperty(presetIndexProperty, nullptr);
+    state.removeProperty(hoverEffectsEnabledProperty, nullptr);
+    state.removeProperty(idleEffectsEnabledProperty, nullptr);
+    state.removeProperty(popupOverlaysEnabledProperty, nullptr);
     return state;
 }
 
@@ -1794,6 +2080,7 @@ void RootFlowAudioProcessor::applyPitchbendRangeFromRpn(int channel) noexcept
     midiExpressionState.pitchBendRangeSemitones[index] = juce::jlimit(0.0f, 96.0f, semitones);
 }
 
+
 void RootFlowAudioProcessor::applyMpeZoneLayoutFromRpn(int masterChannel, int numMemberChannels) noexcept
 {
     const auto index = (size_t) juce::jlimit(1, 16, masterChannel) - 1;
@@ -1823,7 +2110,7 @@ void RootFlowAudioProcessor::pushNextSampleIntoFifo(float sample) noexcept
     {
         std::fill(fftData.begin(), fftData.end(), 0.0f);
         std::copy(fifo.begin(), fifo.end(), fftData.begin());
-        
+
         window.multiplyWithWindowingTable(fftData.data(), fftSize);
         forwardFFT.performFrequencyOnlyForwardTransform(fftData.data());
 
@@ -1951,7 +2238,7 @@ void RootFlowAudioProcessor::performPendingProcessingStateReset() noexcept
         filter.reset();
         filter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
         filter.setResonance(0.52f);
-        filter.setCutoffFrequency(7600.0f);
+        filter.setCutoffFrequency(clampStateVariableCutoff(7600.0f, safeSampleRate));
     }
 
     masterDriveSmoothed.setCurrentAndTargetValue(1.0f);
@@ -2005,11 +2292,92 @@ void RootFlowAudioProcessor::setStateInformation (const void* data, int sizeInBy
 
 void RootFlowAudioProcessor::resetSequencer()
 {
-    currentSequencerStep = 0;
+    currentSequencerStep.store(0, std::memory_order_relaxed);
     sampleCounter = 0;
     lastSequencerNote = -1;
     sequencerNoteActive = false;
     samplesPerStep = 44100.0 * 0.125;
+}
+
+std::array<RootFlowAudioProcessor::SequencerStep, 16> RootFlowAudioProcessor::getSequencerStepSnapshot() const
+{
+    const juce::SpinLock::ScopedLockType lock(sequencerStateLock);
+    return sequencerSteps;
+}
+
+void RootFlowAudioProcessor::clearSequencerSteps()
+{
+    const juce::SpinLock::ScopedLockType lock(sequencerStateLock);
+    for (auto& step : sequencerSteps)
+    {
+        step.active = false;
+        step.velocity = 0.8f;
+    }
+}
+
+void RootFlowAudioProcessor::randomizeSequencerStepVelocity(int stepIndex)
+{
+    if (! juce::isPositiveAndBelow(stepIndex, (int) sequencerSteps.size()))
+        return;
+
+    const juce::SpinLock::ScopedLockType lock(sequencerStateLock);
+    auto& step = sequencerSteps[(size_t) stepIndex];
+    step.active = true;
+    step.velocity = juce::Random::getSystemRandom().nextFloat() * 0.8f + 0.2f;
+}
+
+void RootFlowAudioProcessor::cycleSequencerStepState(int stepIndex)
+{
+    if (! juce::isPositiveAndBelow(stepIndex, (int) sequencerSteps.size()))
+        return;
+
+    const juce::SpinLock::ScopedLockType lock(sequencerStateLock);
+    auto& step = sequencerSteps[(size_t) stepIndex];
+    if (! step.active)
+    {
+        step.active = true;
+        step.velocity = 0.35f;
+    }
+    else if (step.velocity < 0.55f)
+    {
+        step.velocity = 0.7f;
+    }
+    else if (step.velocity < 0.85f)
+    {
+        step.velocity = 1.0f;
+    }
+    else
+    {
+        step.active = false;
+    }
+}
+
+void RootFlowAudioProcessor::toggleSequencerStepActive(int stepIndex)
+{
+    if (! juce::isPositiveAndBelow(stepIndex, (int) sequencerSteps.size()))
+        return;
+
+    const juce::SpinLock::ScopedLockType lock(sequencerStateLock);
+    sequencerSteps[(size_t) stepIndex].active = ! sequencerSteps[(size_t) stepIndex].active;
+}
+
+void RootFlowAudioProcessor::adjustSequencerStepVelocity(int stepIndex, float delta)
+{
+    if (! juce::isPositiveAndBelow(stepIndex, (int) sequencerSteps.size()))
+        return;
+
+    const juce::SpinLock::ScopedLockType lock(sequencerStateLock);
+    auto& step = sequencerSteps[(size_t) stepIndex];
+    step.velocity = juce::jlimit(0.05f, 1.0f, step.velocity + delta);
+}
+
+void RootFlowAudioProcessor::previewSequencerStep(int stepIndex)
+{
+    if (! juce::isPositiveAndBelow(stepIndex, (int) sequencerSteps.size()))
+        return;
+
+    currentSequencerStep.store(stepIndex, std::memory_order_relaxed);
+    sequencerTriggered.store(true, std::memory_order_release);
 }
 
 void RootFlowAudioProcessor::updateSequencer(int numSamples, juce::MidiBuffer& midiMessages)
@@ -2025,17 +2393,32 @@ void RootFlowAudioProcessor::updateSequencer(int numSamples, juce::MidiBuffer& m
         return;
     }
 
-    const int rateIndex = (int)*tree.getRawParameterValue("sequencerRate");
-    const int numSteps = (int)*tree.getRawParameterValue("sequencerSteps");
-    const float gateParam = *tree.getRawParameterValue("sequencerGate");
+    // Filter incoming NoteOn/NoteOff messages if the sequencer is active to prevent polyphonic bleed
+    juce::MidiBuffer filteredMidi;
+    for (const auto metadata : midiMessages)
+    {
+        const auto msg = metadata.getMessage();
+        if (! msg.isNoteOn() && ! msg.isNoteOff())
+            filteredMidi.addEvent(msg, metadata.samplePosition);
+    }
+    midiMessages.swapWith(filteredMidi);
 
-    // --- BIO-SENSITIVITY ---
-    // Wir nutzen die aktuelle Energie, um das "Verhalten" zu beeinflussen
+    std::array<SequencerStep, 16> stepSnapshot;
+    {
+        const juce::SpinLock::ScopedLockType lock(sequencerStateLock);
+        stepSnapshot = sequencerSteps;
+    }
+
+    const int rateIndex = (int) *tree.getRawParameterValue("sequencerRate");
+    const int stepsChoice = (int) *tree.getRawParameterValue("sequencerSteps");
+    const int numSteps = juce::jlimit(1, (int) stepSnapshot.size(), stepsChoice);
+    const float gateParam = *tree.getRawParameterValue("sequencerGate");
     const float energy = currentBioFeedback.plantEnergy;
-    
-    // Zeitliche Drift: Bei hoher Energie wird der Sequencer minimal schneller/nervöser
-    const double speedMod = 0.95 + (energy * 0.1); 
-    const float modulatedGate = juce::jlimit(0.1f, 0.95f, gateParam * (0.8f + energy * 0.4f));
+
+    double speedMod = 0.95 + (energy * 0.1);
+
+    if (isRealBotanicsPreset())
+        speedMod *= (1.0 + (botanicsRng.nextFloat() - 0.5) * 0.035);
 
     double bpm = 120.0;
     if (auto* playHead = getPlayHead())
@@ -2049,74 +2432,96 @@ void RootFlowAudioProcessor::updateSequencer(int numSamples, juce::MidiBuffer& m
 
     const double sr = getSampleRate() > 0 ? getSampleRate() : 44100.0;
     const double samplesPerBeat = (sr * 60.0) / bpm;
-    
-    double division = 0.25; // 1/16th Default
-    if (rateIndex == 0)      division = 1.0;   // 1/4
-    else if (rateIndex == 1)  division = 0.5;   // 1/8
+
+    double division = 0.25; // Default 1/16
+    if      (rateIndex == 0) division = 1.0;   // 1/4
+    else if (rateIndex == 1) division = 0.5;   // 1/8
+    else if (rateIndex == 2) division = 0.25;  // 1/16
     else if (rateIndex == 3) division = 0.125; // 1/32
 
-    samplesPerStep = (samplesPerBeat * division) / speedMod;
-    sequencerGateSamples = samplesPerStep * modulatedGate;
+    double samplesPerStep = (samplesPerBeat * division) / speedMod;
+
+    // Smooth Gate Calculation – 0.1 to 0.9 sustain
+    const float modulatedGate = juce::jlimit(0.12f, 0.90f, gateParam * (0.8f + energy * 0.45f));
+    const double sequencerGateSamples = samplesPerStep * modulatedGate;
 
     for (int i = 0; i < numSamples; ++i)
     {
         sampleCounter++;
 
+        // --- GATE CHECK FIRST (Internal Note Off) ---
+        if (sequencerNoteActive && sampleCounter >= sequencerGateSamples)
+        {
+            midiMessages.addEvent(juce::MidiMessage::noteOff(1, lastSequencerNote), i);
+            sequencerNoteActive = false;
+        }
+
+        // --- STEP TRIGGER ---
         if (sampleCounter >= samplesPerStep)
         {
             sampleCounter -= samplesPerStep;
 
-            // Note Off für den alten Step
+            // Ensure previous note is off if Gate hadn't hit yet
             if (sequencerNoteActive)
             {
                 midiMessages.addEvent(juce::MidiMessage::noteOff(1, lastSequencerNote), i);
                 sequencerNoteActive = false;
             }
 
-            currentSequencerStep = (currentSequencerStep + 1) % juce::jmax(1, numSteps);
-            auto& step = sequencerSteps[(size_t)currentSequencerStep];
+            const int stepIndex = juce::jlimit(0, numSteps - 1, currentSequencerStep.load(std::memory_order_relaxed));
+            const auto& step = stepSnapshot[(size_t) stepIndex];
 
-            // --- BIO-LOGIK: Wahrscheinlichkeit ---
-            // Wenn die Energie niedrig ist, "vergisst" die Pflanze manchmal einen Trigger
-            bool energyTrigger = juce::Random::getSystemRandom().nextFloat() < (0.7f + energy * 0.3f);
-
-            if (step.active && energyTrigger)
+            if (step.active)
             {
                 const juce::ScopedLock sl (noteLock);
-                
-                // Velocity wird durch die Energie beeinflusst (mehr Energie = akzentuierter)
-                float dynamicVelocity = juce::jlimit(0.05f, 1.0f, step.velocity * (0.6f + energy * 0.4f));
-                
                 if (!heldMidiNotes.empty())
                 {
                     currentArpIndex = (currentArpIndex + 1) % (int)heldMidiNotes.size();
                     lastSequencerNote = heldMidiNotes[(size_t)currentArpIndex];
-                }
-                else
-                {
-                    // Ambient Mode: Wenn keine Tasten gedrückt sind, generiert die Energie "Wurzelnoten" (Pentatonisch)
-                    const int pentatonicScale[] = { 0, 3, 5, 7, 10, 12, 15, 17, 19, 22, 24 };
-                    const int scaleSize = 11;
-                    int scaleIndex = (int)(energy * (scaleSize - 1.0f)); 
-                    scaleIndex = juce::jlimit(0, scaleSize - 1, scaleIndex);
-                    
-                    // Grundton 36 (C2) + generativer Offset aus Pentatonik
-                    lastSequencerNote = 36 + pentatonicScale[scaleIndex]; 
-                }
-                
-                midiMessages.addEvent(juce::MidiMessage::noteOn(1, lastSequencerNote, dynamicVelocity), i);
-                sequencerNoteActive = true;
-                sequencerTriggered.store(true);
-            }
-        }
 
-        // Gate-Check für Note Off innerhalb des Samples-Blocks
-        if (sequencerNoteActive && sampleCounter >= sequencerGateSamples)
-        {
-            midiMessages.addEvent(juce::MidiMessage::noteOff(1, lastSequencerNote), i);
-            sequencerNoteActive = false;
+                    const float dynamicVelocity = juce::jlimit(0.1f, 1.0f, step.velocity * (0.8f + energy * 0.4f));
+                    midiMessages.addEvent(juce::MidiMessage::noteOn(1, lastSequencerNote, dynamicVelocity), i);
+                    sequencerNoteActive = true;
+                    sequencerTriggered.store(true);
+                }
+            }
+
+            currentSequencerStep.store((stepIndex + 1) % numSteps, std::memory_order_relaxed);
         }
     }
+}
+
+bool RootFlowAudioProcessor::isRealBotanicsPreset() const noexcept
+{
+    const int idx = currentFactoryPresetIndex.load(std::memory_order_relaxed);
+    return (idx >= 80 && idx <= 85);
+}
+
+float RootFlowAudioProcessor::getModulatedValue(const juce::String& paramID) const
+{
+    float base = *tree.getRawParameterValue(paramID);
+    float mod = 0.0f;
+
+    const juce::ScopedLock sl (nodeSystem.getLock());
+
+    auto& nodes = const_cast<NodeSystem&>(nodeSystem).getNodes();
+    auto& connections = const_cast<NodeSystem&>(nodeSystem).getConnections();
+
+    for (auto& c : connections)
+    {
+        if (c.source < 0 || c.target < 0) continue;
+
+        auto& source = nodes[c.source];
+        auto& target = nodes[c.target];
+
+        if (target.paramID == paramID)
+        {
+            // Modulation: Source-Wert skaliert mit Connection-Amount
+            mod += source.value * c.amount;
+        }
+    }
+
+    return juce::jlimit(0.0f, 1.0f, base + mod);
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
@@ -2124,3 +2529,29 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
     return new RootFlowAudioProcessor();
 }
 
+void RootFlowAudioProcessor::mutatePlant()
+{
+    juce::Random r = juce::Random::getSystemRandom();
+
+    // The user requested MUTATE to affect EVERYTHING: OSC, Ambient Field,
+    // Root Field, Pulse Field, Center panel, and Sequencer parameters.
+    for (const auto* id : presetParameterIDs)
+    {
+        if (auto* param = tree.getParameter(id))
+        {
+            float currentVal = param->getValue();
+            // Allow larger jumps for some parameters or mostly just +/- 20%
+            float mutation = r.nextFloat() * 0.4f - 0.2f;
+
+            // Für Sequencer und OSC vielleicht etwas größere Mutationen, damit sich Rhythmen spürbar ändern
+            juce::String paramID (id);
+            if (paramID.startsWith("sequencer") || paramID.startsWith("osc"))
+                mutation *= 1.5f;
+
+            param->setValueNotifyingHost(juce::jlimit(0.0f, 1.0f, currentVal + mutation));
+        }
+    }
+
+    // Trigger a visual energy pulse through the neural mycelium
+    sequencerTriggered.store(true);
+}
