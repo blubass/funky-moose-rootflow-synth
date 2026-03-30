@@ -45,6 +45,7 @@ juce_add_plugin(RootFlow
     PLUGIN_CODE RTFL
     PLUGIN_NAME "Funky Moose Rootflow Synth"
     DESCRIPTION "Funky Moose Rootflow Synth"
+    ICON_BIG "Assets/moose_logo.png"
     SUPPRESS_AU_PLIST_RESOURCE_USAGE TRUE
     FORMATS ${ROOTFLOW_FORMATS}
     PRODUCT_NAME "Funky Moose Rootflow Synth"
