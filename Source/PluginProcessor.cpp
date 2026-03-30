@@ -213,7 +213,7 @@ const std::array<FactoryPreset, 86> factoryPresets {{
     { "Photosynthesis",   { 0.10f, 0.10f, 0.20f, 0.80f, 1.00f, 0.20f, 0.90f, 0.50f, 0.40f, 0.90f, 0.80f, 0.30f, 0.70f, 0.00f, 1.00f, 0.50f } }
 }};
 
-constexpr std::array<FactoryPresetSectionDefinition, 16> factoryPresetSections {{
+constexpr std::array<FactoryPresetSectionDefinition, 15> factoryPresetSections {{
     { "BIO-SIGNATURE",  0, 8 },   // The new flagship presets
     { "ORGANIC STASIS", 8, 1 },   // Deep Mycelium (the old start)
     { "MOTION",        9, 8 },
@@ -481,6 +481,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout RootFlowAudioProcessor::crea
     params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID("monoMakerFreq", 1), "Mono Freq",
                                                                  juce::NormalisableRange<float>(20.0f, 400.0f, 1.0f, 0.5f), 80.0f));
 
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID("oversampling", 1), "Oversampling",
+                                                                  juce::StringArray { "1x (Off)", "2x", "4x" }, 0));
+
     return { params.begin(), params.end() };
 }
 
@@ -500,7 +503,25 @@ bool RootFlowAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts)
 
 void RootFlowAudioProcessor::prepareToPlay(double sr, int bs)
 {
-    const auto safeSampleRate = sr > 0.0 ? sr : 44100.0;
+    const auto safeSampleRateBase = sr > 0.0 ? sr : 44100.0;
+    
+    currentOversamplingFactor = (int)*tree.getRawParameterValue("oversampling");
+    if (currentOversamplingFactor > 0)
+    {
+        oversampling = std::make_unique<juce::dsp::Oversampling<float>>(
+            juce::jmax(1, getTotalNumOutputChannels()), currentOversamplingFactor, 
+            juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR, true);
+        oversampling->reset();
+        oversampling->initProcessing(juce::jmax(bs, 1));
+    }
+    else
+    {
+        oversampling.reset();
+    }
+
+    const double safeSampleRate = safeSampleRateBase * (1 << currentOversamplingFactor);
+    const int safeBlockSize = juce::jmax(bs, 1) * (1 << currentOversamplingFactor);
+
     resetMidiExpressionState();
     synth.clearVoices();
     for (int i = 0; i < 32; ++i)
@@ -508,34 +529,34 @@ void RootFlowAudioProcessor::prepareToPlay(double sr, int bs)
         auto* voice = new RootFlowVoice();
         voice->setEngine(&modulation); // Link to bio-feedback engine
         voice->setMidiExpressionState(&midiExpressionState);
-        voice->setSampleRate(sr, bs);
+        voice->setSampleRate(safeSampleRate, safeBlockSize);
         synth.addVoice(voice);
     }
 
     synth.clearSounds();
     synth.addSound(new RootFlowSound());
     synth.setNoteStealingEnabled(true);
-    synth.setCurrentPlaybackSampleRate(sr);
+    synth.setCurrentPlaybackSampleRate(safeSampleRate);
     synth.setMinimumRenderingSubdivisionSize(4, false);
     drySafetyBuffer.setSize(juce::jmax(1, getTotalNumOutputChannels()),
-                            juce::jmax(bs, 1),
+                            safeBlockSize,
                             false,
                             false,
                             true);
     drySafetyBuffer.clear();
 
-    modulation.prepare(sr, bs);
+    modulation.prepare(safeSampleRate, safeBlockSize);
 
     juce::dsp::ProcessSpec fxSpec;
-    fxSpec.sampleRate = sr > 0.0 ? sr : 44100.0;
-    fxSpec.maximumBlockSize = (juce::uint32) juce::jmax(bs, 1);
+    fxSpec.sampleRate = safeSampleRate;
+    fxSpec.maximumBlockSize = (juce::uint32) safeBlockSize;
     fxSpec.numChannels = (juce::uint32) juce::jmax(1, getTotalNumOutputChannels());
 
     bloom.prepare(fxSpec);
     rain.prepare(fxSpec);
     sun.prepare(fxSpec);
 
-    juce::dsp::ProcessSpec monoSpec { sr > 0.0 ? sr : 44100.0, (juce::uint32) juce::jmax(bs, 1), 1 };
+    juce::dsp::ProcessSpec monoSpec { safeSampleRate, (juce::uint32) safeBlockSize, 1 };
     for (auto& filter : masterToneFilters)
     {
         filter.reset();
@@ -602,11 +623,19 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 {
     juce::ScopedNoDenormals noDenormals;
 
-    const int numSamples = buffer.getNumSamples();
-    const int numChannels = buffer.getNumChannels();
+    const int numSamplesOriginal = buffer.getNumSamples();
+    const int numChannelsOriginal = buffer.getNumChannels();
 
-    if (numSamples <= 0 || numChannels <= 0)
+    if (numSamplesOriginal <= 0 || numChannelsOriginal <= 0)
         return;
+
+    const int targetOversamplingFactor = (int)*tree.getRawParameterValue("oversampling");
+    if (targetOversamplingFactor != currentOversamplingFactor)
+    {
+        prepareToPlay(getSampleRate(), getBlockSize());
+        buffer.clear();
+        return;
+    }
 
     buffer.clear();
     performPendingProcessingStateReset();
@@ -698,7 +727,8 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     const float bloomAmount = applySeasonalFxScale(bloomBase, seasonMorph, 0.22f, 0.14f, -0.10f, -0.22f, 0.65f);
     const float rainAmount = applySeasonalFxScale(rainBase, seasonMorph, 0.08f, -0.02f, 0.38f, 0.12f, 0.85f);
     const float sunAmount = applySeasonalFxScale(sunBase, seasonMorph, 0.40f, 0.16f, 0.00f, -0.16f, 1.05f);
-    const float sampleRate = (float) juce::jmax(1.0, getSampleRate());
+    const float hostSampleRate = (float) juce::jmax(1.0, getSampleRate());
+    const float sampleRate = hostSampleRate * (float)(1 << currentOversamplingFactor);
 
     for (int i = 0; i < synth.getNumVoices(); ++i)
     {
@@ -736,17 +766,39 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     }
 
     handleIncomingMidiMessages(midiMessages);
-    updateSequencer(numSamples, midiMessages);
-    keyboardState.processNextMidiBuffer(midiMessages, 0, numSamples, true);
-    synth.renderNextBlock(buffer, midiMessages, 0, numSamples);
+    updateSequencer(numSamplesOriginal, midiMessages);
+    keyboardState.processNextMidiBuffer(midiMessages, 0, numSamplesOriginal, true);
+
+    juce::MidiBuffer oversampledMidi;
+    const int oversamplingMultiplier = 1 << currentOversamplingFactor;
+    for (const auto meta : midiMessages)
+    {
+        oversampledMidi.addEvent(meta.getMessage(), meta.samplePosition * oversamplingMultiplier);
+    }
+
+    juce::dsp::AudioBlock<float> originalBlock(buffer);
+    juce::dsp::AudioBlock<float> activeBlock = originalBlock;
+    if (oversampling != nullptr && currentOversamplingFactor > 0)
+    {
+        activeBlock = oversampling->processSamplesUp(originalBlock);
+    }
+    
+    float* activePointers[2] = { activeBlock.getChannelPointer(0), activeBlock.getNumChannels() > 1 ? activeBlock.getChannelPointer(1) : nullptr };
+    juce::AudioBuffer<float> procBuffer (activePointers, (int)activeBlock.getNumChannels(), (int)activeBlock.getNumSamples());
+    const int numSamples = procBuffer.getNumSamples();
+    const int numChannels = procBuffer.getNumChannels();
+
+    synth.renderNextBlock(procBuffer, oversampledMidi, 0, numSamples);
+    
     jassert(drySafetyBuffer.getNumChannels() >= numChannels);
     jassert(drySafetyBuffer.getNumSamples() >= numSamples);
     for (int channel = 0; channel < numChannels; ++channel)
-        drySafetyBuffer.copyFrom(channel, 0, buffer, channel, 0, numSamples);
+        drySafetyBuffer.copyFrom(channel, 0, procBuffer, channel, 0, numSamples);
+        
     float preFxPeak = 0.0f;
     for (int channel = 0; channel < numChannels; ++channel)
     {
-        const auto* channelData = buffer.getReadPointer(channel);
+        const auto* channelData = procBuffer.getReadPointer(channel);
         for (int i = 0; i < numSamples; ++i)
             preFxPeak = juce::jmax(preFxPeak, std::abs(channelData[i]));
     }
@@ -768,7 +820,7 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                          pulseBreath,
                          pulseGrowth);
 
-    modulation.update(buffer);
+    modulation.update(procBuffer);
     currentBioFeedback = modulation.getBioFeedbackSnapshot();
     const float plantEnergy = currentBioFeedback.plantEnergy;
     lastPlantEnergy.store(plantEnergy, std::memory_order_relaxed);
@@ -785,16 +837,15 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     }
 
     float multiplier = 1.0f;
-    float numSamps = (float)buffer.getNumSamples();
     float phaseDelta = 0.0f;
 
-    if (getSampleRate() > 0.0)
+    if (hostSampleRate > 0.0f)
     {
         float beatPerSecond = (float)bpm / 60.0f;
-        phaseDelta = (beatPerSecond * multiplier) / (float)getSampleRate();
+        phaseDelta = (beatPerSecond * multiplier) / hostSampleRate;
 
         float currentPhase = beatPhase.load();
-        currentPhase += phaseDelta * numSamps;
+        currentPhase += phaseDelta * numSamplesOriginal;
 
         if (std::isnan(currentPhase) || std::isinf(currentPhase))
             currentPhase = 0.0f;
@@ -831,15 +882,15 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                     rootAnchor);
     if (! postFxSafetyBypassActive)
     {
-        bloom.process(buffer);
+        bloom.process(procBuffer);
 
         if (isRealBotanicsPreset())
         {
             const float crackleVol = bloomAmount * ecoMaster * 0.06f * (0.2f + fxEnergy);
-            for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+            for (int ch = 0; ch < procBuffer.getNumChannels(); ++ch)
             {
-                float* data = buffer.getWritePointer(ch);
-                for (int i = 0; i < buffer.getNumSamples(); ++i)
+                float* data = procBuffer.getWritePointer(ch);
+                for (int i = 0; i < procBuffer.getNumSamples(); ++i)
                 {
                     const float white = botanicsRng.nextFloat() * 2.0f - 1.0f;
                     soilCrackleState[(size_t)ch] = soilCrackleState[(size_t)ch] * 0.985f + white * 0.015f;
@@ -861,7 +912,7 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                    pulseBreath,
                    canopy);
     if (! postFxSafetyBypassActive)
-        rain.process(buffer);
+        rain.process(procBuffer);
 
     sun.setParams(sunAmount * ecoMaster,
                   fxEnergy,
@@ -870,7 +921,7 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                   pulseBreath,
                   canopy);
     if (! postFxSafetyBypassActive)
-        sun.process(buffer);
+        sun.process(procBuffer);
 
     // Strip slow-moving bias from the FX network before the master stage reacts to it.
     float postFxPeak = postFxSafetyBypassActive ? preFxPeak : 0.0f;
@@ -889,7 +940,7 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     {
         for (int channel = 0; channel < numChannels; ++channel)
         {
-            auto* channelData = buffer.getWritePointer(channel);
+            auto* channelData = procBuffer.getWritePointer(channel);
 
             for (int i = 0; i < numSamples; ++i)
             {
@@ -965,8 +1016,8 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     if (auto* toggleParam = tree.getRawParameterValue("monoMakerToggle"))
         monoMakerEnabled.store(toggleParam->load() > 0.5f, std::memory_order_relaxed);
 
-    auto* leftData = buffer.getWritePointer(0);
-    auto* rightData = numChannels > 1 ? buffer.getWritePointer(1) : nullptr;
+    auto* leftData = procBuffer.getWritePointer(0);
+    auto* rightData = numChannels > 1 ? procBuffer.getWritePointer(1) : nullptr;
     const float testTonePhaseDelta = juce::MathConstants<double>::twoPi * 440.0 / (double) sampleRate;
     const float springAirMix = seasonMorph.spring * 0.22f;
     const float summerAirMix = seasonMorph.summer * 0.10f;
@@ -1000,11 +1051,13 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             finalCompressor.setRatio(1.0f + compVal * 7.0f); // Up to 8:1
             finalCompressor.setAttack(12.0f);
             finalCompressor.setRelease(120.0f);
-            juce::dsp::AudioBlock<float> block(buffer);
+            
+            juce::dsp::AudioBlock<float> block(procBuffer);
             juce::dsp::ProcessContextReplacing<float> context(block);
             finalCompressor.process(context);
+            
             // Makeup Gain
-            buffer.applyGain(1.0f + compVal * 1.5f);
+            procBuffer.applyGain(1.0f + compVal * 1.5f);
         }
     }
 
@@ -1013,15 +1066,10 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         masterVolumeSmoothed.setTargetValue(juce::Decibels::decibelsToGain(volParam->load()));
     }
 
-    // Smooth volume ramp
-    float currentVol = masterVolumeSmoothed.getCurrentValue();
-    float targetVol = masterVolumeSmoothed.getNextValue();
-    masterVolumeSmoothed.skip(buffer.getNumSamples() - 1); // Catch up smoothed value
-
-    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
-        buffer.applyGainRamp(ch, 0, buffer.getNumSamples(), currentVol, targetVol);
-
+    // Master volume will be applied after the saturation loop
+    // No skipping here, we'll pull it in the sample loop
     bool invalidAudioDetected = false;
+
     float rawOutputPeak = 0.0f;
     float finalOutputPeak = 0.0f;
 
@@ -1075,7 +1123,7 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         for (int channel = 0; channel < numChannels; ++channel)
         {
             const auto* dryData = drySafetyBuffer.getReadPointer(channel);
-            auto* outData = buffer.getWritePointer(channel);
+            auto* outData = procBuffer.getWritePointer(channel);
 
             for (int i = 0; i < numSamples; ++i)
             {
@@ -1093,146 +1141,152 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         restoreDrySafetyBuffer();
         postFxSafetyBypassBlocksRemaining = juce::jmax(0, postFxSafetyBypassBlocksRemaining - 1);
     }
-    else for (int i = 0; i < numSamples; ++i)
+    else 
     {
-        const float drive = masterDriveSmoothed.getNextValue();
-        const float toneCutoff = masterToneCutoffSmoothed.getNextValue();
-        const float crossfeed = masterCrossfeedSmoothed.getNextValue();
-        const float soilDrive = soilDriveSmoothed.getNextValue();
-        const float soilMix = soilMixSmoothed.getNextValue();
-        const float soilBodyCoeff = onePoleCoeffFromCutoff(soilBodyCutoffSmoothed.getNextValue(), sampleRate);
-        const float soilToneCoeff = onePoleCoeffFromCutoff(soilToneCutoffSmoothed.getNextValue(), sampleRate);
-        const float driveComp = 1.0f / (1.0f + juce::jmax(0.0f, drive - 1.0f) * 0.85f);
-
-        masterToneFilters[0].setCutoffFrequency(clampStateVariableCutoff(toneCutoff * 0.985f, sampleRate));
-        if (rightData != nullptr)
-            masterToneFilters[1].setCutoffFrequency(clampStateVariableCutoff(toneCutoff * 1.015f, sampleRate));
-
-        const float rawDryL = leftData[i];
-        const float rawDryR = rightData != nullptr ? rightData[i] : rawDryL;
-        invalidAudioDetected = invalidAudioDetected
-                            || (! std::isfinite(rawDryL))
-                            || (rightData != nullptr && ! std::isfinite(rawDryR));
-
-        const float dryL = sanitizeOutputSample(rawDryL, 1.5f);
-        const float dryR = sanitizeOutputSample(rawDryR, 1.5f);
-        const float glueL = dryL + dryR * crossfeed * 0.5f;
-        const float glueR = dryR + dryL * crossfeed * 0.5f;
-
-        soilBodyState[0] += soilBodyCoeff * (glueL - soilBodyState[0]);
-        const float soilBias = 0.02f + soilMix * 0.08f;
-        const float earthyL = glueL + soilBodyState[0] * (0.08f + soilMix * 0.24f);
-        float soilL = std::tanh(earthyL * soilDrive + soilBias) - std::tanh(soilBias);
-        soilL += 0.10f * std::tanh((earthyL - soilBodyState[0] * 0.18f) * (0.68f + soilDrive * 0.08f));
-        soilToneState[0] += soilToneCoeff * (soilL - soilToneState[0]);
-        const float soilShapedL = soilL * (0.64f + soilMix * 0.04f) + soilToneState[0] * (0.18f - soilMix * 0.02f);
-        const float soilMixedL = glueL * (1.0f - soilMix) + soilShapedL * soilMix;
-
-        float soilMixedR = soilMixedL;
-        if (rightData != nullptr)
+        for (int i = 0; i < numSamples; ++i)
         {
-            soilBodyState[1] += soilBodyCoeff * (glueR - soilBodyState[1]);
-            const float earthyR = glueR + soilBodyState[1] * (0.08f + soilMix * 0.24f);
-            float soilR = std::tanh(earthyR * soilDrive + soilBias) - std::tanh(soilBias);
-            soilR += 0.10f * std::tanh((earthyR - soilBodyState[1] * 0.18f) * (0.68f + soilDrive * 0.08f));
-            soilToneState[1] += soilToneCoeff * (soilR - soilToneState[1]);
-            const float soilShapedR = soilR * (0.64f + soilMix * 0.04f) + soilToneState[1] * (0.18f - soilMix * 0.02f);
-            soilMixedR = glueR * (1.0f - soilMix) + soilShapedR * soilMix;
-        }
+            const float drive = masterDriveSmoothed.getNextValue();
+            const float toneCutoff = masterToneCutoffSmoothed.getNextValue();
+            const float crossfeed = masterCrossfeedSmoothed.getNextValue();
+            const float soilDrive = soilDriveSmoothed.getNextValue();
+            const float soilMix = soilMixSmoothed.getNextValue();
+            const float driveComp = 1.0f / (1.0f + juce::jmax(0.0f, drive - 1.0f) * 0.85f);
+            const float targetVol = masterVolumeSmoothed.getNextValue();
 
-        const float outDryL = soilMixedL;
-        const float outDryR = soilMixedR;
-        float tonedL = masterToneFilters[0].processSample(0, soilMixedL);
-        float tonedR = rightData != nullptr ? masterToneFilters[1].processSample(0, soilMixedR) : tonedL;
-
-        const float airyL = soilMixedL - tonedL;
-        tonedL += airyL * (springAirMix + summerAirMix);
-        tonedL = juce::jmap(autumnBodyMix, tonedL, tonedL + soilBodyState[0] * 0.18f);
-        tonedL *= 1.0f - winterStill * 0.12f;
-
-        if (rightData != nullptr)
-        {
-            const float airyR = soilMixedR - tonedR;
-            tonedR += airyR * (springAirMix + summerAirMix);
-            tonedR = juce::jmap(autumnBodyMix, tonedR, tonedR + soilBodyState[1] * 0.18f);
-            tonedR *= 1.0f - winterStill * 0.12f;
-        }
-
-        if (frostMix > 0.001f)
-        {
-            tonedL = applyFrost(tonedL);
+            const float soilBodyCoeff = onePoleCoeffFromCutoff(soilBodyCutoffSmoothed.getNextValue(), sampleRate);
+            const float soilToneCoeff = onePoleCoeffFromCutoff(soilToneCutoffSmoothed.getNextValue(), sampleRate);
+            
+            masterToneFilters[0].setCutoffFrequency(clampStateVariableCutoff(toneCutoff * 0.985f, sampleRate));
             if (rightData != nullptr)
-                tonedR = applyFrost(tonedR);
-        }
+                masterToneFilters[1].setCutoffFrequency(clampStateVariableCutoff(toneCutoff * 1.015f, sampleRate));
 
-        const float drivenL = std::tanh(tonedL * drive) * driveComp * 0.98f;
-        float finalL = juce::jmap(juce::jlimit(0.0f, 0.24f, juce::jmax(0.0f, drive - 1.0f) * 0.40f),
-                                  tonedL,
-                                  drivenL) * seasonOutputTrim * canopyOutputTrim;
-        const float mix = masterMixSmoothed.getNextValue();
-        const float monoFreq = monoMakerFreqSmoothed.getNextValue();
-        const bool monoEnabled = monoMakerEnabled.load(std::memory_order_relaxed);
-        if (rightData != nullptr)
-        {
-            const float drivenR = std::tanh(tonedR * drive) * driveComp * 0.98f;
-            float finalR = juce::jmap(juce::jlimit(0.0f, 0.24f, juce::jmax(0.0f, drive - 1.0f) * 0.40f),
-                                      tonedR,
-                                      drivenR) * seasonOutputTrim * canopyOutputTrim;
-            const float testTone = std::sin(testTonePhase) * 0.06f * testToneLevelSmoothed.getNextValue();
+            const float rawDryL = leftData[i];
+            const float rawDryR = rightData != nullptr ? rightData[i] : rawDryL;
+            invalidAudioDetected = invalidAudioDetected
+                                || (! std::isfinite(rawDryL))
+                                || (rightData != nullptr && ! std::isfinite(rawDryR));
 
-            // Apply Master Boost (approx +9dB) with soft-rounding to prevent 'scratching'
-            float boostedL = (finalL + testTone) * 2.85f;
-            float boostedR = (finalR + testTone) * 2.85f;
+            const float dryL = sanitizeOutputSample(rawDryL, 1.5f);
+            const float dryR = sanitizeOutputSample(rawDryR, 1.5f);
+            const float glueL = dryL + dryR * crossfeed * 0.5f;
+            const float glueR = dryR + dryL * crossfeed * 0.5f;
 
-            // Deep-Sine Friendly Soft Limiter
-            finalL = boostedL / (1.15f + std::abs(boostedL * 0.18f));
-            finalR = boostedR / (1.15f + std::abs(boostedR * 0.18f));
+            soilBodyState[0] += soilBodyCoeff * (glueL - soilBodyState[0]);
+            const float soilBias = 0.02f + soilMix * 0.08f;
+            const float earthyL = glueL + soilBodyState[0] * (0.08f + soilMix * 0.24f);
+            float soilL = std::tanh(earthyL * soilDrive + soilBias) - std::tanh(soilBias);
+            soilL += 0.10f * std::tanh((earthyL - soilBodyState[0] * 0.18f) * (0.68f + soilDrive * 0.08f));
+            soilToneState[0] += soilToneCoeff * (soilL - soilToneState[0]);
+            const float soilShapedL = soilL * (0.64f + soilMix * 0.04f) + soilToneState[0] * (0.18f - soilMix * 0.02f);
+            const float soilMixedL = glueL * (1.0f - soilMix) + soilShapedL * soilMix;
 
-            if (monoEnabled)
+            float soilMixedR = soilMixedL;
+            if (rightData != nullptr)
             {
-                const float cutoff = clampStateVariableCutoff(monoFreq, sampleRate);
-                monoMakerFilters[0].setCutoffFrequency(cutoff);
-                monoMakerFilters[1].setCutoffFrequency(cutoff);
-
-                const float lowL = monoMakerFilters[0].processSample(0, finalL);
-                const float lowR = monoMakerFilters[1].processSample(0, finalR);
-                const float highL = finalL - lowL;
-                const float highR = finalR - lowR;
-                const float monoLow = (lowL + lowR) * 0.5f;
-
-                finalL = monoLow + highL;
-                finalR = monoLow + highR;
+                soilBodyState[1] += soilBodyCoeff * (glueR - soilBodyState[1]);
+                const float earthyR = glueR + soilBodyState[1] * (0.08f + soilMix * 0.24f);
+                float soilR = std::tanh(earthyR * soilDrive + soilBias) - std::tanh(soilBias);
+                soilR += 0.10f * std::tanh((earthyR - soilBodyState[1] * 0.18f) * (0.68f + soilDrive * 0.08f));
+                soilToneState[1] += soilToneCoeff * (soilR - soilToneState[1]);
+                const float soilShapedR = soilR * (0.64f + soilMix * 0.04f) + soilToneState[1] * (0.18f - soilMix * 0.02f);
+                soilMixedR = glueR * (1.0f - soilMix) + soilShapedR * soilMix;
             }
 
-            finalL = finalL * mix + outDryL * (1.0f - mix);
-            finalR = finalR * mix + outDryR * (1.0f - mix);
+            const float outDryL = soilMixedL;
+            const float outDryR = soilMixedR;
+            float tonedL = masterToneFilters[0].processSample(0, soilMixedL);
+            float tonedR = rightData != nullptr ? masterToneFilters[1].processSample(0, soilMixedR) : tonedL;
 
-            invalidAudioDetected = invalidAudioDetected || (! std::isfinite(finalL)) || (! std::isfinite(finalR));
-            rawOutputPeak = juce::jmax(rawOutputPeak, std::abs(finalL));
-            rawOutputPeak = juce::jmax(rawOutputPeak, std::abs(finalR));
-            finalL = applyOutputDcBlock(finalL, 0);
-            finalR = applyOutputDcBlock(finalR, 1);
+            const float airyL = soilMixedL - tonedL;
+            tonedL += airyL * (springAirMix + summerAirMix);
+            tonedL = juce::jmap(autumnBodyMix, tonedL, tonedL + soilBodyState[0] * 0.18f);
+            tonedL *= 1.0f - winterStill * 0.12f;
 
-            leftData[i] = sanitizeOutputSample(finalL, outputSafetyLimit);
-            rightData[i] = sanitizeOutputSample(finalR, outputSafetyLimit);
-            finalOutputPeak = juce::jmax(finalOutputPeak, std::abs(leftData[i]));
-            finalOutputPeak = juce::jmax(finalOutputPeak, std::abs(rightData[i]));
+            if (rightData != nullptr)
+            {
+                const float airyR = soilMixedR - tonedR;
+                tonedR += airyR * (springAirMix + summerAirMix);
+                tonedR = juce::jmap(autumnBodyMix, tonedR, tonedR + soilBodyState[1] * 0.18f);
+                tonedR *= 1.0f - winterStill * 0.12f;
+            }
+
+            if (frostMix > 0.001f)
+            {
+                tonedL = applyFrost(tonedL);
+                if (rightData != nullptr)
+                    tonedR = applyFrost(tonedR);
+            }
+
+            const float drivenL = std::tanh(tonedL * drive) * driveComp * 0.98f;
+            float finalL = juce::jmap(juce::jlimit(0.0f, 0.24f, juce::jmax(0.0f, drive - 1.0f) * 0.40f),
+                                      tonedL,
+                                      drivenL) * seasonOutputTrim * canopyOutputTrim;
+            const float mix = masterMixSmoothed.getNextValue();
+            const float monoFreq = monoMakerFreqSmoothed.getNextValue();
+            const bool monoEnabled = monoMakerEnabled.load(std::memory_order_relaxed);
+            if (rightData != nullptr)
+            {
+                const float drivenR = std::tanh(tonedR * drive) * driveComp * 0.98f;
+                float finalR = juce::jmap(juce::jlimit(0.0f, 0.24f, juce::jmax(0.0f, drive - 1.0f) * 0.40f),
+                                          tonedR,
+                                          drivenR) * seasonOutputTrim * canopyOutputTrim;
+
+                if (monoEnabled)
+                {
+                    masterToneFilters[0].setCutoffFrequency(clampStateVariableCutoff(monoFreq, sampleRate));
+                    masterToneFilters[1].setCutoffFrequency(clampStateVariableCutoff(monoFreq, sampleRate));
+                    const float lowL = masterToneFilters[0].processSample(0, finalL);
+                    const float lowR = masterToneFilters[1].processSample(0, finalR);
+                    const float highL = finalL - lowL;
+                    const float highR = finalR - lowR;
+                    const float monoLow = (lowL + lowR) * 0.5f;
+
+                    finalL = monoLow + highL;
+                    finalR = monoLow + highR;
+                }
+
+                finalL = finalL * mix + outDryL * (1.0f - mix);
+                finalR = finalR * mix + outDryR * (1.0f - mix);
+
+                // Final Master Volume
+                finalL *= targetVol;
+                finalR *= targetVol;
+
+                invalidAudioDetected = invalidAudioDetected || (! std::isfinite(finalL)) || (! std::isfinite(finalR));
+                rawOutputPeak = juce::jmax(rawOutputPeak, std::abs(finalL));
+                rawOutputPeak = juce::jmax(rawOutputPeak, std::abs(finalR));
+                finalL = applyOutputDcBlock(finalL, 0);
+                finalR = applyOutputDcBlock(finalR, 1);
+
+                leftData[i] = sanitizeOutputSample(finalL, outputSafetyLimit);
+                rightData[i] = sanitizeOutputSample(finalR, outputSafetyLimit);
+                finalOutputPeak = juce::jmax(finalOutputPeak, std::abs(leftData[i]));
+                finalOutputPeak = juce::jmax(finalOutputPeak, std::abs(rightData[i]));
+            }
+            else
+            {
+                const float testTone = std::sin(testTonePhase) * 0.06f * testToneLevelSmoothed.getNextValue();
+                finalL += testTone;
+                finalL = finalL * mix + outDryL * (1.0f - mix);
+                
+                finalL *= targetVol;
+
+                invalidAudioDetected = invalidAudioDetected || (! std::isfinite(finalL));
+                rawOutputPeak = juce::jmax(rawOutputPeak, std::abs(finalL));
+                finalL = applyOutputDcBlock(finalL, 0);
+                leftData[i] = sanitizeOutputSample(finalL, outputSafetyLimit);
+                finalOutputPeak = juce::jmax(finalOutputPeak, std::abs(leftData[i]));
+            }
+
+            testTonePhase += testTonePhaseDelta;
+            if (testTonePhase >= juce::MathConstants<double>::twoPi)
+                testTonePhase -= juce::MathConstants<double>::twoPi;
         }
-        else
-        {
-            const float testTone = std::sin(testTonePhase) * 0.06f * testToneLevelSmoothed.getNextValue();
-            finalL += testTone;
-            finalL = finalL * mix + outDryL * (1.0f - mix);
-            invalidAudioDetected = invalidAudioDetected || (! std::isfinite(finalL));
-            rawOutputPeak = juce::jmax(rawOutputPeak, std::abs(finalL));
-            finalL = applyOutputDcBlock(finalL, 0);
-            leftData[i] = sanitizeOutputSample(finalL, outputSafetyLimit);
-            finalOutputPeak = juce::jmax(finalOutputPeak, std::abs(leftData[i]));
-        }
+    }
 
-        testTonePhase += testTonePhaseDelta;
-        if (testTonePhase >= juce::MathConstants<double>::twoPi)
-            testTonePhase -= juce::MathConstants<double>::twoPi;
+    if (oversampling != nullptr && currentOversamplingFactor > 0)
+    {
+        oversampling->processSamplesDown(originalBlock);
     }
 
     if (invalidAudioDetected)
@@ -1325,7 +1379,7 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     float maxPeak = 0.0f;
     const int numChansUsed = juce::jmin(2, buffer.getNumChannels());
 
-    for (int i = 0; i < numSamples; ++i)
+    for (int i = 0; i < numSamplesOriginal; ++i)
     {
         float sampleMix = 0.0f;
         for (int ch = 0; ch < numChansUsed; ++ch)

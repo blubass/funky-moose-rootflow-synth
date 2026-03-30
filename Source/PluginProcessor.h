@@ -262,6 +262,9 @@ private:
     std::atomic<bool> monoMakerEnabled { false };
 
     // Final Master FX
+    std::unique_ptr<juce::dsp::Oversampling<float>> oversampling;
+    int currentOversamplingFactor = 0;
+
     juce::dsp::Compressor<float> finalCompressor;
     juce::LinearSmoothedValue<float> masterVolumeSmoothed;
 

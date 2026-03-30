@@ -313,6 +313,10 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
     waveSelector.addItemList({"SINE", "SAW", "PULSE"}, 1);
     waveAttachment = std::make_unique<ComboAttachment>(p.tree, "oscWave", waveSelector);
 
+    addAndMakeVisible(oversamplingSelector);
+    oversamplingSelector.addItemList({"1x", "2x", "4x"}, 1);
+    oversamplingAttachment = std::make_unique<ComboAttachment>(p.tree, "oversampling", oversamplingSelector);
+
     presetBox.onChange = [this]
     {
         const int presetIndex = presetBox.getSelectedId() - 1;
@@ -401,6 +405,7 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
 RootFlowAudioProcessorEditor::~RootFlowAudioProcessorEditor()
 {
     for (auto* headerControl : { static_cast<juce::Component*>(&waveSelector),
+                                 static_cast<juce::Component*>(&oversamplingSelector),
                                  static_cast<juce::Component*>(&presetBox),
                                  static_cast<juce::Component*>(&presetSaveButton),
                                  static_cast<juce::Component*>(&presetDeleteButton),
@@ -446,6 +451,7 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
     if (! hoverEffectsEnabled && focusControl != nullptr && ! focusControl->isMouseButtonDown())
         focusControl = nullptr;
     const bool focusWave = focusControl == &waveSelector;
+    const bool focusOversampling = focusControl == &oversamplingSelector;
     const bool focusPreset = focusControl == &presetBox;
     const bool focusSave = focusControl == &presetSaveButton;
     const bool focusDelete = focusControl == &presetDeleteButton;
@@ -455,7 +461,7 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
     const bool focusPopupToggle = focusControl == &popupToggleButton;
     const bool focusMidi = focusControl == &midiLearnButton;
     const bool focusTone = focusControl == &testToneButton;
-    const bool focusLeftCluster = focusWave || focusPreset || focusSave || focusDelete || focusMutate;
+    const bool focusLeftCluster = focusWave || focusOversampling || focusPreset || focusSave || focusDelete || focusMutate;
     const bool focusRightCluster = focusHoverToggle || focusIdleToggle || focusPopupToggle || focusMidi || focusTone;
 
     juce::String focusSection;
@@ -466,6 +472,12 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
     {
         focusSection = "Osc Field";
         focusValue = waveSelector.getText().isNotEmpty() ? waveSelector.getText() : juce::String("Sine");
+        focusTint = RootFlow::accentSoft;
+    }
+    else if (focusOversampling)
+    {
+        focusSection = "HQ DSP";
+        focusValue = oversamplingSelector.getText().isNotEmpty() ? oversamplingSelector.getText() : juce::String("1x");
         focusTint = RootFlow::accentSoft;
     }
     else if (focusPreset)
@@ -888,6 +900,8 @@ void RootFlowAudioProcessorEditor::resized()
     auto headerContent = bounds.removeFromTop(headerHeight).reduced(outerInsetX, outerInsetY);
     auto controlRow = headerContent.removeFromBottom(controlHeight);
     waveSelector.setBounds(controlRow.removeFromLeft(compactHeaderLayout ? 88 : 100));
+    controlRow.removeFromLeft(microGap);
+    oversamplingSelector.setBounds(controlRow.removeFromLeft(compactHeaderLayout ? 54 : 64));
     controlRow.removeFromLeft(clusterGap);
     presetBox.setBounds(controlRow.removeFromLeft(compactHeaderLayout ? 190 : 228));
     controlRow.removeFromLeft(clusterGap);

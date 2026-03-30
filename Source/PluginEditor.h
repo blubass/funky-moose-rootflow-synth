@@ -68,6 +68,9 @@ private:
     std::unique_ptr<Attachment> sunAtt;
     std::unique_ptr<ComboAttachment> waveAttachment;
 
+    juce::ComboBox oversamplingSelector;
+    std::unique_ptr<ComboAttachment> oversamplingAttachment;
+
     bool headerControlStateInitialised = false;
     int cachedPresetItemCount = -1;
     juce::Component* headerFocusedControl = nullptr;
