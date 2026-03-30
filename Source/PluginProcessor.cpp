@@ -636,20 +636,17 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         const auto& nodes = nodeSystem.getNodes();
         const auto& connections = nodeSystem.getConnections();
 
-        for (const auto& connection : connections)
+        for (auto& connection : connections)
         {
             if (! juce::isPositiveAndBelow(connection.source, (int) nodes.size())
                 || ! juce::isPositiveAndBelow(connection.target, (int) nodes.size()))
                 continue;
 
             const auto& source = nodes[(size_t) connection.source];
-            const auto& target = nodes[(size_t) connection.target];
-            const int targetSlot = getMappedParameterSlotForID(target.paramID);
+            const int targetSlot = connection.targetSlot;
 
-            if (! juce::isPositiveAndBelow(targetSlot, (int) modulationValues.size()))
-                continue;
-
-            modulationValues[(size_t) targetSlot] += source.value * connection.amount;
+            if (targetSlot >= 0 && juce::isPositiveAndBelow(targetSlot, (int) modulationValues.size()))
+                modulationValues[(size_t) targetSlot] += source.value * connection.amount;
         }
     }
 
@@ -2479,6 +2476,19 @@ void RootFlowAudioProcessor::performPendingProcessingStateReset() noexcept
     outputSilenceWatchdogBlocks = 0;
     outputRunawayWatchdogBlocks = 0;
     postFxSafetyBypassBlocksRemaining = 0;
+
+    {
+        const juce::ScopedLock nodeLock(nodeSystem.getLock());
+        auto& nodes = nodeSystem.getNodes();
+        for (auto& n : nodes)
+            n.slotIndex = getMappedParameterSlotForID(n.paramID);
+
+        for (auto& c : nodeSystem.getConnections())
+        {
+            if (juce::isPositiveAndBelow(c.target, (int) nodes.size()))
+                c.targetSlot = nodes[(size_t) c.target].slotIndex;
+        }
+    }
 }
 
 juce::AudioProcessorEditor* RootFlowAudioProcessor::createEditor()

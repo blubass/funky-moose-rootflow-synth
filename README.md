@@ -93,6 +93,16 @@ If your JUCE install lives elsewhere, pass `-DJUCE_DIR=/path/to/JUCE/lib/cmake/J
 - stronger patch and preset handling
 - refined visual polish and release packaging
 
+## Changelog
+
+### [1.2.0] - 2026-03-30
+- **32-Voice Polyphony**: Increased voice count from 16 to 32 for massive chord textures.
+- **Sequencer Stability**: Completely rewritten gate logic and note-off handling for rock-solid timing.
+- **MUTATE System**: New organic mutation engine for evolving patch "DNA" with one click.
+- **Mutation Visuals**: Integrated "Spore Burst" visual feedback for parameter mutations.
+- **Performance**: Cached modulation indices to reduce CPU load in the audio thread.
+- **Meta**: Added Release CMake presets and updated version badges.
+
 ## Author
 
 Uwe Arthur Felchle

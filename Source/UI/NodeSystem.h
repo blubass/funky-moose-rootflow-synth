@@ -15,6 +15,7 @@ struct FlowNode
 
     std::atomic<float>* param = nullptr;
     juce::String paramID;
+    int slotIndex = -1; // Cached Slot Index for faster lookup
 
     bool isDragging = false;
 };
@@ -30,6 +31,7 @@ struct NodeConnection
 {
     int   source = -1;
     int   target = -1;
+    int   targetSlot = -1; // Cached Parameter Slot Index
     float amount = 0.5f;
 
     std::vector<FlowParticle> particles;
