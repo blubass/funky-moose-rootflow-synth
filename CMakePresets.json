@@ -8,11 +8,21 @@
   "configurePresets": [
     {
       "name": "default",
-      "displayName": "Default (Unix Makefiles)",
+      "displayName": "Default (Unix Makefiles - Debug)",
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
+        "JUCE_DIR": "$env{HOME}/Developer/JUCE/install/lib/cmake/JUCE-8.0.10"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release (Unix Makefiles - High Performance)",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
         "JUCE_DIR": "$env{HOME}/Developer/JUCE/install/lib/cmake/JUCE-8.0.10"
       }
     }
@@ -21,6 +31,11 @@
     {
       "name": "default",
       "configurePreset": "default",
+      "jobs": 8
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
       "jobs": 8
     }
   ]
