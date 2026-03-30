@@ -2109,6 +2109,7 @@ void RootFlowAudioProcessor::restoreCustomState(const juce::ValueTree& state)
                     connections.push_back({
                         (int) child.getProperty("src"),
                         (int) child.getProperty("dst"),
+                        -1, // targetSlot (resolved below)
                         (float) child.getProperty("amt")
                     });
                 }
