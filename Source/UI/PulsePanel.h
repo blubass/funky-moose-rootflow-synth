@@ -62,13 +62,13 @@ public:
             juce::Graphics::ScopedSaveState state(g);
             g.reduceClipRegion(shellPath);
 
-            juce::ColourGradient upperWash(breathTint.withAlpha(0.16f), shell.getRight() - shell.getWidth() * 0.26f, shell.getY() + shell.getHeight() * 0.10f,
+            juce::ColourGradient upperWash(breathTint.withAlpha(0.09f), shell.getRight() - shell.getWidth() * 0.26f, shell.getY() + shell.getHeight() * 0.10f,
                                            juce::Colours::transparentBlack, shell.getCentreX(), shell.getY() + shell.getHeight() * 0.54f, true);
             g.setGradientFill(upperWash);
             g.fillEllipse(shell.getRight() - shell.getWidth() * 0.78f, shell.getY() + shell.getHeight() * 0.02f,
                           shell.getWidth() * 0.82f, shell.getHeight() * 0.42f);
 
-            juce::ColourGradient lowerWash(growthTint.withAlpha(0.14f), shell.getRight() - shell.getWidth() * 0.32f, shell.getBottom() - shell.getHeight() * 0.16f,
+            juce::ColourGradient lowerWash(growthTint.withAlpha(0.08f), shell.getRight() - shell.getWidth() * 0.32f, shell.getBottom() - shell.getHeight() * 0.16f,
                                            juce::Colours::transparentBlack, shell.getCentreX(), shell.getY() + shell.getHeight() * 0.56f, true);
             g.setGradientFill(lowerWash);
             g.fillEllipse(shell.getRight() - shell.getWidth() * 0.76f, shell.getBottom() - shell.getHeight() * 0.40f,
@@ -76,8 +76,8 @@ public:
         }
 
         RootFlow::drawSideColumnShell(g, shell, true, rateTint.interpolatedWith(growthTint, 0.18f));
-        RootFlow::drawMembraneChamber(g, topChamber, breathTint, true, 1.08f);
-        RootFlow::drawMembraneChamber(g, bottomChamber, growthTint, true, 0.94f);
+        RootFlow::drawMembraneChamber(g, topChamber, breathTint, true, 0.86f);
+        RootFlow::drawMembraneChamber(g, bottomChamber, growthTint, true, 0.78f);
 
         drawChamberBadge(g,
                          juce::Rectangle<float>(topChamber.getX() + 18.0f, topChamber.getY() + 10.0f, topChamber.getWidth() - 44.0f, 18.0f),
@@ -90,16 +90,16 @@ public:
 
         const auto topCore = topChamber.getCentre().translated(12.0f, -topChamber.getHeight() * 0.24f);
         const auto bottomCore = bottomChamber.getCentre().translated(6.0f, bottomChamber.getHeight() * 0.18f);
-        RootFlow::drawGlowOrb(g, topCore, 11.5f, breathTint, 0.76f);
-        RootFlow::drawGlowOrb(g, bottomCore, 10.0f, growthTint, 0.72f);
+        RootFlow::drawGlowOrb(g, topCore, 10.0f, breathTint, 0.52f);
+        RootFlow::drawGlowOrb(g, bottomCore, 8.8f, growthTint, 0.48f);
 
-        RootFlow::drawBioThread(g, { rate.getBounds().getCentreX() - 10.0f, rate.getBounds().getBottom() - 18.0f }, topCore, rateTint, 0.18f, 0.95f);
-        RootFlow::drawBioThread(g, { breath.getBounds().getCentreX() - 10.0f, breath.getBounds().getBottom() - 18.0f }, topCore.translated(-18.0f, 20.0f), breathTint, 0.18f, 0.95f);
-        RootFlow::drawBioThread(g, { growth.getBounds().getCentreX() - 10.0f, growth.getBounds().getBottom() - 18.0f }, bottomCore, growthTint, 0.20f, 0.95f);
-        RootFlow::drawBioThread(g, { topChamber.getX() + 26.0f, topChamber.getBottom() - 34.0f }, { bottomChamber.getRight() - 24.0f, bottomChamber.getY() + 24.0f }, bridgeTint, 0.14f, 1.0f);
+        RootFlow::drawBioThread(g, { rate.getBounds().getCentreX() - 10.0f, rate.getBounds().getBottom() - 18.0f }, topCore, rateTint, 0.12f, 0.90f);
+        RootFlow::drawBioThread(g, { breath.getBounds().getCentreX() - 10.0f, breath.getBounds().getBottom() - 18.0f }, topCore.translated(-18.0f, 20.0f), breathTint, 0.12f, 0.90f);
+        RootFlow::drawBioThread(g, { growth.getBounds().getCentreX() - 10.0f, growth.getBounds().getBottom() - 18.0f }, bottomCore, growthTint, 0.14f, 0.90f);
+        RootFlow::drawBioThread(g, { topChamber.getX() + 26.0f, topChamber.getBottom() - 34.0f }, { bottomChamber.getRight() - 24.0f, bottomChamber.getY() + 24.0f }, bridgeTint, 0.09f, 0.95f);
 
-        RootFlow::drawOrbSocket(g, { bottomChamber.getX() + 28.0f, bottomChamber.getBottom() - 20.0f }, 8.0f, growthTint, 0.62f);
-        RootFlow::drawOrbSocket(g, { bottomChamber.getRight() - 34.0f, bottomChamber.getBottom() - 22.0f }, 9.0f, rateTint, 0.68f);
+        RootFlow::drawOrbSocket(g, { bottomChamber.getX() + 28.0f, bottomChamber.getBottom() - 20.0f }, 7.2f, growthTint, 0.44f);
+        RootFlow::drawOrbSocket(g, { bottomChamber.getRight() - 34.0f, bottomChamber.getBottom() - 22.0f }, 8.0f, rateTint, 0.48f);
 
         drawSliderLabel(g, rate, "RATE");
         drawSliderLabel(g, breath, "BREATH");
@@ -228,22 +228,22 @@ private:
                               .withCentre({ (float) slider.getBounds().getCentreX(), (float) slider.getBottom() + 16.0f });
 
         auto chip = infoBounds.reduced(horizontalSlider ? 10.0f : 4.0f, 0.0f);
-        RootFlow::drawGlassPanel(g, chip, chip.getHeight() * 0.5f, 0.50f);
-        g.setColour(tint.withAlpha(0.10f));
+        RootFlow::drawGlassPanel(g, chip, chip.getHeight() * 0.5f, 0.48f);
+        g.setColour(tint.withAlpha(0.08f));
         g.fillRoundedRectangle(chip.reduced(2.0f), chip.getHeight() * 0.44f);
 
         g.setFont(RootFlow::getFont(9.5f).boldened());
-        g.setColour(RootFlow::text.withAlpha(0.94f));
+        g.setColour(RootFlow::text.withAlpha(0.98f));
         g.drawText(combinedText, infoBounds.toNearestInt(), juce::Justification::centred, false);
     }
 
     void drawChamberBadge(juce::Graphics& g, juce::Rectangle<float> area, const juce::String& text, juce::Colour tint) const
     {
-        RootFlow::drawGlassPanel(g, area, area.getHeight() * 0.5f, 0.58f);
-        g.setColour(tint.withAlpha(0.09f));
+        RootFlow::drawGlassPanel(g, area, area.getHeight() * 0.5f, 0.54f);
+        g.setColour(tint.withAlpha(0.08f));
         g.fillRoundedRectangle(area.reduced(2.0f), area.getHeight() * 0.42f);
         g.setFont(RootFlow::getFont(9.0f).boldened());
-        g.setColour(RootFlow::text.withAlpha(0.78f));
+        g.setColour(RootFlow::text.interpolatedWith(tint, 0.10f).withAlpha(0.92f));
         g.drawText(text, area, juce::Justification::centred, false);
     }
 

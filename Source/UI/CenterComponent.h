@@ -78,19 +78,19 @@ public:
 
         RootFlow::drawOrganicPanel(g, leftShapeArea, false);
         RootFlow::drawOrganicPanel(g, rightShapeArea, true);
-        RootFlow::drawGlassPanel(g, coreArea, 36.0f, 1.15f);
+        RootFlow::drawGlassPanel(g, coreArea, 36.0f, 0.80f);
 
         {
             juce::Graphics::ScopedSaveState state(g);
             g.reduceClipRegion(leftShape);
 
-            juce::ColourGradient leftCurrent(streamTint.withAlpha(0.14f), leftShapeArea.getX() + leftShapeArea.getWidth() * 0.58f, leftShapeArea.getY() + leftShapeArea.getHeight() * 0.18f,
+            juce::ColourGradient leftCurrent(streamTint.withAlpha(0.05f), leftShapeArea.getX() + leftShapeArea.getWidth() * 0.58f, leftShapeArea.getY() + leftShapeArea.getHeight() * 0.18f,
                                              juce::Colours::transparentBlack, leftShapeArea.getX() + leftShapeArea.getWidth() * 0.20f, leftShapeArea.getBottom(), true);
             g.setGradientFill(leftCurrent);
             g.fillEllipse(leftShapeArea.getX() + leftShapeArea.getWidth() * 0.08f, leftShapeArea.getY() + leftShapeArea.getHeight() * 0.02f,
                           leftShapeArea.getWidth() * 0.78f, leftShapeArea.getHeight() * 0.78f);
 
-            juce::ColourGradient leftGrove(groveTint.withAlpha(0.10f), leftShapeArea.getRight() - leftShapeArea.getWidth() * 0.16f, leftShapeArea.getBottom() - leftShapeArea.getHeight() * 0.18f,
+            juce::ColourGradient leftGrove(groveTint.withAlpha(0.04f), leftShapeArea.getRight() - leftShapeArea.getWidth() * 0.16f, leftShapeArea.getBottom() - leftShapeArea.getHeight() * 0.18f,
                                            juce::Colours::transparentBlack, leftShapeArea.getX(), leftShapeArea.getY() + leftShapeArea.getHeight() * 0.40f, true);
             g.setGradientFill(leftGrove);
             g.fillEllipse(leftShapeArea.getX() + leftShapeArea.getWidth() * 0.10f, leftShapeArea.getY() + leftShapeArea.getHeight() * 0.30f,
@@ -101,50 +101,50 @@ public:
             juce::Graphics::ScopedSaveState state(g);
             g.reduceClipRegion(rightShape);
 
-            juce::ColourGradient rightBloom(bloomTint.withAlpha(0.13f), rightShapeArea.getX() + rightShapeArea.getWidth() * 0.34f, rightShapeArea.getY() + rightShapeArea.getHeight() * 0.16f,
+            juce::ColourGradient rightBloom(bloomTint.withAlpha(0.05f), rightShapeArea.getX() + rightShapeArea.getWidth() * 0.34f, rightShapeArea.getY() + rightShapeArea.getHeight() * 0.16f,
                                             juce::Colours::transparentBlack, rightShapeArea.getRight() - rightShapeArea.getWidth() * 0.10f, rightShapeArea.getBottom(), true);
             g.setGradientFill(rightBloom);
             g.fillEllipse(rightShapeArea.getX() + rightShapeArea.getWidth() * 0.12f, rightShapeArea.getY() + rightShapeArea.getHeight() * 0.04f,
                           rightShapeArea.getWidth() * 0.76f, rightShapeArea.getHeight() * 0.72f);
 
-            juce::ColourGradient rightCurrent(groveTint.withAlpha(0.10f), rightShapeArea.getRight() - rightShapeArea.getWidth() * 0.18f, rightShapeArea.getBottom() - rightShapeArea.getHeight() * 0.16f,
+            juce::ColourGradient rightCurrent(groveTint.withAlpha(0.04f), rightShapeArea.getRight() - rightShapeArea.getWidth() * 0.18f, rightShapeArea.getBottom() - rightShapeArea.getHeight() * 0.16f,
                                               juce::Colours::transparentBlack, rightShapeArea.getCentreX(), rightShapeArea.getY() + rightShapeArea.getHeight() * 0.34f, true);
             g.setGradientFill(rightCurrent);
             g.fillEllipse(rightShapeArea.getX() + rightShapeArea.getWidth() * 0.16f, rightShapeArea.getY() + rightShapeArea.getHeight() * 0.34f,
                           rightShapeArea.getWidth() * 0.70f, rightShapeArea.getHeight() * 0.52f);
         }
 
-        juce::ColourGradient coreSpectrum(streamTint.withAlpha(0.08f), coreArea.getX() + coreArea.getWidth() * 0.26f, coreArea.getY() + coreArea.getHeight() * 0.24f,
-                                          bloomTint.withAlpha(0.07f), coreArea.getRight() - coreArea.getWidth() * 0.22f, coreArea.getBottom() - coreArea.getHeight() * 0.18f, false);
+        juce::ColourGradient coreSpectrum(streamTint.withAlpha(0.032f), coreArea.getX() + coreArea.getWidth() * 0.26f, coreArea.getY() + coreArea.getHeight() * 0.24f,
+                                          bloomTint.withAlpha(0.026f), coreArea.getRight() - coreArea.getWidth() * 0.22f, coreArea.getBottom() - coreArea.getHeight() * 0.18f, false);
         g.setGradientFill(coreSpectrum);
         g.fillRoundedRectangle(coreArea.reduced(4.0f), 32.0f);
 
-        juce::ColourGradient coreHeart(groveTint.withAlpha(0.11f), coreArea.getCentreX(), coreArea.getCentreY(),
+        juce::ColourGradient coreHeart(groveTint.withAlpha(0.045f), coreArea.getCentreX(), coreArea.getCentreY(),
                                        juce::Colours::transparentBlack, coreArea.getCentreX(), coreArea.getBottom(), true);
         g.setGradientFill(coreHeart);
         g.fillEllipse(coreArea.expanded(-coreArea.getWidth() * 0.20f, -coreArea.getHeight() * 0.24f));
 
         if (focusOnLeft)
         {
-            g.setColour(focusTint.withAlpha(0.04f));
+            g.setColour(focusTint.withAlpha(0.025f));
             g.fillPath(leftShape);
-            g.setColour(focusTint.withAlpha(0.12f));
+            g.setColour(focusTint.withAlpha(0.08f));
             g.strokePath(leftShape, juce::PathStrokeType(1.3f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         }
 
         if (focusOnRight)
         {
-            g.setColour(focusTint.withAlpha(0.04f));
+            g.setColour(focusTint.withAlpha(0.025f));
             g.fillPath(rightShape);
-            g.setColour(focusTint.withAlpha(0.12f));
+            g.setColour(focusTint.withAlpha(0.08f));
             g.strokePath(rightShape, juce::PathStrokeType(1.3f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         }
 
         if (focusedSlider != nullptr)
         {
-            g.setColour(focusTint.withAlpha(0.035f));
+            g.setColour(focusTint.withAlpha(0.022f));
             g.fillRoundedRectangle(coreArea.reduced(2.0f), 32.0f);
-            g.setColour(focusTint.withAlpha(0.13f));
+            g.setColour(focusTint.withAlpha(0.09f));
             g.drawRoundedRectangle(coreArea.reduced(1.5f), 34.0f, 0.9f);
         }
 
@@ -160,7 +160,7 @@ public:
         canopy.lineTo(canopyArea.getX() + canopyArea.getWidth() * 0.16f, canopyArea.getBottom());
         canopy.closeSubPath();
 
-        juce::ColourGradient canopyGlow(bloomTint.withAlpha(0.11f), canopyArea.getCentreX(), canopyArea.getY(),
+        juce::ColourGradient canopyGlow(bloomTint.withAlpha(0.045f), canopyArea.getCentreX(), canopyArea.getY(),
                                         juce::Colours::transparentBlack, canopyArea.getCentreX(), canopyArea.getBottom(), true);
         g.setGradientFill(canopyGlow);
         g.fillPath(canopy);
@@ -168,12 +168,12 @@ public:
         auto basinArea = coreArea.withTrimmedTop(coreArea.getHeight() * 0.68f)
                                 .reduced(coreArea.getWidth() * 0.16f, 0.0f)
                                 .translated(0.0f, 14.0f);
-        juce::ColourGradient basinGlow(groveTint.withAlpha(0.11f), basinArea.getCentreX(), basinArea.getY(),
+        juce::ColourGradient basinGlow(groveTint.withAlpha(0.045f), basinArea.getCentreX(), basinArea.getY(),
                                        juce::Colours::transparentBlack, basinArea.getCentreX(), basinArea.getBottom(), true);
         g.setGradientFill(basinGlow);
         g.fillEllipse(basinArea);
 
-        juce::ColourGradient glow(streamTint.withAlpha(0.10f), coreArea.getCentreX(), coreArea.getCentreY(),
+        juce::ColourGradient glow(streamTint.withAlpha(0.035f), coreArea.getCentreX(), coreArea.getCentreY(),
                                   juce::Colours::transparentBlack, coreArea.getCentreX(), coreArea.getBottom(), true);
         g.setGradientFill(glow);
         g.fillEllipse(coreArea.expanded(-coreArea.getWidth() * 0.14f, -coreArea.getHeight() * 0.18f));
@@ -181,12 +181,12 @@ public:
         const auto topLeftHub = juce::Point<float>(coreArea.getCentreX() - coreArea.getWidth() * 0.18f, coreArea.getY() + coreArea.getHeight() * 0.10f);
         const auto topRightHub = juce::Point<float>(coreArea.getCentreX() + coreArea.getWidth() * 0.18f, coreArea.getY() + coreArea.getHeight() * 0.10f);
         const auto bottomHub = juce::Point<float>(coreArea.getCentreX(), coreArea.getBottom() - coreArea.getHeight() * 0.12f);
-        RootFlow::drawOrbSocket(g, topLeftHub, 7.2f, streamTint, 0.44f);
-        RootFlow::drawOrbSocket(g, topRightHub, 7.2f, bloomTint, 0.44f);
-        RootFlow::drawOrbSocket(g, bottomHub, 9.0f, groveTint, 0.50f);
-        RootFlow::drawBioThread(g, topLeftHub, energyDisplay.getBounds().toFloat().getCentre().translated(-46.0f, -56.0f), streamTint, 0.12f, 1.25f);
-        RootFlow::drawBioThread(g, topRightHub, energyDisplay.getBounds().toFloat().getCentre().translated(46.0f, -56.0f), bloomTint, 0.12f, 1.25f);
-        RootFlow::drawBioThread(g, bottomHub, energyDisplay.getBounds().toFloat().getCentre().translated(0.0f, 82.0f), groveTint, 0.12f, 1.45f);
+        RootFlow::drawOrbSocket(g, topLeftHub, 6.6f, streamTint, 0.34f);
+        RootFlow::drawOrbSocket(g, topRightHub, 6.6f, bloomTint, 0.34f);
+        RootFlow::drawOrbSocket(g, bottomHub, 8.2f, groveTint, 0.40f);
+        RootFlow::drawBioThread(g, topLeftHub, energyDisplay.getBounds().toFloat().getCentre().translated(-46.0f, -56.0f), streamTint, 0.08f, 1.15f);
+        RootFlow::drawBioThread(g, topRightHub, energyDisplay.getBounds().toFloat().getCentre().translated(46.0f, -56.0f), bloomTint, 0.08f, 1.15f);
+        RootFlow::drawBioThread(g, bottomHub, energyDisplay.getBounds().toFloat().getCentre().translated(0.0f, 82.0f), groveTint, 0.08f, 1.30f);
 
         drawConnectionFibres(g, focusedSlider);
         drawSliderLabels(g, focusedSlider);
@@ -299,8 +299,11 @@ private:
                 : juce::Justification::bottomRight;
             const bool isFocused = slider == focusedSlider;
             const auto tint = getSliderTint(*slider);
-            g.setFont(RootFlow::getFont(isFocused ? 11.0f : 10.0f).boldened());
-            g.setColour((isFocused ? tint.brighter(0.18f) : RootFlow::text).withAlpha(isFocused ? 0.96f : 0.90f));
+            g.setFont(RootFlow::getFont(isFocused ? 11.2f : 10.2f).boldened());
+            g.setColour(juce::Colours::black.withAlpha(isFocused ? 0.32f : 0.22f));
+            g.drawText(slider->getName(), labelArea.translated(0, 1), just, false);
+            g.setColour((isFocused ? RootFlow::text.interpolatedWith(tint, 0.22f)
+                                   : RootFlow::text.interpolatedWith(tint, 0.08f)).withAlpha(isFocused ? 0.98f : 0.94f));
             g.drawText(slider->getName(), labelArea, just, false);
         }
     }
@@ -325,12 +328,12 @@ private:
                           end.x + (leftSide ? -36.0f : 36.0f), end.y - 18.0f,
                           end.x, end.y);
 
-            g.setColour(colour.withAlpha(emphasise ? 0.10f : 0.06f));
-            g.strokePath(fibre, juce::PathStrokeType(emphasise ? 4.8f : 3.4f,
+            g.setColour(colour.withAlpha(emphasise ? 0.07f : 0.04f));
+            g.strokePath(fibre, juce::PathStrokeType(emphasise ? 4.0f : 2.8f,
                                                      juce::PathStrokeType::curved,
                                                      juce::PathStrokeType::rounded));
-            g.setColour(colour.withAlpha(emphasise ? 0.20f : 0.13f));
-            g.strokePath(fibre, juce::PathStrokeType(emphasise ? 1.2f : 0.9f,
+            g.setColour(colour.withAlpha(emphasise ? 0.14f : 0.09f));
+            g.strokePath(fibre, juce::PathStrokeType(emphasise ? 1.0f : 0.8f,
                                                      juce::PathStrokeType::curved,
                                                      juce::PathStrokeType::rounded));
         };

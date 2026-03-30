@@ -40,10 +40,10 @@ public:
     void paint(juce::Graphics& g) override
     {
         auto area = getLocalBounds().toFloat().reduced(4.0f);
-        RootFlow::drawGlassPanel(g, area, 28.0f, 0.92f);
+        RootFlow::drawGlassPanel(g, area, 28.0f, 0.68f);
 
-        g.setFont(RootFlow::getFont(11.0f));
-        g.setColour(RootFlow::textMuted.withAlpha(0.74f));
+        g.setFont(RootFlow::getFont(11.2f).boldened());
+        g.setColour(RootFlow::text.withAlpha(0.82f));
         g.drawText("AMBIENT FIELD", area.withHeight(18.0f).translated(0.0f, 4.0f), juce::Justification::centred, false);
 
         for (auto* slider : { &bloom, &rain, &sun })
@@ -54,14 +54,14 @@ public:
 
             g.setColour(juce::Colours::black.withAlpha(0.14f));
             g.fillRoundedRectangle(well, 22.0f);
-            g.setColour(tint.withAlpha(focused ? 0.08f : 0.045f));
+            g.setColour(tint.withAlpha(focused ? 0.06f : 0.032f));
             g.fillRoundedRectangle(well.reduced(1.0f), 21.0f);
-            g.setColour(tint.withAlpha(focused ? 0.18f : 0.06f));
+            g.setColour(tint.withAlpha(focused ? 0.14f : 0.045f));
             g.drawRoundedRectangle(well, 22.0f, focused ? 1.0f : 0.9f);
 
             if (focused)
             {
-                g.setColour(tint.withAlpha(0.10f));
+                g.setColour(tint.withAlpha(0.07f));
                 g.drawRoundedRectangle(well.expanded(2.0f, 1.0f), 23.0f, 0.9f);
             }
 
@@ -73,9 +73,9 @@ public:
         }
 
         RootFlow::drawBioThread(g, bloom.getBounds().toFloat().getCentre().translated(18.0f, 8.0f),
-                                rain.getBounds().toFloat().getCentre().translated(-18.0f, 8.0f), RootFlow::accentSoft, 0.075f, 0.9f);
+                                rain.getBounds().toFloat().getCentre().translated(-18.0f, 8.0f), RootFlow::accentSoft, 0.048f, 0.85f);
         RootFlow::drawBioThread(g, rain.getBounds().toFloat().getCentre().translated(18.0f, 8.0f),
-                                sun.getBounds().toFloat().getCentre().translated(-18.0f, 8.0f), RootFlow::accent, 0.075f, 0.9f);
+                                sun.getBounds().toFloat().getCentre().translated(-18.0f, 8.0f), RootFlow::accent, 0.048f, 0.85f);
 
         drawSliderLabel(g, bloom, "SOIL");
         drawSliderLabel(g, rain, "AIR");
@@ -156,22 +156,22 @@ private:
         auto infoBounds = slider.getBounds().withY(slider.getBottom() + 3).withHeight(18).toFloat();
         auto chip = infoBounds.reduced(22.0f, 0.0f);
 
-        RootFlow::drawGlassPanel(g, chip, chip.getHeight() * 0.5f, 0.48f);
-        g.setColour(tint.withAlpha(0.09f));
+        RootFlow::drawGlassPanel(g, chip, chip.getHeight() * 0.5f, 0.46f);
+        g.setColour(tint.withAlpha(0.08f));
         g.fillRoundedRectangle(chip.reduced(2.0f), chip.getHeight() * 0.42f);
 
         g.setFont(RootFlow::getFont(9.5f).boldened());
-        g.setColour(RootFlow::text.withAlpha(0.94f));
+        g.setColour(RootFlow::text.withAlpha(0.98f));
         g.drawText(combinedText, infoBounds.toNearestInt(), juce::Justification::centred, false);
     }
 
     void drawFieldCapsule(juce::Graphics& g, juce::Rectangle<float> area, const juce::String& text, juce::Colour tint) const
     {
-        RootFlow::drawGlassPanel(g, area, area.getHeight() * 0.5f, 0.56f);
-        g.setColour(tint.withAlpha(0.09f));
+        RootFlow::drawGlassPanel(g, area, area.getHeight() * 0.5f, 0.50f);
+        g.setColour(tint.withAlpha(0.08f));
         g.fillRoundedRectangle(area.reduced(2.0f), area.getHeight() * 0.42f);
         g.setFont(RootFlow::getFont(9.4f).boldened());
-        g.setColour(RootFlow::text.withAlpha(0.78f));
+        g.setColour(RootFlow::text.interpolatedWith(tint, 0.10f).withAlpha(0.92f));
         g.drawFittedText(text, area.toNearestInt().reduced(8, 0), juce::Justification::centred, 1);
     }
 

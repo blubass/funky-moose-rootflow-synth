@@ -1993,8 +1993,8 @@ void RootFlowAudioProcessor::restoreCustomState(const juce::ValueTree& state)
     currentFactoryPresetIndex.store((int) state.getProperty(presetIndexProperty, 0), std::memory_order_relaxed);
     currentUserPresetIndex.store(-1, std::memory_order_relaxed);
     RootFlow::setHoverEffectsEnabled((bool) state.getProperty(hoverEffectsEnabledProperty, true));
-    RootFlow::setIdleEffectsEnabled((bool) state.getProperty(idleEffectsEnabledProperty, true));
-    RootFlow::setPopupOverlaysEnabled((bool) state.getProperty(popupOverlaysEnabledProperty, true));
+    RootFlow::setIdleEffectsEnabled((bool) state.getProperty(idleEffectsEnabledProperty, false));
+    RootFlow::setPopupOverlaysEnabled((bool) state.getProperty(popupOverlaysEnabledProperty, false));
 
     std::vector<MidiBinding> restoredBindings;
     std::vector<UserPreset> restoredUserPresets;

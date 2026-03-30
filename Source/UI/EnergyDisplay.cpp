@@ -69,11 +69,14 @@ void drawHudChip(juce::Graphics& g,
     auto inner = area.reduced(10.0f, 4.0f);
     auto labelArea = inner.removeFromTop(area.getHeight() * 0.36f);
 
-    g.setColour(RootFlow::textMuted.withAlpha(0.74f));
+    g.setColour(RootFlow::textMuted.withAlpha(0.84f));
     g.setFont(RootFlow::getFont(8.9f));
     g.drawText(label.toUpperCase(), labelArea, juce::Justification::centredLeft, false);
 
-    g.setColour((emphasise ? tint.brighter(0.12f) : RootFlow::text).withAlpha(0.90f));
+    g.setColour(juce::Colours::black.withAlpha(0.22f));
+    g.drawFittedText(value, inner.toNearestInt().translated(0, 1), juce::Justification::centredLeft, 1);
+
+    g.setColour((emphasise ? tint.brighter(0.12f) : RootFlow::text).withAlpha(0.96f));
     g.setFont(RootFlow::getFont(11.2f).boldened());
     g.drawFittedText(value, inner.toNearestInt(), juce::Justification::centredLeft, 1);
 
@@ -87,7 +90,7 @@ void drawHintBar(juce::Graphics& g, juce::Rectangle<float> area, const juce::Str
     auto inner = area.toNearestInt().reduced(12, 4);
     auto lines = juce::StringArray::fromLines(text);
 
-    g.setColour(RootFlow::textMuted.withAlpha(0.80f));
+    g.setColour(RootFlow::text.withAlpha(0.86f));
     g.setFont(RootFlow::getFont(lines.size() > 1 ? 9.6f : 10.0f).boldened());
 
     if (lines.size() <= 1)
@@ -236,32 +239,32 @@ void EnergyDisplay::paint(juce::Graphics& g)
     const auto groveTint = RootFlow::accent.interpolatedWith(RootFlow::accentSoft, 0.38f);
     const auto bloomTint = RootFlow::amber.interpolatedWith(RootFlow::accentSoft, 0.16f);
 
-    juce::ColourGradient nucleus(groveTint.withAlpha(0.08f), width * 0.48f, height * 0.52f,
+    juce::ColourGradient nucleus(groveTint.withAlpha(0.05f), width * 0.48f, height * 0.52f,
                                  juce::Colours::transparentBlack, width * 0.48f, height, true);
     g.setGradientFill(nucleus);
     g.fillEllipse(bounds.reduced(width * 0.12f, height * 0.12f));
 
-    juce::ColourGradient canopyGlow(bloomTint.withAlpha(0.08f), width * 0.64f, height * 0.12f,
+    juce::ColourGradient canopyGlow(bloomTint.withAlpha(0.05f), width * 0.64f, height * 0.12f,
                                     juce::Colours::transparentBlack, width * 0.64f, height * 0.42f, true);
     g.setGradientFill(canopyGlow);
     g.fillEllipse(width * 0.46f, height * 0.02f, width * 0.28f, height * 0.26f);
 
-    juce::ColourGradient rootGlow(groveTint.withAlpha(0.09f), rootHub.x, height * 0.70f,
+    juce::ColourGradient rootGlow(groveTint.withAlpha(0.06f), rootHub.x, height * 0.70f,
                                   juce::Colours::transparentBlack, rootHub.x, height, true);
     g.setGradientFill(rootGlow);
     g.fillEllipse(width * 0.26f, height * 0.68f, width * 0.48f, height * 0.24f);
 
-    juce::ColourGradient mist(streamTint.withAlpha(0.06f), width * 0.22f, height * 0.28f,
+    juce::ColourGradient mist(streamTint.withAlpha(0.04f), width * 0.22f, height * 0.28f,
                               juce::Colours::transparentBlack, width * 0.10f, height * 0.75f, true);
     g.setGradientFill(mist);
     g.fillEllipse(width * 0.08f, height * 0.14f, width * 0.34f, height * 0.56f);
 
-    juce::ColourGradient rightBloom(bloomTint.withAlpha(0.06f), width * 0.78f, height * 0.30f,
+    juce::ColourGradient rightBloom(bloomTint.withAlpha(0.04f), width * 0.78f, height * 0.30f,
                                     juce::Colours::transparentBlack, width * 0.92f, height * 0.74f, true);
     g.setGradientFill(rightBloom);
     g.fillEllipse(width * 0.62f, height * 0.14f, width * 0.30f, height * 0.48f);
 
-    juce::ColourGradient centreFlow(groveTint.withAlpha(0.06f), width * 0.50f, height * 0.42f,
+    juce::ColourGradient centreFlow(groveTint.withAlpha(0.04f), width * 0.50f, height * 0.42f,
                                     juce::Colours::transparentBlack, width * 0.50f, height * 0.76f, true);
     g.setGradientFill(centreFlow);
     g.fillEllipse(width * 0.22f, height * 0.24f, width * 0.56f, height * 0.44f);
@@ -286,7 +289,7 @@ void EnergyDisplay::paint(juce::Graphics& g)
     fieldArc.cubicTo(width * 0.24f, height * 0.06f,
                      width * 0.76f, height * 0.06f,
                      width * 0.86f, height * 0.22f);
-    g.setColour(juce::Colours::white.withAlpha(0.035f));
+    g.setColour(juce::Colours::white.withAlpha(0.022f));
     g.strokePath(fieldArc, juce::PathStrokeType(0.9f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
     for (int ring = 0; ring < 3; ++ring)
@@ -294,7 +297,7 @@ void EnergyDisplay::paint(juce::Graphics& g)
         auto halo = juce::Rectangle<float>(width * (0.22f + ring * 0.05f), height * (0.28f + ring * 0.02f),
                                            width * (0.56f - ring * 0.10f), height * (0.34f - ring * 0.04f));
         const auto haloTint = ring == 0 ? groveTint : (ring == 1 ? streamTint : bloomTint);
-        g.setColour(haloTint.withAlpha(0.018f - ring * 0.003f));
+        g.setColour(haloTint.withAlpha(0.011f - ring * 0.002f));
         g.drawEllipse(halo, 0.9f);
     }
 
@@ -306,7 +309,7 @@ void EnergyDisplay::paint(juce::Graphics& g)
     RootFlow::drawBioThread(g, rootHub, { width * 0.46f, height * 0.60f }, groveTint, 0.10f, 1.15f);
     RootFlow::drawBioThread(g, rootHub, { width * 0.54f, height * 0.60f }, RootFlow::accentSoft, 0.10f, 1.15f);
 
-    for (int i = 0; i < 36; ++i)
+    for (int i = 0; i < 20; ++i)
     {
         const float fx = std::abs(std::sin((float) i * 13.147f + time * 0.05f));
         const float fy = std::abs(std::sin((float) i * 7.531f + 0.8f + time * 0.03f));
@@ -317,7 +320,7 @@ void EnergyDisplay::paint(juce::Graphics& g)
                             : (i % 7 == 0 ? bloomTint
                                           : (i % 3 == 0 ? streamTint
                                                         : juce::Colours::white));
-        g.setColour(starTint.withAlpha(0.06f + (float) (i % 4) * 0.03f));
+        g.setColour(starTint.withAlpha(0.035f + (float) (i % 4) * 0.018f));
         g.fillEllipse(px, py, size, size);
     }
 
@@ -340,11 +343,11 @@ void EnergyDisplay::paint(juce::Graphics& g)
         fill.lineTo(width, midY + height * 0.06f);
         fill.lineTo(0.0f, midY + height * 0.06f);
         fill.closeSubPath();
-        g.setColour(RootFlow::accent.withAlpha(0.03f + rms * 0.06f));
+        g.setColour(RootFlow::accent.withAlpha(0.02f + rms * 0.04f));
         g.fillPath(fill);
 
-        g.setColour(RootFlow::accent.withAlpha(0.07f));
-        g.strokePath(path, juce::PathStrokeType(2.2f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.setColour(RootFlow::accent.withAlpha(0.05f));
+        g.strokePath(path, juce::PathStrokeType(1.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
 
     NodeSystemSnapshot snapshot;
@@ -377,7 +380,7 @@ void EnergyDisplay::paint(juce::Graphics& g)
                                    ? processor->getModulatedValue(focusNode->paramID)
                                    : (focusNode != nullptr ? focusNode->value : 0.0f);
 
-    auto titleChip = juce::Rectangle<float>(width * 0.05f, height * 0.05f, juce::jmin(196.0f, width * 0.31f), 42.0f);
+    auto titleChip = juce::Rectangle<float>(width * 0.08f, height * 0.10f, juce::jmin(206.0f, width * 0.33f), 38.0f);
     drawHudChip(g, titleChip, "Field", "NEURAL GROVE", RootFlow::accentSoft, seqFlashTimer > 0.0f);
 
     auto statsStrip = juce::Rectangle<float>(titleChip.getRight() + 10.0f,
@@ -436,7 +439,8 @@ void EnergyDisplay::paint(juce::Graphics& g)
             hintText = focusNameUpper + " " + liveValueText + "\nSEQUENCER PULSE / LIVE MODULATION";
     }
 
-    if (RootFlow::arePopupOverlaysEnabled())
+    if (RootFlow::arePopupOverlaysEnabled()
+        && (focusNode != nullptr || connectionStart >= 0 || selectedNode >= 0 || seqFlashTimer > 0.0f))
     {
         auto hintBar = juce::Rectangle<float>(width * 0.19f, height - 34.0f, width * 0.62f, 28.0f);
         drawHintBar(g, hintBar, hintText);
@@ -476,13 +480,13 @@ void EnergyDisplay::paint(juce::Graphics& g)
         juce::Colour connCol = c.amount < 0.0f
             ? RootFlow::amber.interpolatedWith(RootFlow::violet, 0.28f)
             : RootFlow::accent.interpolatedWith(RootFlow::accentSoft, 0.35f);
-        float alpha = 0.20f + (a.energy + b.energy) * 0.28f;
+        float alpha = 0.16f + (a.energy + b.energy) * 0.22f;
 
-        g.setColour(connCol.withAlpha(0.10f * alpha * absAmt));
-        g.strokePath(nervePath, juce::PathStrokeType(7.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.setColour(connCol.withAlpha(0.07f * alpha * absAmt));
+        g.strokePath(nervePath, juce::PathStrokeType(5.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
-        g.setColour(connCol.withAlpha(0.55f * alpha));
-        g.strokePath(nervePath, juce::PathStrokeType(1.2f));
+        g.setColour(connCol.withAlpha(0.42f * alpha));
+        g.strokePath(nervePath, juce::PathStrokeType(1.0f));
         
         g.setColour(juce::Colours::white.withAlpha(0.35f * a.energy));
         g.strokePath(nervePath, juce::PathStrokeType(0.6f));
@@ -497,8 +501,8 @@ void EnergyDisplay::paint(juce::Graphics& g)
             for (size_t h = 0; h < p.history.size(); ++h)
             {
                 auto histPos = nervePath.getPointAlongPath(p.history[h] * pathLen);
-                const float trailAlpha = (1.0f - (float) h / (float) p.history.size()) * 0.18f * alpha;
-                const float trailSize = 0.8f + (1.0f - (float) h / (float) p.history.size()) * 2.2f;
+                const float trailAlpha = (1.0f - (float) h / (float) p.history.size()) * 0.12f * alpha;
+                const float trailSize = 0.7f + (1.0f - (float) h / (float) p.history.size()) * 1.6f;
                 g.setColour(connCol.withAlpha(trailAlpha));
                 g.fillEllipse(histPos.x - trailSize * 0.5f, histPos.y - trailSize * 0.5f, trailSize, trailSize);
             }
@@ -507,9 +511,9 @@ void EnergyDisplay::paint(juce::Graphics& g)
             float px = pathPos.getX();
             float py = pathPos.getY();
             
-            float pSize = 2.0f + (p.speed * 3.8f);
+            float pSize = 1.6f + (p.speed * 2.6f);
 
-            g.setColour(connCol.withAlpha(0.3f * alpha));
+            g.setColour(connCol.withAlpha(0.22f * alpha));
             g.fillEllipse(px - pSize, py - pSize, pSize * 2.0f, pSize * 2.0f);
 
             g.setColour(juce::Colours::white.withAlpha(0.8f * alpha));
@@ -566,16 +570,16 @@ void EnergyDisplay::paint(juce::Graphics& g)
                                                : nodeColour);
             const float ringRadius = size * (isSelected ? 1.74f : 1.56f) + (isHovered ? 4.0f : 2.0f);
 
-            g.setColour(ringTint.withAlpha(isSelected || isLinkTarget ? 0.18f : 0.12f));
+            g.setColour(ringTint.withAlpha(isSelected || isLinkTarget ? 0.12f : 0.08f));
             g.fillEllipse(x - ringRadius, y - ringRadius, ringRadius * 2.0f, ringRadius * 2.0f);
-            g.setColour(juce::Colours::white.withAlpha(isSelected ? 0.36f : 0.20f));
+            g.setColour(juce::Colours::white.withAlpha(isSelected ? 0.28f : 0.14f));
             g.drawEllipse(x - ringRadius, y - ringRadius, ringRadius * 2.0f, ringRadius * 2.0f, isSelected ? 1.4f : 1.0f);
-            g.setColour(ringTint.withAlpha(isSelected || isLinkTarget ? 0.74f : 0.48f));
+            g.setColour(ringTint.withAlpha(isSelected || isLinkTarget ? 0.58f : 0.34f));
             g.drawEllipse(x - ringRadius * 0.88f, y - ringRadius * 0.88f, ringRadius * 1.76f, ringRadius * 1.76f, 1.1f);
         }
 
         float glowAlpha = 0.12f + n.energy * 0.32f + n.value * 0.16f;
-        g.setColour(nodeColour.withAlpha(juce::jlimit(0.0f, 0.48f, glowAlpha)));
+        g.setColour(nodeColour.withAlpha(juce::jlimit(0.0f, 0.34f, glowAlpha)));
         g.fillEllipse(x - size * 1.08f, y - size * 1.08f, size * 2.16f, size * 2.16f);
 
         juce::ColourGradient core(nodeColour.brighter(0.28f).withAlpha(0.95f), x, y - size * 0.8f,
@@ -594,10 +598,10 @@ void EnergyDisplay::paint(juce::Graphics& g)
         if (nodeIndex == seqFlashNode && seqFlashTimer > 0.0f)
         {
             float flashR = size + 4.0f + (1.0f - seqFlashTimer) * 14.0f;
-            g.setColour(juce::Colours::white.withAlpha(seqFlashTimer * 0.85f));
+            g.setColour(juce::Colours::white.withAlpha(seqFlashTimer * 0.62f));
             g.drawEllipse(x - flashR, y - flashR, flashR * 2.0f, flashR * 2.0f, 1.8f);
 
-            g.setColour(RootFlow::accent.withAlpha(seqFlashTimer * 0.6f));
+            g.setColour(RootFlow::accent.withAlpha(seqFlashTimer * 0.40f));
             g.fillEllipse(x - size * 0.7f, y - size * 0.7f, size * 1.4f, size * 1.4f);
         }
 
@@ -947,11 +951,11 @@ void EnergyDisplay::drawKeyboardInteraction(juce::Graphics& g)
             stream.quadraticTo(xPos + wobble, h * 0.66f, rootHub.x, rootHub.y);
 
             // Outer bio-glow
-            g.setColour(RootFlow::accent.withAlpha(0.18f));
+            g.setColour(RootFlow::accent.withAlpha(0.12f));
             g.strokePath(stream, juce::PathStrokeType(5.0f, juce::PathStrokeType::curved,
                                                       juce::PathStrokeType::rounded));
             // Core strand
-            g.setColour(RootFlow::accent.withAlpha(0.55f));
+            g.setColour(RootFlow::accent.withAlpha(0.40f));
             g.strokePath(stream, juce::PathStrokeType(1.0f));
 
             // Riding energy particle
@@ -959,16 +963,16 @@ void EnergyDisplay::drawKeyboardInteraction(juce::Graphics& g)
             auto pPos = stream.getPointAlongPath(pT * stream.getLength());
             g.setColour(juce::Colours::white.withAlpha(0.9f));
             g.fillEllipse(pPos.x - 2.5f, pPos.y - 2.5f, 5.0f, 5.0f);
-            g.setColour(RootFlow::accent.withAlpha(0.4f));
+            g.setColour(RootFlow::accent.withAlpha(0.26f));
             g.fillEllipse(pPos.x - 5.0f, pPos.y - 5.0f, 10.0f, 10.0f);
         }
     }
 
     if (anyNoteOn)
     {
-        g.setColour(RootFlow::accent.withAlpha(0.18f));
+        g.setColour(RootFlow::accent.withAlpha(0.12f));
         g.fillEllipse(rootHub.x - 26.0f, rootHub.y - 26.0f, 52.0f, 52.0f);
-        g.setColour(juce::Colours::white.withAlpha(0.35f));
+        g.setColour(juce::Colours::white.withAlpha(0.24f));
         g.drawEllipse(rootHub.x - 18.0f, rootHub.y - 18.0f, 36.0f, 36.0f, 1.2f);
     }
 }

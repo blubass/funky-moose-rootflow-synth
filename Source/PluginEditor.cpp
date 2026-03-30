@@ -104,14 +104,17 @@ void drawToolbarCaption(juce::Graphics& g,
                         juce::Colour tint,
                         juce::Justification justification = juce::Justification::centred)
 {
-    g.setFont(RootFlow::getFont(9.6f).boldened());
-    g.setColour(tint.withAlpha(0.92f));
-    g.drawFittedText(text, area.toNearestInt(), justification, 1);
+    RootFlow::drawGlassPanel(g, area, area.getHeight() * 0.5f, 0.42f);
+    g.setColour(tint.withAlpha(0.08f));
+    g.fillRoundedRectangle(area.reduced(2.0f), area.getHeight() * 0.42f);
 
-    auto lineY = area.getBottom() - 1.5f;
-    const float lineInset = 6.0f;
-    g.setColour(tint.withAlpha(0.09f));
-    g.drawLine(area.getX() + lineInset, lineY, area.getRight() - lineInset, lineY, 1.0f);
+    auto textArea = area.toNearestInt().reduced(8, 0);
+    g.setFont(RootFlow::getFont(8.8f).boldened());
+    g.setColour(juce::Colours::black.withAlpha(0.30f));
+    g.drawFittedText(text, textArea.translated(0, 1), justification, 1);
+
+    g.setColour(RootFlow::text.interpolatedWith(tint, 0.30f).withAlpha(0.98f));
+    g.drawFittedText(text, textArea, justification, 1);
 }
 
 void drawClusterDivider(juce::Graphics& g, float x, juce::Rectangle<float> cluster, juce::Colour tint)
@@ -240,7 +243,7 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
 
     // Anchoring Glow (Soft Upward Radiance)
     auto* kbdGlow = new juce::GlowEffect();
-    kbdGlow->setGlowProperties(6.5f, RootFlow::accent.withAlpha(0.28f));
+    kbdGlow->setGlowProperties(4.0f, RootFlow::accent.withAlpha(0.16f));
     keyboardDrawer.setComponentEffect(kbdGlow);
 
     // Main Layout components are added and initialized
@@ -427,9 +430,9 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
     g.setGradientFill(headerGrad);
     g.fillRect(headerArea);
 
-    g.setColour(juce::Colours::white.withAlpha(0.05f));
+    g.setColour(juce::Colours::white.withAlpha(0.035f));
     g.drawLine(18.0f, 9.0f, (float) getWidth() - 18.0f, 9.0f, 1.0f);
-    g.setColour(RootFlow::accent.withAlpha(0.08f));
+    g.setColour(RootFlow::accent.withAlpha(0.05f));
     g.drawLine(0.0f, (float) headerHeight, (float) getWidth(), (float) headerHeight, 1.0f);
 
     const bool hoverEffectsEnabled = RootFlow::areHoverEffectsEnabled();
@@ -547,34 +550,46 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
 
     if (! leftCluster.isEmpty())
     {
-        RootFlow::drawGlassPanel(g, leftCluster, 16.0f, focusLeftCluster ? 0.76f : 0.62f);
-        g.setColour((focusLeftCluster ? focusTint : juce::Colours::white).withAlpha(focusLeftCluster ? 0.03f : 0.018f));
+        RootFlow::drawGlassPanel(g, leftCluster, 16.0f, focusLeftCluster ? 0.66f : 0.50f);
+        g.setColour((focusLeftCluster ? focusTint : juce::Colours::white).withAlpha(focusLeftCluster ? 0.022f : 0.012f));
         g.fillRoundedRectangle(leftCluster.withHeight(leftCluster.getHeight() * 0.46f), 16.0f);
     }
 
     if (! rightCluster.isEmpty())
     {
-        RootFlow::drawGlassPanel(g, rightCluster, 16.0f, focusRightCluster ? 0.74f : 0.60f);
-        g.setColour((focusRightCluster ? focusTint : juce::Colours::white).withAlpha(focusRightCluster ? 0.03f : 0.018f));
+        RootFlow::drawGlassPanel(g, rightCluster, 16.0f, focusRightCluster ? 0.64f : 0.48f);
+        g.setColour((focusRightCluster ? focusTint : juce::Colours::white).withAlpha(focusRightCluster ? 0.022f : 0.012f));
         g.fillRoundedRectangle(rightCluster.withHeight(rightCluster.getHeight() * 0.46f), 16.0f);
     }
 
-    auto waveCaptionArea = waveSelector.getBounds().toFloat().translated(0.0f, -15.0f).withHeight(11.0f);
-    auto presetCaptionArea = presetBox.getBounds().toFloat().translated(0.0f, -15.0f).withHeight(11.0f);
-    auto actionsCaptionArea = presetSaveButton.getBounds()
-                               .getUnion(presetDeleteButton.getBounds())
-                               .getUnion(mutateButton.getBounds())
-                               .toFloat()
-                               .translated(0.0f, -15.0f)
-                               .withHeight(11.0f);
-    auto visualsCaptionArea = hoverToggleButton.getBounds()
-                               .getUnion(idleToggleButton.getBounds())
-                               .getUnion(popupToggleButton.getBounds())
-                               .toFloat()
-                               .translated(0.0f, -15.0f)
-                               .withHeight(11.0f);
-    auto midiCaptionArea = midiLearnButton.getBounds().toFloat().translated(0.0f, -15.0f).withHeight(11.0f);
-    auto toneCaptionArea = testToneButton.getBounds().toFloat().translated(0.0f, -15.0f).withHeight(11.0f);
+    const auto leftCaptionBand = juce::Rectangle<float>(leftCluster.getX() + 8.0f,
+                                                        leftCluster.getY() - 7.0f,
+                                                        leftCluster.getWidth() - 16.0f,
+                                                        14.0f);
+    const auto rightCaptionBand = juce::Rectangle<float>(rightCluster.getX() + 8.0f,
+                                                         rightCluster.getY() - 7.0f,
+                                                         rightCluster.getWidth() - 16.0f,
+                                                         14.0f);
+    auto makeCaptionArea = [] (juce::Rectangle<float> anchor, juce::Rectangle<float> band, float targetWidth)
+    {
+        const float width = juce::jlimit(46.0f, anchor.getWidth(), targetWidth);
+        return juce::Rectangle<float>(width, band.getHeight()).withCentre({ anchor.getCentreX(), band.getCentreY() });
+    };
+
+    auto waveCaptionArea = makeCaptionArea(waveSelector.getBounds().toFloat().expanded(2.0f, 0.0f), leftCaptionBand, 60.0f);
+    auto presetCaptionArea = makeCaptionArea(presetBox.getBounds().toFloat().expanded(2.0f, 0.0f), leftCaptionBand, 74.0f);
+    auto actionsCaptionAnchor = presetSaveButton.getBounds()
+                                .getUnion(presetDeleteButton.getBounds())
+                                .getUnion(mutateButton.getBounds())
+                                .toFloat();
+    auto actionsCaptionArea = makeCaptionArea(actionsCaptionAnchor, leftCaptionBand, 88.0f);
+    auto visualsCaptionAnchor = hoverToggleButton.getBounds()
+                                .getUnion(idleToggleButton.getBounds())
+                                .getUnion(popupToggleButton.getBounds())
+                                .toFloat();
+    auto visualsCaptionArea = makeCaptionArea(visualsCaptionAnchor, rightCaptionBand, 86.0f);
+    auto midiCaptionArea = makeCaptionArea(midiLearnButton.getBounds().toFloat().expanded(2.0f, 0.0f), rightCaptionBand, 60.0f);
+    auto toneCaptionArea = makeCaptionArea(testToneButton.getBounds().toFloat().expanded(2.0f, 0.0f), rightCaptionBand, 60.0f);
     const auto actionTint = focusMutate ? RootFlow::amber
                           : (focusSave || focusDelete || presetDirty) ? RootFlow::violet
                                                                       : RootFlow::violet.interpolatedWith(RootFlow::amber, 0.45f);
@@ -597,11 +612,11 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
         const float previewPhase = std::fmod((float) juce::Time::getMillisecondCounterHiRes() * 0.00018f, 1.0f);
         auto wavePreview = makeWavePreviewPath(wavePreviewArea, waveSelector.getSelectedId(), previewPhase);
 
-        g.setColour(RootFlow::accentSoft.withAlpha(focusWave ? 0.10f : 0.04f));
+        g.setColour(RootFlow::accentSoft.withAlpha(focusWave ? 0.07f : 0.025f));
         g.strokePath(wavePreview, juce::PathStrokeType(focusWave ? 2.4f : 1.6f,
                                                        juce::PathStrokeType::curved,
                                                        juce::PathStrokeType::rounded));
-        g.setColour(RootFlow::accentSoft.withAlpha(focusWave ? 0.32f : 0.16f));
+        g.setColour(RootFlow::accentSoft.withAlpha(focusWave ? 0.22f : 0.10f));
         g.strokePath(wavePreview, juce::PathStrokeType(focusWave ? 1.1f : 0.8f,
                                                        juce::PathStrokeType::curved,
                                                        juce::PathStrokeType::rounded));
@@ -614,9 +629,9 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
                          .getUnion(mutateButton.getBounds())
                          .toFloat()
                          .expanded(4.0f, 3.0f);
-        g.setColour(actionTint.withAlpha((focusSave || focusDelete || focusMutate) ? 0.07f : 0.035f));
+        g.setColour(actionTint.withAlpha((focusSave || focusDelete || focusMutate) ? 0.05f : 0.022f));
         g.fillRoundedRectangle(actionsArea, 10.0f);
-        g.setColour(juce::Colours::white.withAlpha(0.08f));
+        g.setColour(juce::Colours::white.withAlpha(0.06f));
         g.drawRoundedRectangle(actionsArea, 10.0f, 0.8f);
 
         const float divider1 = ((float) waveSelector.getRight() + (float) presetBox.getX()) * 0.5f;
@@ -634,9 +649,9 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
                          .getUnion(popupToggleButton.getBounds())
                          .toFloat()
                          .expanded(4.0f, 3.0f);
-        g.setColour(visualsTint.withAlpha((focusHoverToggle || focusIdleToggle || focusPopupToggle) ? 0.07f : 0.035f));
+        g.setColour(visualsTint.withAlpha((focusHoverToggle || focusIdleToggle || focusPopupToggle) ? 0.05f : 0.022f));
         g.fillRoundedRectangle(visualsArea, 10.0f);
-        g.setColour(juce::Colours::white.withAlpha(0.08f));
+        g.setColour(juce::Colours::white.withAlpha(0.06f));
         g.drawRoundedRectangle(visualsArea, 10.0f, 0.8f);
 
         const float divider1 = ((float) hoverToggleButton.getRight() + (float) idleToggleButton.getX()) * 0.5f;
@@ -652,11 +667,11 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
     if (popupOverlaysEnabled && focusControl != nullptr)
     {
         auto focusArea = focusControl->getBounds().toFloat().expanded(4.0f, 4.0f);
-        g.setColour(focusTint.withAlpha(0.065f));
+        g.setColour(focusTint.withAlpha(0.045f));
         g.fillRoundedRectangle(focusArea, 11.0f);
-        g.setColour(juce::Colours::white.withAlpha(0.10f));
+        g.setColour(juce::Colours::white.withAlpha(0.08f));
         g.drawRoundedRectangle(focusArea, 11.0f, 0.8f);
-        g.setColour(focusTint.withAlpha(0.20f));
+        g.setColour(focusTint.withAlpha(0.14f));
         g.drawRoundedRectangle(focusArea.reduced(1.0f), 10.0f, 0.9f);
 
         auto focusBubble = juce::Rectangle<float>(juce::jlimit(126.0f, 196.0f, 116.0f + (float) focusValue.length() * 4.2f), 24.0f)
@@ -726,6 +741,14 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
     auto keyboardMidiChip = juce::Rectangle<float>(keyboardArea.getRight() - 172.0f, keyboardArea.getY() - 20.0f, 154.0f, 18.0f);
     auto cradleArea = keyboardArea.expanded(14.0f, 18.0f).translated(0.0f, 10.0f);
     auto cradle = makeKeyboardCradle(cradleArea);
+    auto cabinetBase = cradleArea.expanded(8.0f, 10.0f).translated(0.0f, 8.0f);
+    auto keyFrontApron = juce::Rectangle<float>(keyboardArea.getWidth() + 18.0f, 28.0f)
+                             .withCentre({ keyboardArea.getCentreX(), keyboardArea.getBottom() + 8.0f });
+    keyFrontApron = keyFrontApron.withY(keyboardArea.getBottom() - 3.0f);
+    auto leftFoot = juce::Rectangle<float>(86.0f, 12.0f)
+                        .withBottom((float) getHeight() - 4.0f)
+                        .withX(keyboardArea.getX() + 72.0f);
+    auto rightFoot = leftFoot.withX(keyboardArea.getRight() - leftFoot.getWidth() - 72.0f);
     auto midiSnapshot = audioProcessor.getMidiActivitySnapshot();
     const int heldNotes = countHeldNotes(audioProcessor.getKeyboardState());
     const bool keyboardHovered = hoverEffectsEnabled && keyboardDrawer.isMouseOverOrDragging();
@@ -736,7 +759,7 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
         ? getMidiActivityValue(midiSnapshot)
         : juce::String("Awaiting Input");
 
-    if (popupOverlaysEnabled)
+    if (popupOverlaysEnabled && keyboardFocused)
     {
         drawHeaderFocusBubble(g,
                               keyboardStateChip,
@@ -758,7 +781,11 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
                                                        : juce::String("PERFORMANCE KEYS / ROOT BED")),
                      keyboardBadge.toNearestInt().reduced(10, 0), juce::Justification::centred, 1);
 
-    if (popupOverlaysEnabled)
+    if (popupOverlaysEnabled
+        && (keyboardActive
+            || keyboardHovered
+            || midiSnapshot.wasMapped
+            || midiSnapshot.type != RootFlowAudioProcessor::MidiActivitySnapshot::Type::none))
     {
         drawHeaderFocusBubble(g,
                               keyboardMidiChip,
@@ -768,14 +795,54 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
                               keyboardActive || midiSnapshot.wasMapped);
     }
 
+    auto drawCabinetFoot = [&g](juce::Rectangle<float> area, juce::Colour tint)
+    {
+        g.setColour(juce::Colours::black.withAlpha(0.28f));
+        g.fillRoundedRectangle(area.translated(0.0f, 3.0f), area.getHeight() * 0.54f);
+        juce::ColourGradient footGrad(RootFlow::panelSoft.brighter(0.12f).interpolatedWith(tint, 0.06f),
+                                      area.getCentreX(), area.getY(),
+                                      RootFlow::bg.darker(0.34f),
+                                      area.getCentreX(), area.getBottom(), false);
+        g.setGradientFill(footGrad);
+        g.fillRoundedRectangle(area, area.getHeight() * 0.50f);
+        g.setColour(juce::Colours::white.withAlpha(0.12f));
+        g.drawRoundedRectangle(area.reduced(0.8f), area.getHeight() * 0.44f, 0.8f);
+    };
+
+    g.setColour(juce::Colours::black.withAlpha(0.30f));
+    g.fillRoundedRectangle(cabinetBase.translated(0.0f, 10.0f), 28.0f);
+    g.setColour(juce::Colours::black.withAlpha(0.16f));
+    g.fillRoundedRectangle(cabinetBase.translated(0.0f, 4.0f), 27.0f);
+
+    juce::ColourGradient cabinetBaseGrad(RootFlow::panelSoft.brighter(0.06f), cabinetBase.getCentreX(), cabinetBase.getY(),
+                                         RootFlow::bg.darker(0.24f), cabinetBase.getCentreX(), cabinetBase.getBottom(), false);
+    g.setGradientFill(cabinetBaseGrad);
+    g.fillRoundedRectangle(cabinetBase, 26.0f);
+    g.setColour(juce::Colours::white.withAlpha(0.10f));
+    g.drawRoundedRectangle(cabinetBase.reduced(1.0f), 25.0f, 0.9f);
+
+    g.setColour(juce::Colours::black.withAlpha(0.26f));
+    g.fillRoundedRectangle(keyFrontApron.translated(0.0f, 5.0f), 16.0f);
+    juce::ColourGradient keyApronGrad(RootFlow::panelSoft.brighter(0.10f), keyFrontApron.getCentreX(), keyFrontApron.getY(),
+                                      RootFlow::bg.darker(0.28f), keyFrontApron.getCentreX(), keyFrontApron.getBottom(), false);
+    g.setGradientFill(keyApronGrad);
+    g.fillRoundedRectangle(keyFrontApron, 15.0f);
+    g.setColour(juce::Colours::white.withAlpha(0.10f));
+    g.drawRoundedRectangle(keyFrontApron.reduced(1.0f), 14.0f, 0.8f);
+    g.setColour(RootFlow::accent.withAlpha(0.10f));
+    g.drawRoundedRectangle(keyFrontApron, 15.0f, 1.0f);
+
+    drawCabinetFoot(leftFoot, RootFlow::accentSoft);
+    drawCabinetFoot(rightFoot, RootFlow::violet);
+
     juce::ColourGradient cradleGrad(RootFlow::panelSoft.brighter(0.18f), cradleArea.getCentreX(), cradleArea.getY(),
                                     RootFlow::panel.darker(0.10f), cradleArea.getCentreX(), cradleArea.getBottom(), false);
     g.setGradientFill(cradleGrad);
     g.fillPath(cradle);
 
-    g.setColour((keyboardFocused ? RootFlow::accentSoft : RootFlow::accent).withAlpha(keyboardFocused ? 0.09f : 0.06f));
+    g.setColour((keyboardFocused ? RootFlow::accentSoft : RootFlow::accent).withAlpha(keyboardFocused ? 0.06f : 0.04f));
     g.strokePath(cradle, juce::PathStrokeType(1.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-    g.setColour(juce::Colours::white.withAlpha(0.07f));
+    g.setColour(juce::Colours::white.withAlpha(0.05f));
     g.strokePath(cradle, juce::PathStrokeType(0.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
     juce::Path stem;
@@ -783,13 +850,13 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
     stem.cubicTo(keyboardArea.getCentreX() - 10.0f, keyboardArea.getY() - 92.0f,
                  keyboardArea.getCentreX() + 8.0f, keyboardArea.getY() - 34.0f,
                  keyboardArea.getCentreX(), keyboardArea.getY() + 10.0f);
-    g.setColour((keyboardFocused ? RootFlow::accentSoft : RootFlow::accent).withAlpha(keyboardFocused ? 0.08f : 0.055f));
+    g.setColour((keyboardFocused ? RootFlow::accentSoft : RootFlow::accent).withAlpha(keyboardFocused ? 0.05f : 0.035f));
     g.strokePath(stem, juce::PathStrokeType(15.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-    g.setColour((keyboardFocused ? RootFlow::accentSoft : RootFlow::accent).withAlpha(keyboardFocused ? 0.26f : 0.20f));
+    g.setColour((keyboardFocused ? RootFlow::accentSoft : RootFlow::accent).withAlpha(keyboardFocused ? 0.18f : 0.14f));
     g.strokePath(stem, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
-    RootFlow::drawGlassPanel(g, keyboardArea, 24.0f, keyboardFocused ? 1.02f : 0.92f);
-    juce::ColourGradient centerGlow((keyboardFocused ? RootFlow::accentSoft : RootFlow::accent).withAlpha(keyboardFocused ? 0.15f : 0.10f),
+    RootFlow::drawGlassPanel(g, keyboardArea, 24.0f, keyboardFocused ? 0.86f : 0.76f);
+    juce::ColourGradient centerGlow((keyboardFocused ? RootFlow::accentSoft : RootFlow::accent).withAlpha(keyboardFocused ? 0.10f : 0.06f),
                                     keyboardArea.getCentreX(), keyboardArea.getY(),
                                     juce::Colours::transparentBlack, keyboardArea.getCentreX(), keyboardArea.getBottom(), true);
     g.setGradientFill(centerGlow);
@@ -797,12 +864,12 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
 
     if (keyboardFocused)
     {
-        g.setColour((keyboardActive ? RootFlow::accentSoft : midiTint).withAlpha(0.10f));
+        g.setColour((keyboardActive ? RootFlow::accentSoft : midiTint).withAlpha(0.07f));
         g.drawRoundedRectangle(keyboardArea.expanded(4.0f, 3.0f), 27.0f, 0.9f);
     }
 
-    RootFlow::drawGlowOrb(g, { keyboardArea.getX() + 34.0f, keyboardArea.getY() + 18.0f }, 5.0f, RootFlow::violet, 0.24f);
-    RootFlow::drawGlowOrb(g, { keyboardArea.getRight() - 34.0f, keyboardArea.getY() + 18.0f }, 5.0f, RootFlow::accentSoft, 0.24f);
+    RootFlow::drawGlowOrb(g, { keyboardArea.getX() + 34.0f, keyboardArea.getY() + 18.0f }, 4.6f, RootFlow::violet, 0.16f);
+    RootFlow::drawGlowOrb(g, { keyboardArea.getRight() - 34.0f, keyboardArea.getY() + 18.0f }, 4.6f, RootFlow::accentSoft, 0.16f);
 }
 
 void RootFlowAudioProcessorEditor::resized()
@@ -933,7 +1000,7 @@ void RootFlowAudioProcessorEditor::updateAnimationTimerState()
     if (isShowing())
     {
         if (! isTimerRunning())
-            startTimerHz(60);
+            startTimerHz(30);
     }
     else
     {
