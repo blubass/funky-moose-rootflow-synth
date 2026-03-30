@@ -8,6 +8,7 @@
 ![AudioUnit](https://img.shields.io/badge/AudioUnit-supported-3A4E6A?style=for-the-badge)
 ![Standalone](https://img.shields.io/badge/Standalone-supported-3A4E6A?style=for-the-badge)
 ![Status](https://img.shields.io/badge/Status-Evolving-5FD1C7?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-1.2.0-blue?style=for-the-badge)
 
 **Funky Moose Rootflow Synth** is an organic, visually reactive software instrument built with **JUCE** and **C++17**.
 
