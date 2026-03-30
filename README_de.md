@@ -35,10 +35,10 @@ Das lebendige visuelle Feld. Es macht Bewegung, Modulation und Interaktion in Ec
 
 ### Root Field / Pulse Field / Ambient Field
 
-Diese Bereiche formen den Klangkoerper:
-
-- **Root Field**: Tiefe, Soil, Anchor und tonale Erdung
-- **Pulse Field**: Rate, Breath, Growth und Bewegung
+Diese Bereiche formen den Klangkoerp### Version 1.2.0 (Aktuell)
+- **High-Performance Oversampling**: Neuer 2x und 4x Modus mit optimierten Polyphase-IIR-Filtern.
+- **DSP Stabilität**: Optimierte Parameter-Updates und Fix für Audio-Artefakte bei hohen Sampling-Raten.
+- **MIDI Synchronisation**: Verbesserte Timing-Präzision im Oversampling-Modus.
 - **Ambient Field**: Air, Ground und Space-Anteil
 
 ## Screenshot

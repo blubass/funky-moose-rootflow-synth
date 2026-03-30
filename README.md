@@ -38,6 +38,11 @@ The living visual field. It reflects movement, modulation and interaction in rea
 
 These sections shape the body of the instrument:
 
+### Version 1.2.0 (Latest)
+- **High-Performance Oversampling**: Added 2x and 4x modes using optimized Polyphase IIR filters.
+- **DSP Engine Stability**: Optimized filter coefficient updates and fixed high-sample-rate audio issues.
+- **Accurate MIDI Sync**: Improved timing synchronization for oversampled processing.
+
 - **Root Field**: depth, soil, anchor and tonal grounding
 - **Pulse Field**: rate, breath, growth and movement
 - **Ambient Field**: air, ground and space balance
