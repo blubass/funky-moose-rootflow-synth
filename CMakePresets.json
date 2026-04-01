@@ -13,7 +13,8 @@
       "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "JUCE_DIR": "$env{HOME}/Developer/JUCE/install/lib/cmake/JUCE-8.0.10"
+        "JUCE_DIR": "$env{HOME}/Developer/JUCE/install/lib/cmake/JUCE-8.0.10",
+        "ROOTFLOW_BUILD_AU": "ON"
       }
     },
     {
@@ -23,7 +24,8 @@
       "binaryDir": "${sourceDir}/build-release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "JUCE_DIR": "$env{HOME}/Developer/JUCE/install/lib/cmake/JUCE-8.0.10"
+        "JUCE_DIR": "$env{HOME}/Developer/JUCE/install/lib/cmake/JUCE-8.0.10",
+        "ROOTFLOW_BUILD_AU": "ON"
       }
     }
   ],

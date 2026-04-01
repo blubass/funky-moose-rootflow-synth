@@ -3,6 +3,25 @@
 
 namespace
 {
+constexpr int editorMinWidth = 960;
+constexpr int editorMinHeight = 690;
+constexpr int editorDefaultWidth = 1240;
+constexpr int editorDefaultHeight = 820;
+
+juce::Rectangle<int> getInitialEditorBounds()
+{
+    auto bounds = juce::Rectangle<int>(editorDefaultWidth, editorDefaultHeight);
+
+    if (auto* display = juce::Desktop::getInstance().getDisplays().getPrimaryDisplay())
+    {
+        const auto availableArea = display->userArea.reduced(32, 32);
+        bounds.setSize(juce::jmin(editorDefaultWidth, juce::jmax(editorMinWidth, availableArea.getWidth())),
+                       juce::jmin(editorDefaultHeight, juce::jmax(editorMinHeight, availableArea.getHeight())));
+    }
+
+    return bounds;
+}
+
 int getHeaderHeightForSize(int editorHeight)
 {
     return juce::jlimit(72, 80, juce::roundToInt((float) editorHeight * 0.095f));
@@ -238,7 +257,7 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
     setLookAndFeel(&look);
     setOpaque(true);
     setResizable(true, true);
-    setResizeLimits(960, 690, 1800, 1300);
+    setResizeLimits(editorMinWidth, editorMinHeight, 1800, 1300);
 
     styleKeyboardDrawer(keyboardDrawer);
 
@@ -405,7 +424,8 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
 
     refreshHeaderControlState();
     updateAnimationTimerState();
-    setSize(1240, 820);
+    const auto initialBounds = getInitialEditorBounds();
+    setSize(initialBounds.getWidth(), initialBounds.getHeight());
 
     // Overlay MUST be added LAST so it sits on top of every other child in Z-order
     addAndMakeVisible(atmosphericOverlay);

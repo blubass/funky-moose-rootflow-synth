@@ -191,6 +191,19 @@ private:
     void requestProcessingStateReset() noexcept;
     void performPendingProcessingStateReset() noexcept;
 
+    // --- Modular Helpers for prepareToPlay & processBlock ---
+    void prepareOversampling(double sr, int bs);
+    void prepareSynth(double sampleRate, int blockSize);
+    void prepareEffects(double sampleRate, int blockSize, int numChannels);
+    void resetRuntimeState();
+
+    bool handleOversamplingChangeIfNeeded(juce::AudioBuffer<float>& buffer);
+    void clearUnusedOutputChannels(juce::AudioBuffer<float>& buffer);
+    void renderSynthAndVoices(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages);
+    void applyGlobalFx(juce::AudioBuffer<float>& buffer);
+    void applyOutputSafety(juce::AudioBuffer<float>& buffer);
+    void updateMetersAndFft(const juce::AudioBuffer<float>& buffer);
+
     std::atomic<int> currentPresetDirty { 0 };
     std::atomic<int> presetLoadInProgress { 0 };
     std::atomic<int> processingStateResetPending { 0 };

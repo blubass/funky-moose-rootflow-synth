@@ -509,7 +509,19 @@ bool RootFlowAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts)
 void RootFlowAudioProcessor::prepareToPlay(double sr, int bs)
 {
     const auto safeSampleRateBase = sr > 0.0 ? sr : 44100.0;
-    
+
+    prepareOversampling(safeSampleRateBase, bs);
+
+    const double safeSampleRate = safeSampleRateBase * (1 << currentOversamplingFactor);
+    const int safeBlockSize = juce::jmax(bs, 1) * (1 << currentOversamplingFactor);
+
+    prepareSynth(safeSampleRate, safeBlockSize);
+    prepareEffects(safeSampleRate, safeBlockSize, juce::jmax(1, getTotalNumOutputChannels()));
+    resetRuntimeState();
+}
+
+void RootFlowAudioProcessor::prepareOversampling(double sr, int bs)
+{
     currentOversamplingFactor = (int)*tree.getRawParameterValue("oversampling");
     if (currentOversamplingFactor > 0)
     {
@@ -523,16 +535,16 @@ void RootFlowAudioProcessor::prepareToPlay(double sr, int bs)
     {
         oversampling.reset();
     }
+}
 
-    const double safeSampleRate = safeSampleRateBase * (1 << currentOversamplingFactor);
-    const int safeBlockSize = juce::jmax(bs, 1) * (1 << currentOversamplingFactor);
-
+void RootFlowAudioProcessor::prepareSynth(double safeSampleRate, int safeBlockSize)
+{
     resetMidiExpressionState();
     synth.clearVoices();
-    for (int i = 0; i < 32; ++i)
+    for (int i = 0; i < 64; ++i)
     {
         auto* voice = new RootFlowVoice();
-        voice->setEngine(&modulation); // Link to bio-feedback engine
+        voice->setEngine(&modulation);
         voice->setMidiExpressionState(&midiExpressionState);
         voice->setSampleRate(safeSampleRate, safeBlockSize);
         synth.addVoice(voice);
@@ -543,11 +555,11 @@ void RootFlowAudioProcessor::prepareToPlay(double sr, int bs)
     synth.setNoteStealingEnabled(true);
     synth.setCurrentPlaybackSampleRate(safeSampleRate);
     synth.setMinimumRenderingSubdivisionSize(4, false);
-    drySafetyBuffer.setSize(juce::jmax(1, getTotalNumOutputChannels()),
-                            safeBlockSize,
-                            false,
-                            false,
-                            true);
+}
+
+void RootFlowAudioProcessor::prepareEffects(double safeSampleRate, int safeBlockSize, int numChannels)
+{
+    drySafetyBuffer.setSize(numChannels, safeBlockSize, false, false, true);
     drySafetyBuffer.clear();
 
     modulation.prepare(safeSampleRate, safeBlockSize);
@@ -555,7 +567,7 @@ void RootFlowAudioProcessor::prepareToPlay(double sr, int bs)
     juce::dsp::ProcessSpec fxSpec;
     fxSpec.sampleRate = safeSampleRate;
     fxSpec.maximumBlockSize = (juce::uint32) safeBlockSize;
-    fxSpec.numChannels = (juce::uint32) juce::jmax(1, getTotalNumOutputChannels());
+    fxSpec.numChannels = (juce::uint32) numChannels;
 
     bloom.prepare(fxSpec);
     rain.prepare(fxSpec);
@@ -611,6 +623,10 @@ void RootFlowAudioProcessor::prepareToPlay(double sr, int bs)
     soilToneCutoffSmoothed.setCurrentAndTargetValue(3600.0f);
     testToneLevelSmoothed.reset(safeSampleRate, 0.04);
     testToneLevelSmoothed.setCurrentAndTargetValue(isTestToneEnabled() ? 1.0f : 0.0f);
+}
+
+void RootFlowAudioProcessor::resetRuntimeState()
+{
     soilBodyState.fill(0.0f);
     soilToneState.fill(0.0f);
     postFxDcBlockPrevInput.fill(0.0f);
@@ -623,828 +639,52 @@ void RootFlowAudioProcessor::prepareToPlay(double sr, int bs)
     postFxSafetyBypassBlocksRemaining = 0;
 }
 
-void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
-                                          juce::MidiBuffer& midiMessages)
+void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
 
-    const int numSamplesOriginal = buffer.getNumSamples();
-    const int numChannelsOriginal = buffer.getNumChannels();
-
-    if (numSamplesOriginal <= 0 || numChannelsOriginal <= 0)
+    if (buffer.getNumSamples() <= 0 || buffer.getNumChannels() <= 0)
         return;
 
-    const int targetOversamplingFactor = (int)*tree.getRawParameterValue("oversampling");
-    if (targetOversamplingFactor != currentOversamplingFactor)
-    {
-        prepareToPlay(getSampleRate(), getBlockSize());
-        buffer.clear();
+    if (handleOversamplingChangeIfNeeded(buffer))
         return;
-    }
 
-    buffer.clear();
+    clearUnusedOutputChannels(buffer);
     performPendingProcessingStateReset();
-
-    const float evolution = *tree.getRawParameterValue("evolution");
-    const float evolutionGrowth = juce::jlimit(0.0f, 1.0f, evolution / 0.65f);
-    const float evolutionDecay  = juce::jlimit(0.0f, 1.0f, (evolution - 0.70f) / 0.30f);
-
-    std::array<float, 16> baseValues {{
-        *tree.getRawParameterValue("rootDepth"),
-        *tree.getRawParameterValue("rootSoil"),
-        *tree.getRawParameterValue("rootAnchor"),
-        *tree.getRawParameterValue("sapFlow"),
-        *tree.getRawParameterValue("sapVitality"),
-        *tree.getRawParameterValue("sapTexture"),
-        *tree.getRawParameterValue("pulseRate"),
-        *tree.getRawParameterValue("pulseBreath"),
-        *tree.getRawParameterValue("pulseGrowth"),
-        *tree.getRawParameterValue("canopy"),
-        *tree.getRawParameterValue("atmosphere"),
-        *tree.getRawParameterValue("instability"),
-        *tree.getRawParameterValue("bloom"),
-        *tree.getRawParameterValue("rain"),
-        *tree.getRawParameterValue("sun"),
-        *tree.getRawParameterValue("ecoSystem")
-    }};
-
-    // --- EVOLUTION MACRO MORPHING ---
-    // Seed -> Bloom -> Decay Logic
-    
-    // 1. Soil (Release): Shorter at 0%, grows long, even longer at decay
-    baseValues[1]  = juce::jlimit(0.0f, 1.0f, baseValues[1] * (0.05f + evolutionGrowth * 0.95f + evolutionDecay * 0.6f));
-    // 2. Sap Flow (Harmonics/Presence): Grows with evolution
-    baseValues[3]  = juce::jlimit(0.0f, 1.0f, baseValues[3] * (0.2f + evolutionGrowth * 0.8f));
-    // 3. Texture: Increases in Bloom, becomes noisy/chaotic in Decay
-    baseValues[5]  = juce::jlimit(0.0f, 1.0f, baseValues[5] * (0.3f + evolutionGrowth * 0.7f) + evolutionDecay * 0.4f);
-    // 4. Instability: Minimal until Bloom, then massive increase towards Decay
-    baseValues[11] = juce::jlimit(0.0f, 1.0f, baseValues[11] + evolutionDecay * 0.75f + (evolutionGrowth * 0.08f));
-    // 5. Bloom & Rain FX: Fade in as the plant grows
-    baseValues[12] = juce::jlimit(0.0f, 1.0f, baseValues[12] * (evolutionGrowth * 0.85f + evolutionDecay * 1.5f));
-    baseValues[13] = juce::jlimit(0.0f, 1.0f, baseValues[13] * (evolutionGrowth * 0.80f + evolutionDecay * 0.9f));
-    // 6. Canopy: Fullest at peak Bloom (0.65), then starts to wither (Decay)
-    float canopyMorph = 1.0f - std::abs(evolution - 0.65f) * 1.3f;
-    baseValues[9]  = juce::jlimit(0.0f, 1.0f, baseValues[9] * (0.4f + juce::jmax(0.0f, canopyMorph) * 0.6f));
-
-    std::array<float, 16> modulationValues {};
-
-    {
-        const juce::ScopedLock nodeLock(nodeSystem.getLock());
-        const auto& nodes = nodeSystem.getNodes();
-        const auto& connections = nodeSystem.getConnections();
-
-        for (auto& connection : connections)
-        {
-            if (! juce::isPositiveAndBelow(connection.source, (int) nodes.size())
-                || ! juce::isPositiveAndBelow(connection.target, (int) nodes.size()))
-                continue;
-
-            const auto& source = nodes[(size_t) connection.source];
-            const int targetSlot = connection.targetSlot;
-
-            if (targetSlot >= 0 && juce::isPositiveAndBelow(targetSlot, (int) modulationValues.size()))
-                modulationValues[(size_t) targetSlot] += source.value * connection.amount * connection.health;
-        }
-    }
-
-    auto getBlockModulatedValue = [&](size_t index)
-    {
-        return juce::jlimit(0.0f, 1.0f, baseValues[index] + modulationValues[index]);
-    };
-
-    const float rootDepthBase = getBlockModulatedValue(0);
-    const float rootSoilBase = getBlockModulatedValue(1);
-    const float rootAnchorBase = getBlockModulatedValue(2);
-    const float sapFlowBase = getBlockModulatedValue(3);
-    const float sapVitalityBase = getBlockModulatedValue(4);
-    const float sapTextureBase = getBlockModulatedValue(5);
-    const float pulseRateBase = getBlockModulatedValue(6);
-    const float pulseBreathBase = getBlockModulatedValue(7);
-    const float pulseGrowthBase = getBlockModulatedValue(8);
-    const float canopyBase = getBlockModulatedValue(9);
-    const float atmosphereBase = getBlockModulatedValue(10);
-    const float instabilityBase = getBlockModulatedValue(11);
-    const float bloomBase = getBlockModulatedValue(12);
-    const float rainBase = getBlockModulatedValue(13);
-    const float sunBase = getBlockModulatedValue(14);
-    const float seasonMacro = getBlockModulatedValue(15);
-    const auto seasonMorph = getSeasonMorph(seasonMacro);
-
-    auto seasonBlend = [&](float base, float springOffset, float summerOffset, float autumnOffset, float winterOffset)
-    {
-        return juce::jlimit(0.0f, 1.0f,
-                            base
-                            + seasonMorph.spring * springOffset
-                            + seasonMorph.summer * summerOffset
-                            + seasonMorph.autumn * autumnOffset
-                            + seasonMorph.winter * winterOffset);
-    };
-
-    const float rootDepth = emphasizeMacroResponse(seasonBlend(rootDepthBase, 0.22f, 0.12f, 0.18f, -0.32f), 0.015f);
-    const float rootSoil = emphasizeMacroResponse(seasonBlend(rootSoilBase, -0.12f, -0.04f, 0.44f, 0.18f), 0.018f);
-    const float rootAnchor = emphasizeMacroResponse(seasonBlend(rootAnchorBase, -0.42f, -0.15f, 0.24f, 0.48f), 0.012f);
-    const float sapFlow = emphasizeMacroResponse(seasonBlend(sapFlowBase, 0.28f, 0.24f, 0.04f, -0.32f), 0.12f);
-    const float sapVitality = emphasizeMacroResponse(seasonBlend(sapVitalityBase, 0.44f, 0.28f, -0.12f, -0.44f), 0.10f);
-    const float sapTexture = emphasizeMacroResponse(seasonBlend(sapTextureBase, -0.05f, 0.12f, 0.48f, 0.22f), 0.08f);
-    const float pulseRate = emphasizeMacroResponse(seasonBlend(pulseRateBase, 0.48f, 0.18f, -0.22f, -0.44f), 0.008f);
-    const float pulseBreath = emphasizeMacroResponse(seasonBlend(pulseBreathBase, -0.24f, -0.08f, 0.36f, 0.24f), 0.012f);
-    const float pulseGrowth = emphasizeMacroResponse(seasonBlend(pulseGrowthBase, 0.48f, 0.14f, -0.12f, -0.44f), 0.008f);
-    const float canopy = emphasizeMacroResponse(seasonBlend(canopyBase, 0.12f, 0.22f, -0.04f, -0.32f), 0.09f);
-    const float atmosphereAmount = shapeAtmosphereResponse(seasonBlend(atmosphereBase, 0.32f, 0.44f, 0.36f, 0.52f));
-    const float instabilityAmount = emphasizeMacroResponse(seasonBlend(instabilityBase, 0.05f, 0.12f, 0.22f, -0.14f), 0.025f);
-    const float bloomAmount = applySeasonalFxScale(bloomBase, seasonMorph, 0.22f, 0.14f, -0.10f, -0.22f, 0.65f);
-    const float rainAmount = applySeasonalFxScale(rainBase, seasonMorph, 0.08f, -0.02f, 0.38f, 0.12f, 0.85f);
-    const float sunAmount = applySeasonalFxScale(sunBase, seasonMorph, 0.40f, 0.16f, 0.00f, -0.16f, 1.05f);
-    const float hostSampleRate = (float) juce::jmax(1.0, getSampleRate());
-    const float sampleRate = hostSampleRate * (float)(1 << currentOversamplingFactor);
-
-    for (int i = 0; i < synth.getNumVoices(); ++i)
-    {
-        if (auto* voice = dynamic_cast<RootFlowVoice*>(synth.getVoice(i)))
-        {
-            voice->setFlow(sapFlow);
-            voice->setVitality(sapVitality);
-            voice->setTexture(sapTexture);
-            voice->setDepth(rootDepth);
-            voice->setGrowth(pulseGrowth);
-            voice->setPulseRate(pulseRate);
-            voice->setPulseAmount(pulseBreath);
-            voice->setCanopy(canopy);
-            voice->setInstability(instabilityAmount);
-            voice->setWaveform((int)(*tree.getRawParameterValue("oscWave")));
-        }
-    }
-
-    // --- UNISON LOGIC ---
-    int unisonCount = 1;
-    if (seasonMacro > 0.4f)  unisonCount = 2;
-    if (seasonMacro > 0.82f) unisonCount = 3;
-
-    if (unisonCount > 1)
-    {
-        juce::MidiBuffer unisonMidi;
-        for (const auto metadata : midiMessages)
-        {
-            auto msg = metadata.getMessage();
-            int pos = metadata.samplePosition;
-            for (int u = 0; u < unisonCount; ++u)
-                unisonMidi.addEvent(msg, pos);
-        }
-        midiMessages.swapWith(unisonMidi);
-    }
-
     const bool sequencerActive = *tree.getRawParameterValue("sequencerOn") > 0.5f;
-
-    // 1. Process all incoming MIDI events to update internal state (heldMidiNotes)
+    const bool sequencerStateChanged = sequencerActive != sequencerWasEnabled;
     handleIncomingMidiMessages(midiMessages);
-
-    // 2. Update the UI keyboard state BEFORE we filter the MIDI buffer.
-    // This ensures physical key releases are always seen by the UI, preventing sticking keys on the screen.
-    // We only INJECT events from the UI keyboard into the buffer if the sequencer is actually OFF.
-    keyboardState.processNextMidiBuffer(midiMessages, 0, numSamplesOriginal, !sequencerActive);
-
-    // 3. Run the arpeggiator/sequencer logic. 
-    // This will filter physical NoteOn/NoteOff messages from the buffer if active, but they were already processed by the UI above.
-    updateSequencer(numSamplesOriginal, midiMessages);
-    
-    // Transition reset for keyboard state to prevent ghost notes during mode switch
-    if (sequencerActive != sequencerWasEnabled)
-    {
+    keyboardState.processNextMidiBuffer(midiMessages, 0, buffer.getNumSamples(), !sequencerActive);
+    updateSequencer(buffer.getNumSamples(), midiMessages);
+    if (sequencerStateChanged)
         keyboardState.reset();
-        sequencerWasEnabled = sequencerActive; // Sync here as well just in case
-    }
 
-    juce::MidiBuffer oversampledMidi;
-    const int oversamplingMultiplier = 1 << currentOversamplingFactor;
-    for (const auto meta : midiMessages)
-    {
-        oversampledMidi.addEvent(meta.getMessage(), meta.samplePosition * oversamplingMultiplier);
-    }
-
+    // --- Oversampling Wrapper ---
     juce::dsp::AudioBlock<float> originalBlock(buffer);
-    juce::dsp::AudioBlock<float> activeBlock = originalBlock;
-    if (oversampling != nullptr && currentOversamplingFactor > 0)
-    {
-        activeBlock = oversampling->processSamplesUp(originalBlock);
-    }
-    
-    float* activePointers[2] = { activeBlock.getChannelPointer(0), activeBlock.getNumChannels() > 1 ? activeBlock.getChannelPointer(1) : nullptr };
-    juce::AudioBuffer<float> procBuffer (activePointers, (int)activeBlock.getNumChannels(), (int)activeBlock.getNumSamples());
-    const int numSamples = procBuffer.getNumSamples();
-    const int numChannels = procBuffer.getNumChannels();
-
-    synth.renderNextBlock(procBuffer, oversampledMidi, 0, numSamples);
-    
-    jassert(drySafetyBuffer.getNumChannels() >= numChannels);
-    jassert(drySafetyBuffer.getNumSamples() >= numSamples);
-    for (int channel = 0; channel < numChannels; ++channel)
-        drySafetyBuffer.copyFrom(channel, 0, procBuffer, channel, 0, numSamples);
-        
-    float preFxPeak = 0.0f;
-    for (int channel = 0; channel < numChannels; ++channel)
-    {
-        const auto* channelData = procBuffer.getReadPointer(channel);
-        for (int i = 0; i < numSamples; ++i)
-            preFxPeak = juce::jmax(preFxPeak, std::abs(channelData[i]));
-    }
-
-    int activeVoiceCount = 0;
-    for (int i = 0; i < synth.getNumVoices(); ++i)
-    {
-        if (auto* voice = dynamic_cast<RootFlowVoice*>(synth.getVoice(i)))
-            activeVoiceCount += voice->isVoiceActive() ? 1 : 0;
-    }
-
-    modulation.setParams(rootDepth,
-                         rootSoil,
-                         rootAnchor,
-                         sapFlow,
-                         sapVitality,
-                         sapTexture,
-                         pulseRate,
-                         pulseBreath,
-                         pulseGrowth);
-
-    modulation.update(procBuffer);
-    currentBioFeedback = modulation.getBioFeedbackSnapshot();
-    const float plantEnergy = currentBioFeedback.plantEnergy;
-    lastPlantEnergy.store(plantEnergy, std::memory_order_relaxed);
-
-    // --- BPM & BEAT SYNC ---
-    double bpm = 120.0;
-    if (auto* playHead = getPlayHead())
-    {
-        if (auto position = playHead->getPosition())
-        {
-            if (auto bpmOpt = position->getBpm(); bpmOpt && *bpmOpt > 0.0)
-                bpm = *bpmOpt;
-        }
-    }
-
-    float multiplier = 1.0f;
-    float phaseDelta = 0.0f;
-
-    if (hostSampleRate > 0.0f)
-    {
-        float beatPerSecond = (float)bpm / 60.0f;
-        phaseDelta = (beatPerSecond * multiplier) / hostSampleRate;
-
-        float currentPhase = beatPhase.load();
-        currentPhase += phaseDelta * numSamplesOriginal;
-
-        if (std::isnan(currentPhase) || std::isinf(currentPhase))
-            currentPhase = 0.0f;
-
-        if (currentPhase >= 1.0f)
-            currentPhase = std::fmod(currentPhase, 1.0f);
-
-        beatPhase.store(currentPhase);
-    }
-
-    const float ecoRaw = RootFlowDSP::clamp01(*tree.getRawParameterValue("ecoSystem"));
-    const float ecoMaster = std::pow(ecoRaw, 1.35f); // Convex curve: more space for subtle adjustments
-
-    const float seasonalFxLift = seasonMorph.spring * 0.09f
-                               + seasonMorph.summer * 0.14f
-                               + seasonMorph.autumn * 0.12f
-                               - seasonMorph.winter * 0.06f;
-    const float fxEnergy = juce::jlimit(0.0f, 1.0f,
-                                        plantEnergy * (0.46f
-                                                     + seasonMorph.spring * 0.06f
-                                                     + seasonMorph.summer * 0.12f
-                                                     + seasonMorph.autumn * 0.16f
-                                                     + seasonMorph.winter * 0.04f)
-                                        + 0.01f
-                                        + seasonalFxLift * 0.28f) * ecoMaster;
-
-    const bool postFxSafetyBypassActive = postFxSafetyBypassBlocksRemaining > 0;
-
-    bloom.setParams(bloomAmount * ecoMaster,
-                    fxEnergy,
-                    sapVitality,
-                    pulseBreath,
-                    canopy,
-                    rootAnchor);
-    if (! postFxSafetyBypassActive)
-    {
-        bloom.process(procBuffer);
-
-        if (isRealBotanicsPreset())
-        {
-            const float crackleVol = bloomAmount * ecoMaster * 0.06f * (0.2f + fxEnergy);
-            for (int ch = 0; ch < procBuffer.getNumChannels(); ++ch)
-            {
-                float* data = procBuffer.getWritePointer(ch);
-                for (int i = 0; i < procBuffer.getNumSamples(); ++i)
-                {
-                    const float white = botanicsRng.nextFloat() * 2.0f - 1.0f;
-                    soilCrackleState[(size_t)ch] = soilCrackleState[(size_t)ch] * 0.985f + white * 0.015f;
-
-                    float pop = 0.0f;
-                    if (botanicsRng.nextFloat() < 0.0003f)
-                        pop = (botanicsRng.nextFloat() > 0.5f ? 1.0f : -1.0f) * 0.35f;
-
-                    data[i] += (soilCrackleState[(size_t)ch] + pop) * crackleVol;
-                }
-            }
-        }
-    }
-
-    rain.setParams(rainAmount * ecoMaster,
-                   fxEnergy,
-                   sapFlow,
-                   sapTexture,
-                   pulseBreath,
-                   canopy);
-    if (! postFxSafetyBypassActive)
-        rain.process(procBuffer);
-
-    sun.setParams(sunAmount * ecoMaster,
-                  fxEnergy,
-                  rootDepth,
-                  sapVitality,
-                  pulseBreath,
-                  canopy);
-    if (! postFxSafetyBypassActive)
-        sun.process(procBuffer);
-
-    // Strip slow-moving bias from the FX network before the master stage reacts to it.
-    float postFxPeak = postFxSafetyBypassActive ? preFxPeak : 0.0f;
-    auto applyPostFxDcBlock = [this](float sample, int channelIndex)
-    {
-        const float safeInput = sanitizeOutputSample(sample, 1.5f);
-        const float y = safeInput
-                      - postFxDcBlockPrevInput[(size_t) channelIndex]
-                      + postFxDcBlockPole * postFxDcBlockPrevOutput[(size_t) channelIndex];
-        postFxDcBlockPrevInput[(size_t) channelIndex] = safeInput;
-        postFxDcBlockPrevOutput[(size_t) channelIndex] = sanitizeOutputSample(y, 1.5f);
-        return postFxDcBlockPrevOutput[(size_t) channelIndex];
-    };
-
-    if (! postFxSafetyBypassActive)
-    {
-        for (int channel = 0; channel < numChannels; ++channel)
-        {
-            auto* channelData = procBuffer.getWritePointer(channel);
-
-            for (int i = 0; i < numSamples; ++i)
-            {
-                const float blockedSample = applyPostFxDcBlock(channelData[i], channel);
-                channelData[i] = blockedSample;
-                postFxPeak = juce::jmax(postFxPeak, std::abs(blockedSample));
-            }
-        }
-    }
-
-    masterDriveSmoothed.setTargetValue(0.90f
-                                       + fxEnergy * 0.18f
-                                       + canopy * 0.12f
-                                       + pulseGrowth * 0.08f
-                                       - seasonMorph.spring * 0.04f
-                                       - seasonMorph.summer * 0.02f
-                                       + seasonMorph.autumn * 0.12f
-                                       + seasonMorph.winter * 0.04f);
-    masterToneCutoffSmoothed.setTargetValue(3200.0f
-                                            + canopy * 3800.0f
-                                            + sapVitality * 2000.0f
-                                            + fxEnergy * 1800.0f
-                                            + seasonMorph.spring * 2000.0f
-                                            + seasonMorph.summer * 980.0f
-                                            - seasonMorph.autumn * 480.0f
-                                            - seasonMorph.winter * 3000.0f);
-    masterCrossfeedSmoothed.setTargetValue(0.006f
-                                           + canopy * 0.014f
-                                           + fxEnergy * 0.008f
-                                           - seasonMorph.spring * 0.004f
-                                           - seasonMorph.summer * 0.008f
-                                           + seasonMorph.autumn * 0.014f
-                                           + seasonMorph.winter * 0.018f);
-    soilDriveSmoothed.setTargetValue(1.04f
-                                     + rootSoil * 1.14f
-                                     + rootDepth * 0.86f
-                                     + currentBioFeedback.tension * 0.12f
-                                     + fxEnergy * 0.06f
-                                     - seasonMorph.spring * 0.03f
-                                     + seasonMorph.summer * 0.01f
-                                     + seasonMorph.autumn * 0.18f
-                                     + seasonMorph.winter * 0.06f);
-    soilMixSmoothed.setTargetValue(0.05f
-                                   + rootSoil * 0.40f
-                                   + rootDepth * 0.26f
-                                   + currentBioFeedback.plantEnergy * 0.04f
-                                   - seasonMorph.spring * 0.02f
-                                   - seasonMorph.summer * 0.01f
-                                   + seasonMorph.autumn * 0.10f
-                                   + seasonMorph.winter * 0.03f);
-    soilBodyCutoffSmoothed.setTargetValue(180.0f
-                                          + rootSoil * 300.0f
-                                          + rootDepth * 90.0f
-                                          + currentBioFeedback.growthCycle * 110.0f
-                                          - seasonMorph.spring * 65.0f
-                                          + seasonMorph.autumn * 160.0f
-                                          + seasonMorph.winter * 55.0f);
-    soilToneCutoffSmoothed.setTargetValue(2100.0f
-                                          + canopy * 2300.0f
-                                          + (1.0f - rootSoil) * 700.0f
-                                          + sapVitality * 600.0f
-                                          + seasonMorph.spring * 760.0f
-                                          + seasonMorph.summer * 220.0f
-                                          - seasonMorph.autumn * 260.0f
-                                          - seasonMorph.winter * 1300.0f);
-
-    if (auto* mixParam = tree.getRawParameterValue("masterMix"))
-        masterMixSmoothed.setTargetValue(mixParam->load());
-
-    if (auto* freqParam = tree.getRawParameterValue("monoMakerFreq"))
-        monoMakerFreqSmoothed.setTargetValue(freqParam->load());
-
-    if (auto* toggleParam = tree.getRawParameterValue("monoMakerToggle"))
-        monoMakerEnabled.store(toggleParam->load() > 0.5f, std::memory_order_relaxed);
-
-    auto* leftData = procBuffer.getWritePointer(0);
-    auto* rightData = numChannels > 1 ? procBuffer.getWritePointer(1) : nullptr;
-    const float testTonePhaseDelta = juce::MathConstants<double>::twoPi * 440.0 / (double) sampleRate;
-    const float springAirMix = seasonMorph.spring * 0.22f;
-    const float summerAirMix = seasonMorph.summer * 0.10f;
-    const float autumnBodyMix = seasonMorph.autumn * 0.18f;
-    const float winterStill = seasonMorph.winter * 0.16f;
-    const float seasonOutputTrim = 1.08f
-                                 + seasonMorph.spring * 0.05f
-                                 + seasonMorph.summer * 0.04f
-                                 - seasonMorph.autumn * 0.01f
-                                 - seasonMorph.winter * 0.06f;
-    const float canopyOutputTrim = 1.04f - canopy * 0.02f;
-    const float frostMix = seasonMorph.winter * 0.12f;
-    const float frostEdge = 1.0f + seasonMorph.winter * 0.30f;
-    const auto applyFrost = [&](float sample)
-    {
-        const float frozen = std::tanh(sample * frostEdge);
-        const float crystalline = juce::jlimit(-1.0f, 1.0f,
-                                               frozen * (0.96f - seasonMorph.winter * 0.06f)
-                                               + sample * (0.04f + seasonMorph.winter * 0.03f));
-        return juce::jmap(frostMix, sample, crystalline);
-    };
-    testToneLevelSmoothed.setTargetValue(isTestToneEnabled() ? 1.0f : 0.0f);
-
-    // Dynamic Master FX
-    if (auto* compParam = tree.getRawParameterValue("masterCompressor"))
-    {
-        float compVal = compParam->load();
-        if (compVal > 0.01f)
-        {
-            finalCompressor.setThreshold(-compVal * 28.0f); // Up to -28 dB
-            finalCompressor.setRatio(1.0f + compVal * 7.0f); // Up to 8:1
-            finalCompressor.setAttack(12.0f);
-            finalCompressor.setRelease(120.0f);
-            
-            juce::dsp::AudioBlock<float> block(procBuffer);
-            juce::dsp::ProcessContextReplacing<float> context(block);
-            finalCompressor.process(context);
-            
-            // Makeup Gain
-            procBuffer.applyGain(1.0f + compVal * 1.5f);
-        }
-    }
-
-    if (auto* volParam = tree.getRawParameterValue("masterVolume"))
-    {
-        masterVolumeSmoothed.setTargetValue(juce::Decibels::decibelsToGain(volParam->load()));
-    }
-
-    // Master volume will be applied after the saturation loop
-    // No skipping here, we'll pull it in the sample loop
-    bool invalidAudioDetected = false;
-
-    float rawOutputPeak = 0.0f;
-    float finalOutputPeak = 0.0f;
-
-    auto applyOutputDcBlock = [this](float sample, int channelIndex)
-    {
-        const float safeInput = sanitizeOutputSample(sample, 1.5f);
-        const float y = safeInput
-                      - outputDcBlockPrevInput[(size_t) channelIndex]
-                      + outputDcBlockPole * outputDcBlockPrevOutput[(size_t) channelIndex];
-        outputDcBlockPrevInput[(size_t) channelIndex] = safeInput;
-        outputDcBlockPrevOutput[(size_t) channelIndex] = sanitizeOutputSample(y, 1.5f);
-        return outputDcBlockPrevOutput[(size_t) channelIndex];
-    };
-    // Recovery paths reset the entire post-FX/master chain together so a bad block
-    // does not keep re-entering the same muted or runaway state.
-    auto resetPostFxState = [&, this]()
-    {
-        bloom.reset();
-        rain.reset();
-        sun.reset();
-        for (auto& filter : masterToneFilters)
-        {
-            filter.reset();
-            filter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
-            filter.setResonance(0.52f);
-            filter.setCutoffFrequency(clampStateVariableCutoff(masterToneCutoffSmoothed.getCurrentValue(), sampleRate));
-        }
-
-        for (auto& filter : monoMakerFilters)
-        {
-            filter.reset();
-            filter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
-            filter.setCutoffFrequency(clampStateVariableCutoff(monoMakerFreqSmoothed.getCurrentValue(), sampleRate));
-        }
-
-        soilBodyState.fill(0.0f);
-        soilToneState.fill(0.0f);
-        postFxDcBlockPrevInput.fill(0.0f);
-        postFxDcBlockPrevOutput.fill(0.0f);
-        outputDcBlockPrevInput.fill(0.0f);
-        outputDcBlockPrevOutput.fill(0.0f);
-    };
-    auto restoreDrySafetyBuffer = [&, this]()
-    {
-        postFxDcBlockPrevInput.fill(0.0f);
-        postFxDcBlockPrevOutput.fill(0.0f);
-        outputDcBlockPrevInput.fill(0.0f);
-        outputDcBlockPrevOutput.fill(0.0f);
-        finalOutputPeak = 0.0f;
-
-        for (int channel = 0; channel < numChannels; ++channel)
-        {
-            const auto* dryData = drySafetyBuffer.getReadPointer(channel);
-            auto* outData = procBuffer.getWritePointer(channel);
-
-            for (int i = 0; i < numSamples; ++i)
-            {
-                const float safeDry = sanitizeOutputSample(dryData[i], outputSafetyLimit);
-                outData[i] = safeDry;
-                finalOutputPeak = juce::jmax(finalOutputPeak, std::abs(safeDry));
-            }
-        }
-
-        currentOutputPeak.store(finalOutputPeak, std::memory_order_relaxed);
-    };
-
-    if (postFxSafetyBypassActive)
-    {
-        restoreDrySafetyBuffer();
-        postFxSafetyBypassBlocksRemaining = juce::jmax(0, postFxSafetyBypassBlocksRemaining - 1);
-    }
-    else 
-    {
-        for (int i = 0; i < numSamples; ++i)
-        {
-            const float drive = masterDriveSmoothed.getNextValue();
-            const float toneCutoff = masterToneCutoffSmoothed.getNextValue();
-            const float crossfeed = masterCrossfeedSmoothed.getNextValue();
-            const float soilDrive = soilDriveSmoothed.getNextValue();
-            const float soilMix = soilMixSmoothed.getNextValue();
-            const float driveComp = 1.0f / (1.0f + juce::jmax(0.0f, drive - 1.0f) * 0.85f);
-            const float targetVol = masterVolumeSmoothed.getNextValue();
-
-            const float soilBodyCoeff = onePoleCoeffFromCutoff(soilBodyCutoffSmoothed.getNextValue(), sampleRate);
-            const float soilToneCoeff = onePoleCoeffFromCutoff(soilToneCutoffSmoothed.getNextValue(), sampleRate);
-            
-            masterToneFilters[0].setCutoffFrequency(clampStateVariableCutoff(toneCutoff * 0.985f, sampleRate));
-            if (rightData != nullptr)
-                masterToneFilters[1].setCutoffFrequency(clampStateVariableCutoff(toneCutoff * 1.015f, sampleRate));
-
-            const float rawDryL = leftData[i];
-            const float rawDryR = rightData != nullptr ? rightData[i] : rawDryL;
-            invalidAudioDetected = invalidAudioDetected
-                                || (! std::isfinite(rawDryL))
-                                || (rightData != nullptr && ! std::isfinite(rawDryR));
-
-            const float dryL = sanitizeOutputSample(rawDryL, 1.5f);
-            const float dryR = sanitizeOutputSample(rawDryR, 1.5f);
-            const float glueL = dryL + dryR * crossfeed * 0.5f;
-            const float glueR = dryR + dryL * crossfeed * 0.5f;
-
-            soilBodyState[0] += soilBodyCoeff * (glueL - soilBodyState[0]);
-            const float soilBias = 0.02f + soilMix * 0.08f;
-            const float earthyL = glueL + soilBodyState[0] * (0.08f + soilMix * 0.24f);
-            float soilL = std::tanh(earthyL * soilDrive + soilBias) - std::tanh(soilBias);
-            soilL += 0.10f * std::tanh((earthyL - soilBodyState[0] * 0.18f) * (0.68f + soilDrive * 0.08f));
-            soilToneState[0] += soilToneCoeff * (soilL - soilToneState[0]);
-            const float soilShapedL = soilL * (0.64f + soilMix * 0.04f) + soilToneState[0] * (0.18f - soilMix * 0.02f);
-            const float soilMixedL = glueL * (1.0f - soilMix) + soilShapedL * soilMix;
-
-            float soilMixedR = soilMixedL;
-            if (rightData != nullptr)
-            {
-                soilBodyState[1] += soilBodyCoeff * (glueR - soilBodyState[1]);
-                const float earthyR = glueR + soilBodyState[1] * (0.08f + soilMix * 0.24f);
-                float soilR = std::tanh(earthyR * soilDrive + soilBias) - std::tanh(soilBias);
-                soilR += 0.10f * std::tanh((earthyR - soilBodyState[1] * 0.18f) * (0.68f + soilDrive * 0.08f));
-                soilToneState[1] += soilToneCoeff * (soilR - soilToneState[1]);
-                const float soilShapedR = soilR * (0.64f + soilMix * 0.04f) + soilToneState[1] * (0.18f - soilMix * 0.02f);
-                soilMixedR = glueR * (1.0f - soilMix) + soilShapedR * soilMix;
-            }
-
-            const float outDryL = soilMixedL;
-            const float outDryR = soilMixedR;
-            float tonedL = masterToneFilters[0].processSample(0, soilMixedL);
-            float tonedR = rightData != nullptr ? masterToneFilters[1].processSample(0, soilMixedR) : tonedL;
-
-            const float airyL = soilMixedL - tonedL;
-            tonedL += airyL * (springAirMix + summerAirMix);
-            tonedL = juce::jmap(autumnBodyMix, tonedL, tonedL + soilBodyState[0] * 0.18f);
-            tonedL *= 1.0f - winterStill * 0.12f;
-
-            if (rightData != nullptr)
-            {
-                const float airyR = soilMixedR - tonedR;
-                tonedR += airyR * (springAirMix + summerAirMix);
-                tonedR = juce::jmap(autumnBodyMix, tonedR, tonedR + soilBodyState[1] * 0.18f);
-                tonedR *= 1.0f - winterStill * 0.12f;
-            }
-
-            if (frostMix > 0.001f)
-            {
-                tonedL = applyFrost(tonedL);
-                if (rightData != nullptr)
-                    tonedR = applyFrost(tonedR);
-            }
-
-            const float drivenL = std::tanh(tonedL * drive) * driveComp * 0.98f;
-            float finalL = juce::jmap(juce::jlimit(0.0f, 0.24f, juce::jmax(0.0f, drive - 1.0f) * 0.40f),
-                                      tonedL,
-                                      drivenL) * seasonOutputTrim * canopyOutputTrim;
-            const float mix = masterMixSmoothed.getNextValue();
-            const float monoFreq = monoMakerFreqSmoothed.getNextValue();
-            const bool monoEnabled = monoMakerEnabled.load(std::memory_order_relaxed);
-            if (rightData != nullptr)
-            {
-                const float drivenR = std::tanh(tonedR * drive) * driveComp * 0.98f;
-                float finalR = juce::jmap(juce::jlimit(0.0f, 0.24f, juce::jmax(0.0f, drive - 1.0f) * 0.40f),
-                                          tonedR,
-                                          drivenR) * seasonOutputTrim * canopyOutputTrim;
-
-                if (monoEnabled)
-                {
-                    masterToneFilters[0].setCutoffFrequency(clampStateVariableCutoff(monoFreq, sampleRate));
-                    masterToneFilters[1].setCutoffFrequency(clampStateVariableCutoff(monoFreq, sampleRate));
-                    const float lowL = masterToneFilters[0].processSample(0, finalL);
-                    const float lowR = masterToneFilters[1].processSample(0, finalR);
-                    const float highL = finalL - lowL;
-                    const float highR = finalR - lowR;
-                    const float monoLow = (lowL + lowR) * 0.5f;
-
-                    finalL = monoLow + highL;
-                    finalR = monoLow + highR;
-                }
-
-                finalL = finalL * mix + outDryL * (1.0f - mix);
-                finalR = finalR * mix + outDryR * (1.0f - mix);
-
-                // Final Master Volume
-                finalL *= targetVol;
-                finalR *= targetVol;
-
-                invalidAudioDetected = invalidAudioDetected || (! std::isfinite(finalL)) || (! std::isfinite(finalR));
-                rawOutputPeak = juce::jmax(rawOutputPeak, std::abs(finalL));
-                rawOutputPeak = juce::jmax(rawOutputPeak, std::abs(finalR));
-                finalL = applyOutputDcBlock(finalL, 0);
-                finalR = applyOutputDcBlock(finalR, 1);
-
-                leftData[i] = sanitizeOutputSample(finalL, outputSafetyLimit);
-                rightData[i] = sanitizeOutputSample(finalR, outputSafetyLimit);
-                finalOutputPeak = juce::jmax(finalOutputPeak, std::abs(leftData[i]));
-                finalOutputPeak = juce::jmax(finalOutputPeak, std::abs(rightData[i]));
-            }
-            else
-            {
-                const float testTone = std::sin(testTonePhase) * 0.06f * testToneLevelSmoothed.getNextValue();
-                finalL += testTone;
-                finalL = finalL * mix + outDryL * (1.0f - mix);
-                
-                finalL *= targetVol;
-
-                invalidAudioDetected = invalidAudioDetected || (! std::isfinite(finalL));
-                rawOutputPeak = juce::jmax(rawOutputPeak, std::abs(finalL));
-                finalL = applyOutputDcBlock(finalL, 0);
-                leftData[i] = sanitizeOutputSample(finalL, outputSafetyLimit);
-                finalOutputPeak = juce::jmax(finalOutputPeak, std::abs(leftData[i]));
-            }
-
-            testTonePhase += testTonePhaseDelta;
-            if (testTonePhase >= juce::MathConstants<double>::twoPi)
-                testTonePhase -= juce::MathConstants<double>::twoPi;
-        }
-    }
+    juce::dsp::AudioBlock<float> oversampledBlock;
+    juce::dsp::AudioBlock<float>* activeBlockPtr = &originalBlock;
 
     if (oversampling != nullptr && currentOversamplingFactor > 0)
     {
-        oversampling->processSamplesDown(originalBlock);
+        oversampledBlock = oversampling->processSamplesUp(originalBlock);
+        activeBlockPtr = &oversampledBlock;
     }
 
-    if (invalidAudioDetected)
+    float* pointers[2] = { activeBlockPtr->getChannelPointer(0), activeBlockPtr->getNumChannels() > 1 ? activeBlockPtr->getChannelPointer(1) : nullptr };
+    juce::AudioBuffer<float> procBuffer(pointers, (int)activeBlockPtr->getNumChannels(), (int)activeBlockPtr->getNumSamples());
+
+    renderSynthAndVoices(procBuffer, midiMessages);
+
+    applyGlobalFx(procBuffer);
+
+    if (oversampling != nullptr && currentOversamplingFactor > 0)
     {
-        for (int i = 0; i < synth.getNumVoices(); ++i)
-        {
-            if (auto* voice = dynamic_cast<RootFlowVoice*>(synth.getVoice(i)))
-                voice->reset();
-        }
-
-        resetPostFxState();
-        outputSilenceWatchdogBlocks = 0;
-        outputRunawayWatchdogBlocks = 0;
-        postFxSafetyBypassBlocksRemaining = 0;
-    }
-    else
-    {
-        const bool fxStageMutedUnexpectedly = preFxPeak > silenceWatchdogPreFxThreshold
-                                           && postFxPeak < silenceWatchdogPostFxThreshold
-                                           && postFxPeak < preFxPeak * 0.04f;
-        const bool masterStageMutedUnexpectedly = postFxPeak > silenceWatchdogPreFxThreshold
-                                               && finalOutputPeak < silenceWatchdogPostFxThreshold
-                                               && finalOutputPeak < postFxPeak * 0.04f;
-        const bool fxChainMutedUnexpectedly = fxStageMutedUnexpectedly || masterStageMutedUnexpectedly;
-        const bool activeVoicesWentSilent = activeVoiceCount > 0
-                                         && preFxPeak < silenceWatchdogPostFxThreshold
-                                         && finalOutputPeak < silenceWatchdogPostFxThreshold;
-
-        if (fxChainMutedUnexpectedly || activeVoicesWentSilent)
-        {
-            if (fxChainMutedUnexpectedly && activeVoiceCount > 0)
-            {
-                restoreDrySafetyBuffer();
-                resetPostFxState();
-                postFxSafetyBypassBlocksRemaining = postFxSafetyBypassDurationBlocks;
-            }
-
-            ++outputSilenceWatchdogBlocks;
-
-            if (outputSilenceWatchdogBlocks >= silenceWatchdogTriggerBlocks)
-            {
-                restoreDrySafetyBuffer();
-                for (int i = 0; i < synth.getNumVoices(); ++i)
-                {
-                    if (auto* voice = dynamic_cast<RootFlowVoice*>(synth.getVoice(i)))
-                        voice->recoverFromSilentState();
-                }
-
-                modulation.prepare(sampleRate, numSamples);
-                currentBioFeedback = {};
-                lastPlantEnergy.store(0.0f, std::memory_order_relaxed);
-                resetPostFxState();
-                testTonePhase = 0.0;
-                outputSilenceWatchdogBlocks = 0;
-                outputRunawayWatchdogBlocks = 0;
-                postFxSafetyBypassBlocksRemaining = postFxSafetyBypassDurationBlocks;
-            }
-        }
-        else
-        {
-            outputSilenceWatchdogBlocks = 0;
-        }
-
-        const bool runawayOutputDetected = activeVoiceCount == 0
-                                        && ! isTestToneEnabled()
-                                        && preFxPeak < runawayWatchdogPreFxThreshold
-                                        && rawOutputPeak > runawayWatchdogOutputThreshold;
-
-        if (runawayOutputDetected)
-        {
-            ++outputRunawayWatchdogBlocks;
-
-            if (outputRunawayWatchdogBlocks >= runawayWatchdogTriggerBlocks)
-            {
-                buffer.clear();
-                resetPostFxState();
-                finalOutputPeak = 0.0f;
-                outputRunawayWatchdogBlocks = 0;
-                postFxSafetyBypassBlocksRemaining = 0;
-            }
-        }
-        else
-        {
-            outputRunawayWatchdogBlocks = 0;
-        }
+        juce::dsp::AudioBlock<float> outputBlock(buffer);
+        oversampling->processSamplesDown(outputBlock);
     }
 
-
-    // Feed FFT and track peak
-    float maxPeak = 0.0f;
-    const int numChansUsed = juce::jmin(2, buffer.getNumChannels());
-
-    for (int i = 0; i < numSamplesOriginal; ++i)
-    {
-        float sampleMix = 0.0f;
-        for (int ch = 0; ch < numChansUsed; ++ch)
-        {
-            const float s = buffer.getSample(ch, i);
-            maxPeak = juce::jmax(maxPeak, std::abs(s));
-            sampleMix += s;
-        }
-
-        float mixed = sampleMix * (numChansUsed > 1 ? 0.707f : 1.0f);
-
-        // Update RMS
-        const float alpha = 0.005f;
-        float currentRMS = rmsLevel.load(std::memory_order_relaxed);
-        rmsLevel.store(currentRMS + (std::abs(mixed) - currentRMS) * alpha, std::memory_order_relaxed);
-
-        pushNextSampleIntoFifo(mixed);
-    }
-
-    currentOutputPeak.store(maxPeak, std::memory_order_relaxed);
+    applyOutputSafety(buffer);
+    updateMetersAndFft(buffer);
 }
 
 juce::StringArray RootFlowAudioProcessor::getFactoryPresetNames() const
@@ -2948,4 +2188,338 @@ void RootFlowAudioProcessor::mutatePlant()
 
     // Trigger a visual energy pulse through the neural mycelium
     sequencerTriggered.store(true);
+}
+
+// --- Modular Helpers for processBlock ---
+
+bool RootFlowAudioProcessor::handleOversamplingChangeIfNeeded(juce::AudioBuffer<float>& buffer)
+{
+    if (auto* param = tree.getRawParameterValue("oversampling"))
+    {
+        const int targetOversamplingFactor = (int) param->load();
+
+        if (targetOversamplingFactor != currentOversamplingFactor)
+        {
+            prepareToPlay(getSampleRate(), getBlockSize());
+            buffer.clear();
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void RootFlowAudioProcessor::clearUnusedOutputChannels(juce::AudioBuffer<float>& buffer)
+{
+    const auto totalNumInputChannels  = getTotalNumInputChannels();
+    const auto totalNumOutputChannels = getTotalNumOutputChannels();
+
+    for (int ch = totalNumInputChannels; ch < totalNumOutputChannels; ++ch)
+        buffer.clear(ch, 0, buffer.getNumSamples());
+}
+
+void RootFlowAudioProcessor::applyOutputSafety(juce::AudioBuffer<float>& buffer)
+{
+    const int numChannels = buffer.getNumChannels();
+    const int numSamples  = buffer.getNumSamples();
+
+    float peak = 0.0f;
+
+    for (int ch = 0; ch < numChannels; ++ch)
+    {
+        auto* data = buffer.getWritePointer(ch);
+
+        for (int i = 0; i < numSamples; ++i)
+        {
+            float x = data[i];
+
+            if (!std::isfinite(x))
+                x = 0.0f;
+
+            // Robust limiting at the very end of the chain (Safety First)
+            x = juce::jlimit(-1.0f, 1.0f, x);
+            data[i] = x;
+
+            peak = juce::jmax(peak, std::abs(x));
+        }
+    }
+
+    currentOutputPeak.store(peak, std::memory_order_relaxed);
+}
+
+void RootFlowAudioProcessor::renderSynthAndVoices(juce::AudioBuffer<float>& procBuffer, juce::MidiBuffer& midiMessages)
+{
+    const float evolution = *tree.getRawParameterValue("evolution");
+    const float evolutionGrowth = juce::jlimit(0.0f, 1.0f, evolution / 0.65f);
+    const float evolutionDecay  = juce::jlimit(0.0f, 1.0f, (evolution - 0.70f) / 0.30f);
+
+    std::array<float, 16> baseValues {{
+        *tree.getRawParameterValue("rootDepth"),
+        *tree.getRawParameterValue("rootSoil"),
+        *tree.getRawParameterValue("rootAnchor"),
+        *tree.getRawParameterValue("sapFlow"),
+        *tree.getRawParameterValue("sapVitality"),
+        *tree.getRawParameterValue("sapTexture"),
+        *tree.getRawParameterValue("pulseRate"),
+        *tree.getRawParameterValue("pulseBreath"),
+        *tree.getRawParameterValue("pulseGrowth"),
+        *tree.getRawParameterValue("canopy"),
+        *tree.getRawParameterValue("atmosphere"),
+        *tree.getRawParameterValue("instability"),
+        *tree.getRawParameterValue("bloom"),
+        *tree.getRawParameterValue("rain"),
+        *tree.getRawParameterValue("sun"),
+        *tree.getRawParameterValue("ecoSystem")
+    }};
+
+    // --- EVOLUTION MACRO MORPHING ---
+    baseValues[1]  = juce::jlimit(0.0f, 1.0f, baseValues[1] * (0.05f + evolutionGrowth * 0.95f + evolutionDecay * 0.6f));
+    baseValues[3]  = juce::jlimit(0.0f, 1.0f, baseValues[3] * (0.2f + evolutionGrowth * 0.8f));
+    baseValues[5]  = juce::jlimit(0.0f, 1.0f, baseValues[5] * (0.3f + evolutionGrowth * 0.7f) + evolutionDecay * 0.4f);
+    baseValues[11] = juce::jlimit(0.0f, 1.0f, baseValues[11] + evolutionDecay * 0.75f + (evolutionGrowth * 0.08f));
+    baseValues[12] = juce::jlimit(0.0f, 1.0f, baseValues[12] * (evolutionGrowth * 0.85f + evolutionDecay * 1.5f));
+    baseValues[13] = juce::jlimit(0.0f, 1.0f, baseValues[13] * (evolutionGrowth * 0.80f + evolutionDecay * 0.9f));
+    float canopyMorph = 1.0f - std::abs(evolution - 0.65f) * 1.3f;
+    baseValues[9]  = juce::jlimit(0.0f, 1.0f, baseValues[9] * (0.4f + juce::jmax(0.0f, canopyMorph) * 0.6f));
+
+    std::array<float, 16> modulationValues {};
+    {
+        const juce::ScopedLock nodeLock(nodeSystem.getLock());
+        const auto& nodes = nodeSystem.getNodes();
+        const auto& connections = nodeSystem.getConnections();
+
+        for (auto& connection : connections)
+        {
+            if (!juce::isPositiveAndBelow(connection.source, (int)nodes.size()) || !juce::isPositiveAndBelow(connection.target, (int)nodes.size()))
+                continue;
+
+            const auto& source = nodes[(size_t)connection.source];
+            const int targetSlot = connection.targetSlot;
+            if (targetSlot >= 0 && juce::isPositiveAndBelow(targetSlot, (int)modulationValues.size()))
+                modulationValues[(size_t)targetSlot] += source.value * connection.amount * connection.health;
+        }
+    }
+
+    auto getBlockModulatedValue = [&](size_t index) { return juce::jlimit(0.0f, 1.0f, baseValues[index] + modulationValues[index]); };
+
+    const float seasonMacro = getBlockModulatedValue(15);
+    const auto seasonMorph = getSeasonMorph(seasonMacro);
+    auto seasonBlend = [&](float base, float springOffset, float summerOffset, float autumnOffset, float winterOffset) {
+        return juce::jlimit(0.0f, 1.0f, base + seasonMorph.spring * springOffset + seasonMorph.summer * summerOffset + seasonMorph.autumn * autumnOffset + seasonMorph.winter * winterOffset);
+    };
+
+    const float rootDepth = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(0), 0.22f, 0.12f, 0.18f, -0.32f), 0.015f);
+    const float rootSoil = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(1), -0.12f, -0.04f, 0.44f, 0.18f), 0.018f);
+    const float rootAnchor = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(2), -0.42f, -0.15f, 0.24f, 0.48f), 0.012f);
+    const float sapFlow = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(3), 0.28f, 0.24f, 0.04f, -0.32f), 0.12f);
+    const float sapVitality = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(4), 0.44f, 0.28f, -0.12f, -0.44f), 0.10f);
+    const float sapTexture = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(5), -0.05f, 0.12f, 0.48f, 0.22f), 0.08f);
+    const float pulseRate = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(6), 0.48f, 0.18f, -0.22f, -0.44f), 0.008f);
+    const float pulseBreath = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(7), -0.24f, -0.08f, 0.36f, 0.24f), 0.012f);
+    const float pulseGrowth = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(8), 0.48f, 0.14f, -0.12f, -0.44f), 0.008f);
+    const float canopy = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(9), 0.12f, 0.22f, -0.04f, -0.32f), 0.09f);
+    const float instabilityAmount = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(11), 0.05f, 0.12f, 0.22f, -0.14f), 0.025f);
+
+    for (int i = 0; i < synth.getNumVoices(); ++i)
+    {
+        if (auto* voice = dynamic_cast<RootFlowVoice*>(synth.getVoice(i)))
+        {
+            voice->setFlow(sapFlow); voice->setVitality(sapVitality); voice->setTexture(sapTexture);
+            voice->setDepth(rootDepth); voice->setGrowth(pulseGrowth); voice->setPulseRate(pulseRate);
+            voice->setPulseAmount(pulseBreath); voice->setCanopy(canopy); voice->setInstability(instabilityAmount);
+            voice->setWaveform((int)(*tree.getRawParameterValue("oscWave")));
+        }
+    }
+
+    // Internal voice unison handled via setUnison in the voice loop.
+    for (int i = 0; i < synth.getNumVoices(); ++i)
+    {
+        if (auto* voice = dynamic_cast<RootFlowVoice*>(synth.getVoice(i)))
+        {
+            int voiceVoices = 3; // Default internal unison
+            if (seasonMacro > 0.45f) voiceVoices = 6;
+            if (seasonMacro > 0.85f) voiceVoices = 8;
+            voice->setUnison(voiceVoices);
+        }
+    }
+
+    juce::MidiBuffer oversampledMidi;
+    const int oversamplingMultiplier = 1 << currentOversamplingFactor;
+    for (const auto meta : midiMessages)
+        oversampledMidi.addEvent(meta.getMessage(), meta.samplePosition * oversamplingMultiplier);
+
+    synth.renderNextBlock(procBuffer, oversampledMidi, 0, procBuffer.getNumSamples());
+    
+    const int numChannels = procBuffer.getNumChannels();
+    const int numSamples = procBuffer.getNumSamples();
+    if (drySafetyBuffer.getNumChannels() < numChannels
+        || drySafetyBuffer.getNumSamples() < numSamples)
+        drySafetyBuffer.setSize(numChannels, numSamples, false, false, true);
+
+    for (int channel = 0; channel < numChannels; ++channel)
+        drySafetyBuffer.copyFrom(channel, 0, procBuffer, channel, 0, numSamples);
+
+    modulation.setParams(rootDepth, rootSoil, rootAnchor, sapFlow, sapVitality, sapTexture, pulseRate, pulseBreath, pulseGrowth);
+    modulation.update(procBuffer);
+    currentBioFeedback = modulation.getBioFeedbackSnapshot();
+    lastPlantEnergy.store(currentBioFeedback.plantEnergy, std::memory_order_relaxed);
+}
+
+void RootFlowAudioProcessor::applyGlobalFx(juce::AudioBuffer<float>& procBuffer)
+{
+    const float plantEnergy = currentBioFeedback.plantEnergy;
+    lastPlantEnergy.store(plantEnergy, std::memory_order_relaxed);
+
+    // --- BPM & BEAT SYNC ---
+    double bpm = 120.0;
+    if (auto* playHead = getPlayHead())
+    {
+        if (auto position = playHead->getPosition())
+        {
+            if (auto bpmOpt = position->getBpm(); bpmOpt && *bpmOpt > 0.0)
+                bpm = *bpmOpt;
+        }
+    }
+
+    const float processingSampleRate = (float) juce::jmax(1.0, getSampleRate()) * (float) (1 << currentOversamplingFactor);
+    if (processingSampleRate > 0.0f)
+    {
+        const float beatPerSecond = (float) bpm / 60.0f;
+        const float phaseDelta = beatPerSecond / processingSampleRate;
+        float currentPhase = beatPhase.load() + phaseDelta * (float)procBuffer.getNumSamples();
+        if (std::isnan(currentPhase) || std::isinf(currentPhase)) currentPhase = 0.0f;
+        if (currentPhase >= 1.0f) currentPhase = std::fmod(currentPhase, 1.0f);
+        beatPhase.store(currentPhase);
+    }
+
+    const float ecoRaw = RootFlowDSP::clamp01(*tree.getRawParameterValue("ecoSystem"));
+    const float ecoMaster = std::pow(ecoRaw, 1.35f);
+    const auto seasonMorph = getSeasonMorph(ecoRaw);
+    const float fxEnergy = juce::jlimit(0.0f, 1.0f, plantEnergy * (0.46f + seasonMorph.spring * 0.06f + seasonMorph.summer * 0.12f + seasonMorph.autumn * 0.16f + seasonMorph.winter * 0.04f) + 0.01f) * ecoMaster;
+
+    const float bloomAmount = applySeasonalFxScale(*tree.getRawParameterValue("bloom"), seasonMorph, 0.22f, 0.14f, -0.10f, -0.22f, 0.65f);
+    const float rainAmount = applySeasonalFxScale(*tree.getRawParameterValue("rain"), seasonMorph, 0.08f, -0.02f, 0.38f, 0.12f, 0.85f);
+    const float sunAmount = applySeasonalFxScale(*tree.getRawParameterValue("sun"), seasonMorph, 0.40f, 0.16f, 0.00f, -0.16f, 1.05f);
+
+    bloom.setParams(bloomAmount * ecoMaster, fxEnergy, *tree.getRawParameterValue("sapVitality"), *tree.getRawParameterValue("pulseBreath"), *tree.getRawParameterValue("canopy"), *tree.getRawParameterValue("rootAnchor"));
+    bloom.process(procBuffer);
+
+    rain.setParams(rainAmount * ecoMaster, fxEnergy, *tree.getRawParameterValue("sapFlow"), *tree.getRawParameterValue("sapTexture"), *tree.getRawParameterValue("pulseBreath"), *tree.getRawParameterValue("canopy"));
+    rain.process(procBuffer);
+
+    sun.setParams(sunAmount * ecoMaster, fxEnergy, *tree.getRawParameterValue("rootDepth"), *tree.getRawParameterValue("sapVitality"), *tree.getRawParameterValue("pulseBreath"), *tree.getRawParameterValue("canopy"));
+    sun.process(procBuffer);
+
+    if (auto* mixParam = tree.getRawParameterValue("masterMix"))
+        masterMixSmoothed.setTargetValue(mixParam->load());
+
+    if (auto* freqParam = tree.getRawParameterValue("monoMakerFreq"))
+        monoMakerFreqSmoothed.setTargetValue(freqParam->load());
+
+    if (auto* toggleParam = tree.getRawParameterValue("monoMakerToggle"))
+        monoMakerEnabled.store(toggleParam->load() > 0.5f, std::memory_order_relaxed);
+
+    if (auto* volParam = tree.getRawParameterValue("masterVolume"))
+        masterVolumeSmoothed.setTargetValue(juce::Decibels::decibelsToGain(volParam->load()));
+
+    // --- MASTER STAGE ---
+    const float drive = tree.getRawParameterValue("masterDrive") != nullptr ? tree.getRawParameterValue("masterDrive")->load() : 1.0f;
+    auto* leftData = procBuffer.getWritePointer(0);
+    auto* rightData = procBuffer.getNumChannels() > 1 ? procBuffer.getWritePointer(1) : nullptr;
+
+    auto processMasterSample = [this, drive](float x, int channelIndex)
+    {
+        const float xDrive = x * drive * 0.88f;
+        const float saturated = std::tanh(xDrive) * 0.92f + (xDrive / (1.05f + std::abs(xDrive))) * 0.08f;
+        const float y = saturated
+                      - postFxDcBlockPrevInput[(size_t) channelIndex]
+                      + 0.995f * postFxDcBlockPrevOutput[(size_t) channelIndex];
+        postFxDcBlockPrevInput[(size_t) channelIndex] = saturated;
+        postFxDcBlockPrevOutput[(size_t) channelIndex] = y;
+        return y;
+    };
+
+    for (int i = 0; i < procBuffer.getNumSamples(); ++i)
+    {
+        leftData[i] = processMasterSample(leftData[i], 0);
+        if (rightData != nullptr)
+            rightData[i] = processMasterSample(rightData[i], 1);
+    }
+
+    if (auto* compParam = tree.getRawParameterValue("masterCompressor"))
+    {
+        float compVal = compParam->load();
+        if (compVal > 0.01f)
+        {
+            finalCompressor.setThreshold(-compVal * 28.0f);
+            finalCompressor.setRatio(1.0f + compVal * 7.0f);
+            juce::dsp::AudioBlock<float> block(procBuffer);
+            juce::dsp::ProcessContextReplacing<float> context(block);
+            finalCompressor.process(context);
+            procBuffer.applyGain(1.0f + compVal * 1.5f);
+        }
+    }
+
+    const auto* dryLeft = drySafetyBuffer.getReadPointer(0);
+    const auto* dryRight = drySafetyBuffer.getNumChannels() > 1 ? drySafetyBuffer.getReadPointer(1) : nullptr;
+    const float fxSampleRate = processingSampleRate;
+    const bool monoEnabled = rightData != nullptr && monoMakerEnabled.load(std::memory_order_relaxed);
+
+    for (int i = 0; i < procBuffer.getNumSamples(); ++i)
+    {
+        float wetLeft = leftData[i];
+        float wetRight = rightData != nullptr ? rightData[i] : wetLeft;
+        const float monoFreq = monoMakerFreqSmoothed.getNextValue();
+
+        if (monoEnabled)
+        {
+            monoMakerFilters[0].setCutoffFrequency(clampStateVariableCutoff(monoFreq, fxSampleRate));
+            monoMakerFilters[1].setCutoffFrequency(clampStateVariableCutoff(monoFreq, fxSampleRate));
+
+            const float lowLeft = monoMakerFilters[0].processSample(0, wetLeft);
+            const float lowRight = monoMakerFilters[1].processSample(0, wetRight);
+            const float monoLow = (lowLeft + lowRight) * 0.5f;
+            wetLeft = monoLow + (wetLeft - lowLeft);
+            wetRight = monoLow + (wetRight - lowRight);
+        }
+
+        const float mix = masterMixSmoothed.getNextValue();
+        const float targetVolume = masterVolumeSmoothed.getNextValue();
+        leftData[i] = (wetLeft * mix + dryLeft[i] * (1.0f - mix)) * targetVolume;
+
+        if (rightData != nullptr)
+        {
+            const float dryRightSample = dryRight != nullptr ? dryRight[i] : dryLeft[i];
+            rightData[i] = (wetRight * mix + dryRightSample * (1.0f - mix)) * targetVolume;
+        }
+    }
+}
+
+void RootFlowAudioProcessor::updateMetersAndFft(const juce::AudioBuffer<float>& buffer)
+{
+    float maxPeak = 0.0f;
+    const int numSamples = buffer.getNumSamples();
+    const int numChannels = buffer.getNumChannels();
+
+    for (int i = 0; i < numSamples; ++i)
+    {
+        float sampleMix = 0.0f;
+        for (int ch = 0; ch < juce::jmin(2, numChannels); ++ch)
+        {
+            const float s = buffer.getSample(ch, i);
+            maxPeak = juce::jmax(maxPeak, std::abs(s));
+            sampleMix += s;
+        }
+
+        float mixed = sampleMix * (numChannels > 1 ? 0.707f : 1.0f);
+
+        // Update RMS with a simple smoothing alpha
+        const float alpha = 0.005f;
+        float currentRMS = rmsLevel.load(std::memory_order_relaxed);
+        rmsLevel.store(currentRMS + (std::abs(mixed) - currentRMS) * alpha, std::memory_order_relaxed);
+
+        pushNextSampleIntoFifo(mixed);
+    }
+
+    currentOutputPeak.store(maxPeak, std::memory_order_relaxed);
 }

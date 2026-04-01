@@ -150,13 +150,10 @@ public:
     {
         smoothedMix.setTargetValue(clamp01(rainAmount));
 
-        // Speed of air movement linked to Pulse & Energy
-        modSpeed = 0.0001f + (pulseBreath * 0.0008f) + (plantEnergy * 0.0004f);
-
-        // Base delay time
-        baseDelayMs = 220.0f + (sapFlow * 380.0f);
-        feedback = 0.18f + (sapTexture * 0.32f); // Max 0.50, softer feedback loop
-        modDepth = 35.0f + (canopy * 65.0f);
+        // Base delay time (Standard Delay, no modulation to avoid chirping)
+        baseDelayMs = 280.0f + (sapFlow * 220.0f);
+        feedback = 0.15f + (sapTexture * 0.30f); 
+        modDepth = 0.0f; // No air current modulation
     }
 
     void process(juce::AudioBuffer<float>& buffer)
@@ -170,12 +167,7 @@ public:
 
         for (int i = 0; i < numSamples; ++i)
         {
-            modPhase += modSpeed;
-            if (modPhase > 1.0f) modPhase -= 1.0f;
-
-            float mod = std::sin(modPhase * juce::MathConstants<float>::twoPi);
-            float currentDelayMs = baseDelayMs + mod * modDepth;
-            float delaySamples = currentDelayMs * (float)sampleRate / 1000.0f;
+            float delaySamples = baseDelayMs * (float)sampleRate / 1000.0f;
 
             for (int ch = 0; ch < numChannels; ++ch)
             {
@@ -185,8 +177,8 @@ public:
 
                 // Feedback loop with organic tape saturation & frequency damping
                 float fbRaw = dry + delayed * feedback;
-                tapeLp[ch % 2] = tapeLp[ch % 2] * 0.65f + fbRaw * 0.35f; // Softer one-pole lowpass
-                float fbSignal = std::tanh(tapeLp[ch % 2] * 1.15f); // Slightly saturated for warmth
+                tapeLp[ch % 2] = tapeLp[ch % 2] * 0.72f + fbRaw * 0.28f; // More damping for warmth
+                float fbSignal = std::tanh(tapeLp[ch % 2] * 1.05f); 
                 delay[ch % 2].pushSample(0, fbSignal);
 
                 samples[i] = dry * (1.0f - mix) + delayed * mix;

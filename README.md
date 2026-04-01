@@ -8,7 +8,7 @@
 ![AudioUnit](https://img.shields.io/badge/AudioUnit-supported-3A4E6A?style=for-the-badge)
 ![Standalone](https://img.shields.io/badge/Standalone-supported-3A4E6A?style=for-the-badge)
 ![Status](https://img.shields.io/badge/Status-Evolving-5FD1C7?style=for-the-badge)
-![Version](https://img.shields.io/badge/Version-1.2.0-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-1.3.0-blue?style=for-the-badge)
 
 **Funky Moose Rootflow Synth** is an organic, visually reactive software instrument built with **JUCE** and **C++17**.
 
@@ -38,14 +38,15 @@ The living visual field. It reflects movement, modulation and interaction in rea
 
 These sections shape the body of the instrument:
 
-### Version 1.2.0 (Latest)
-- **High-Performance Oversampling**: Added 2x and 4x modes using optimized Polyphase IIR filters.
-- **DSP Engine Stability**: Optimized filter coefficient updates and fixed high-sample-rate audio issues.
-- **Accurate MIDI Sync**: Improved timing synchronization for oversampled processing.
-
 - **Root Field**: depth, soil, anchor and tonal grounding
 - **Pulse Field**: rate, breath, growth and movement
 - **Ambient Field**: air, ground and space balance
+
+### Version 1.3.0 (Latest)
+- **AU Build Restored**: Audio Unit is enabled again in the default macOS build presets.
+- **Mac Compatibility**: Release builds now target macOS 12 Monterey and ship as universal `arm64` and `x86_64` binaries.
+- **Processor Stability**: Restored keyboard injection, bio-feedback updates, master section routing and oversampling-safe beat timing after the recent audio-path refactor.
+- **Small-Screen Sizing**: The editor now chooses a safer initial size for smaller displays such as 13-inch MacBooks.
 
 ## Screenshot
 
@@ -99,6 +100,12 @@ If your JUCE install lives elsewhere, pass `-DJUCE_DIR=/path/to/JUCE/lib/cmake/J
 - refined visual polish and release packaging
 
 ## Changelog
+
+### [1.3.0] - 2026-04-01
+- **Audio Unit Build**: Re-enabled AU output in the standard CMake presets and validated the installed component with `auval`.
+- **macOS Packaging**: Locked release builds to universal `arm64` and `x86_64` binaries with a Monterey deployment target.
+- **Audio Path Fixes**: Restored keyboard MIDI injection, modulation feedback updates, master mix and mono maker routing, and oversampling-safe beat timing.
+- **UI Sizing**: Improved the initial editor size selection for smaller MacBook displays.
 
 ### [1.2.0] - 2026-03-30
 - **32-Voice Polyphony**: Increased voice count from 16 to 32 for massive chord textures.

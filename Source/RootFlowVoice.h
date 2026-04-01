@@ -60,9 +60,18 @@ public:
     void setGrowth(float v);
     void setCanopy(float v);
     void setInstability(float v);
+    void setUnison(int numVoices) { unisonVoices = juce::jlimit(1, 8, numVoices); }
     void setWaveform(int typeIndex);
     void setMidiExpressionState(const MidiExpressionState* state) { midiExpressionState = state; }
     void setEngine(const RootFlowModulationEngine* e) { engine = e; }
+
+    static inline float sanitizeVoiceSample(float x) noexcept
+    {
+        if (! std::isfinite(x))
+            return 0.0f;
+
+        return juce::jlimit(-1.0f, 1.0f, x);
+    }
 
 private:
     int getActiveMidiChannel() const noexcept;

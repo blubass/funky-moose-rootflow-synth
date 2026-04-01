@@ -8,6 +8,7 @@
 ![AudioUnit](https://img.shields.io/badge/AudioUnit-supported-3A4E6A?style=for-the-badge)
 ![Standalone](https://img.shields.io/badge/Standalone-supported-3A4E6A?style=for-the-badge)
 ![Status](https://img.shields.io/badge/Status-Evolving-5FD1C7?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-1.3.0-blue?style=for-the-badge)
 
 **Funky Moose Rootflow Synth** ist ein organisch reagierendes Software-Instrument, gebaut mit **JUCE** und **C++17**.
 
@@ -35,11 +36,17 @@ Das lebendige visuelle Feld. Es macht Bewegung, Modulation und Interaktion in Ec
 
 ### Root Field / Pulse Field / Ambient Field
 
-Diese Bereiche formen den Klangkoerp### Version 1.2.0 (Aktuell)
-- **High-Performance Oversampling**: Neuer 2x und 4x Modus mit optimierten Polyphase-IIR-Filtern.
-- **DSP Stabilität**: Optimierte Parameter-Updates und Fix für Audio-Artefakte bei hohen Sampling-Raten.
-- **MIDI Synchronisation**: Verbesserte Timing-Präzision im Oversampling-Modus.
-- **Ambient Field**: Air, Ground und Space-Anteil
+Diese Bereiche formen den Klangkoerper des Instruments:
+
+- **Root Field**: Tiefe, Boden, Anker und tonale Erdung
+- **Pulse Field**: Rate, Atem, Wachstum und Bewegung
+- **Ambient Field**: Luft, Boden und Raumanteil
+
+### Version 1.3.0 (Aktuell)
+- **AU-Build wieder aktiv**: Audio Unit wird auf macOS wieder standardmaessig in den CMake-Presets gebaut.
+- **Mac-Kompatibilitaet**: Release-Builds laufen als Universal Binary auf `arm64` und `x86_64` mit Deployment-Target macOS 12 Monterey.
+- **Audio-Refactor stabilisiert**: Keyboard-Injection, Bio-Feedback, Master-Mix, Mono-Maker und oversampling-sicheres Beat-Timing sind wieder sauber verdrahtet.
+- **Besser auf kleinen Displays**: Das Editor-Fenster waehlt auf kleineren Screens wie einem 13-Zoll-MacBook eine entspanntere Startgroesse.
 
 ## Screenshot
 
@@ -91,6 +98,14 @@ Falls JUCE bei dir woanders liegt, gib beim Konfigurieren `-DJUCE_DIR=/path/to/J
 - erweitertes Sequencer-Verhalten
 - besseres Patch- und Preset-Handling
 - verfeinerte Visuals und Release-Pakete
+
+## Changelog
+
+### [1.3.0] - 2026-04-01
+- **Audio Unit Build**: AU in den Standard-Presets wieder aktiviert und lokal per `auval` validiert.
+- **macOS Packaging**: Universal-Build fuer Apple Silicon und Intel mit Monterey als Mindestziel.
+- **Audio-Pfad-Fixes**: Keyboard-MIDI, Modulations-Feedback, Master-Sektion und Oversampling-Timing nach dem Refactor repariert.
+- **UI-Skalierung**: Sicherere Startgroesse fuer kleinere MacBook-Displays.
 
 ## Autor
 
