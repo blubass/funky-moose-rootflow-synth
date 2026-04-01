@@ -510,7 +510,7 @@ void RootFlowAudioProcessor::prepareToPlay(double sr, int bs)
 {
     const auto safeSampleRateBase = sr > 0.0 ? sr : 44100.0;
 
-    prepareOversampling(safeSampleRateBase, bs);
+    prepareOversampling(bs);
 
     const double safeSampleRate = safeSampleRateBase * (1 << currentOversamplingFactor);
     const int safeBlockSize = juce::jmax(bs, 1) * (1 << currentOversamplingFactor);
@@ -520,7 +520,7 @@ void RootFlowAudioProcessor::prepareToPlay(double sr, int bs)
     resetRuntimeState();
 }
 
-void RootFlowAudioProcessor::prepareOversampling(double sr, int bs)
+void RootFlowAudioProcessor::prepareOversampling(int bs)
 {
     currentOversamplingFactor = (int)*tree.getRawParameterValue("oversampling");
     if (currentOversamplingFactor > 0)
@@ -2319,6 +2319,23 @@ void RootFlowAudioProcessor::renderSynthAndVoices(juce::AudioBuffer<float>& proc
     const float pulseGrowth = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(8), 0.48f, 0.14f, -0.12f, -0.44f), 0.008f);
     const float canopy = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(9), 0.12f, 0.22f, -0.04f, -0.32f), 0.09f);
     const float instabilityAmount = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(11), 0.05f, 0.12f, 0.22f, -0.14f), 0.025f);
+    const float bloomAmount = applySeasonalFxScale(getBlockModulatedValue(12), seasonMorph, 0.22f, 0.14f, -0.10f, -0.22f, 0.65f);
+    const float rainAmount = applySeasonalFxScale(getBlockModulatedValue(13), seasonMorph, 0.08f, -0.02f, 0.38f, 0.12f, 0.85f);
+    const float sunAmount = applySeasonalFxScale(getBlockModulatedValue(14), seasonMorph, 0.40f, 0.16f, 0.00f, -0.16f, 1.05f);
+
+    currentProcessingBlockState = {
+        seasonMacro,
+        rootDepth,
+        rootAnchor,
+        sapFlow,
+        sapVitality,
+        sapTexture,
+        pulseBreath,
+        canopy,
+        bloomAmount,
+        rainAmount,
+        sunAmount
+    };
 
     for (int i = 0; i < synth.getNumVoices(); ++i)
     {
@@ -2392,22 +2409,19 @@ void RootFlowAudioProcessor::applyGlobalFx(juce::AudioBuffer<float>& procBuffer)
         beatPhase.store(currentPhase);
     }
 
+    const auto blockState = currentProcessingBlockState;
     const float ecoRaw = RootFlowDSP::clamp01(*tree.getRawParameterValue("ecoSystem"));
     const float ecoMaster = std::pow(ecoRaw, 1.35f);
-    const auto seasonMorph = getSeasonMorph(ecoRaw);
+    const auto seasonMorph = getSeasonMorph(blockState.seasonMacro);
     const float fxEnergy = juce::jlimit(0.0f, 1.0f, plantEnergy * (0.46f + seasonMorph.spring * 0.06f + seasonMorph.summer * 0.12f + seasonMorph.autumn * 0.16f + seasonMorph.winter * 0.04f) + 0.01f) * ecoMaster;
 
-    const float bloomAmount = applySeasonalFxScale(*tree.getRawParameterValue("bloom"), seasonMorph, 0.22f, 0.14f, -0.10f, -0.22f, 0.65f);
-    const float rainAmount = applySeasonalFxScale(*tree.getRawParameterValue("rain"), seasonMorph, 0.08f, -0.02f, 0.38f, 0.12f, 0.85f);
-    const float sunAmount = applySeasonalFxScale(*tree.getRawParameterValue("sun"), seasonMorph, 0.40f, 0.16f, 0.00f, -0.16f, 1.05f);
-
-    bloom.setParams(bloomAmount * ecoMaster, fxEnergy, *tree.getRawParameterValue("sapVitality"), *tree.getRawParameterValue("pulseBreath"), *tree.getRawParameterValue("canopy"), *tree.getRawParameterValue("rootAnchor"));
+    bloom.setParams(blockState.bloomAmount * ecoMaster, fxEnergy, blockState.sapVitality, blockState.pulseBreath, blockState.canopy, blockState.rootAnchor);
     bloom.process(procBuffer);
 
-    rain.setParams(rainAmount * ecoMaster, fxEnergy, *tree.getRawParameterValue("sapFlow"), *tree.getRawParameterValue("sapTexture"), *tree.getRawParameterValue("pulseBreath"), *tree.getRawParameterValue("canopy"));
+    rain.setParams(blockState.rainAmount * ecoMaster, fxEnergy, blockState.sapFlow, blockState.sapTexture, blockState.pulseBreath, blockState.canopy);
     rain.process(procBuffer);
 
-    sun.setParams(sunAmount * ecoMaster, fxEnergy, *tree.getRawParameterValue("rootDepth"), *tree.getRawParameterValue("sapVitality"), *tree.getRawParameterValue("pulseBreath"), *tree.getRawParameterValue("canopy"));
+    sun.setParams(blockState.sunAmount * ecoMaster, fxEnergy, blockState.rootDepth, blockState.sapVitality, blockState.pulseBreath, blockState.canopy);
     sun.process(procBuffer);
 
     if (auto* mixParam = tree.getRawParameterValue("masterMix"))

@@ -164,6 +164,21 @@ private:
         juce::ValueTree state;
     };
 
+    struct ProcessingBlockState
+    {
+        float seasonMacro = 0.34f;
+        float rootDepth = 0.5f;
+        float rootAnchor = 0.5f;
+        float sapFlow = 0.5f;
+        float sapVitality = 0.5f;
+        float sapTexture = 0.5f;
+        float pulseBreath = 0.5f;
+        float canopy = 0.65f;
+        float bloomAmount = 0.0f;
+        float rainAmount = 0.0f;
+        float sunAmount = 0.0f;
+    };
+
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     void handleIncomingMidiMessages(juce::MidiBuffer& midiMessages);
     void addOrReplaceMidiBinding(int channel, int controllerNumber, const juce::String& paramID);
@@ -192,7 +207,7 @@ private:
     void performPendingProcessingStateReset() noexcept;
 
     // --- Modular Helpers for prepareToPlay & processBlock ---
-    void prepareOversampling(double sr, int bs);
+    void prepareOversampling(int bs);
     void prepareSynth(double sampleRate, int blockSize);
     void prepareEffects(double sampleRate, int blockSize, int numChannels);
     void resetRuntimeState();
@@ -223,6 +238,7 @@ private:
     juce::AudioBuffer<float> drySafetyBuffer;
     RootFlowVoice::MidiExpressionState midiExpressionState;
     RootFlowBioFeedbackSnapshot currentBioFeedback;
+    ProcessingBlockState currentProcessingBlockState;
     std::atomic<int> currentFactoryPresetIndex { 0 };
     std::atomic<int> currentUserPresetIndex { -1 };
 
