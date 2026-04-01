@@ -541,7 +541,7 @@ void RootFlowAudioProcessor::prepareSynth(double safeSampleRate, int safeBlockSi
 {
     resetMidiExpressionState();
     synth.clearVoices();
-    for (int i = 0; i < 64; ++i)
+    for (int i = 0; i < 32; ++i)
     {
         auto* voice = new RootFlowVoice();
         voice->setEngine(&modulation);

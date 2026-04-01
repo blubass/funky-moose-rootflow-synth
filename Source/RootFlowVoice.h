@@ -65,14 +65,6 @@ public:
     void setMidiExpressionState(const MidiExpressionState* state) { midiExpressionState = state; }
     void setEngine(const RootFlowModulationEngine* e) { engine = e; }
 
-    static inline float sanitizeVoiceSample(float x) noexcept
-    {
-        if (! std::isfinite(x))
-            return 0.0f;
-
-        return juce::jlimit(-1.0f, 1.0f, x);
-    }
-
 private:
     int getActiveMidiChannel() const noexcept;
     float getPitchBendRangeForChannel(int midiChannel) const noexcept;

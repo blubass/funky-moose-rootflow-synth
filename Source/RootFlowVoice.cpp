@@ -261,44 +261,32 @@ void RootFlowVoice::renderNextBlock(juce::AudioBuffer<float>& buffer,
         float dynamicSpread = 0.22f + (currentEnergy * 0.78f);
 
         // Basis-PWM durch sapFlow (currentFlow) und LFO moduliert
-        float basePw = 0.5f + (lfoVal * currentFlow * 0.42f);
-
-        const float agitationAlpha = 0.08f; // Slow agitation drift instead of per-sample noise
+        float basePw = 0.5f + (lfoVal * currentFlow * 0.45f);
 
         for (int v = 0; v < unisonVoices; ++v)
         {
-            // Per-Unison Drift & Detune (CPU Optimized: minimal math inside sample loop)
+            // Detune per Unison Voice (with unique micro-drift per voice)
             float unisonDetuneInSemis = unisonOffsets[v] * dynamicDetune * 12.0f;
             float voiceDrift = driftInSemis * (1.0f + (float)v * 0.12f);
-            
-            // Analog Component Drift (Slow & Stable)
-            float slowJitter = std::sin((float)i * 0.005f + float(v)) * agitation * 0.25f;
-            float analogWow = std::sin((float)i * 0.0001f + unisonOffsets[v]) * 0.002f;
-            float flutter = (noiseGen.nextFloat() - 0.5f) * 0.001f;
-            float jitter = (noiseGen.nextFloat() - 0.5f) * agitation * 0.12f;
 
-            // CPU OPTIMIZED FREQUENCY: Only update exp2 when semitones or base change
-            // we use an approximation or block-based update if possible
-            // For now: move it slightly up
-            static thread_local float lastExpVal = -999.0f;
-            static thread_local float lastResult = 1.0f;
-            
-            float currentExpArg = (expressivePitchSemitones + detuneBase + voiceDrift + unisonDetuneInSemis + jitter + slowJitter + analogWow + flutter) / 12.0f;
-            
-            // Fast Check: Only call expensive exp2 if significant change
-            if (std::abs(currentExpArg - lastExpVal) > 0.0005f) {
-                lastExpVal = currentExpArg;
-                lastResult = std::exp2(currentExpArg);
-            }
-            
-            float voiceFreq = baseFrequency * lastResult;
+            // Apply analog component drift and instability for "VCO Life"
+            float jitter = (noiseGen.nextFloat() - 0.5f) * agitation;
+            float analogWow = std::sin((float)i * 0.0001f + unisonOffsets[v]) * 0.005f; // Slow tape-like wow
+            float flutter = (noiseGen.nextFloat() - 0.5f) * 0.002f; // Fast flutter
+
+            float voiceFreq = baseFrequency * std::exp2((expressivePitchSemitones + detuneBase + voiceDrift
+                                                         + unisonDetuneInSemis + jitter + analogWow + flutter) / 12.0f);
+
+            // Individuelle Pulse Width per Stimmer für fetteren lebendigen Sound (via sapFlow)
+            float voicePw = basePw + (std::sin(voiceDrift * 15.0f) * currentFlow * 0.15f);
 
             unisonOscillators[v].setFrequency(voiceFreq);
-            unisonOscillators[v].setPulseWidth(basePw + (std::sin(voiceDrift * 15.0f) * currentFlow * 0.12f));
+            unisonOscillators[v].setPulseWidth(voicePw);
             float osc = unisonOscillators[v].nextSample();
 
-            // Panning per Unison Voice (with bio-dynamic spread)
-            float voiceSpreadPan = 0.5f + (unisonOffsets[v]) * dynamicSpread * 0.5f;
+            // Panning per Unison Voice (with randomized movement/bloom)
+            float panMovement = (noiseGen.nextFloat() - 0.5f) * 0.004f;
+            float voiceSpreadPan = 0.5f + (unisonOffsets[v] + panMovement) * dynamicSpread * 0.5f;
 
             leftSum += osc * (1.0f - voiceSpreadPan);
             rightSum += osc * voiceSpreadPan;
@@ -309,20 +297,19 @@ void RootFlowVoice::renderNextBlock(juce::AudioBuffer<float>& buffer,
 
         float subAmt = (currentDepth * currentDepth * 0.74f) + (currentEnergy * 0.18f);
 
-        // Normalize by voices (Optimized for internal unison)
-        const float polyHeadroom = 0.58f; 
-        const float normalization = polyHeadroom / std::sqrt((float) juce::jmax(1, unisonVoices));
-        float leftOne = (leftSum * 0.28f * normalization) + (sSub * subAmt * 0.32f);
-        float rightOne = (rightSum * 0.28f * normalization) + (sSub * subAmt * 0.32f);
+        // Normalize by voices (Power preservation factor)
+        float normalization = 1.0f / std::sqrt((float)unisonVoices);
+        float leftOut = (leftSum * 0.42f * normalization) + (sSub * subAmt * 0.72f);
+        float rightOut = (rightSum * 0.42f * normalization) + (sSub * subAmt * 0.72f);
 
         // Anti-Denormal
         float noise = (noiseGen.nextFloat() * 2.0f - 1.0f) * 1e-18f;
-        leftOne += noise;
-        rightOne += noise;
+        leftOut += noise;
+        rightOut += noise;
 
         // 4. Resonant Filter (SVF) - Independent per channel for stereo
-        float L = sanitizeVoiceSample(filterL.processSample(0, leftOne));
-        float R = sanitizeVoiceSample(filterR.processSample(0, rightOne));
+        float L = filterL.processSample(0, leftOut);
+        float R = filterR.processSample(0, rightOut);
 
         // --- ANALOG WARMTH (Asymmetric Tube Saturation) ---
         // Instead of hard-clipping or symmetric tanh, we use an asymmetric curve
@@ -344,17 +331,21 @@ void RootFlowVoice::renderNextBlock(juce::AudioBuffer<float>& buffer,
         if (currentText > 0.02f)
         {
             float drive = (1.0f + (currentText * currentText * 9.5f)) * (1.1f + currentEnergy * 0.65f) * (0.6f + level * 0.8f);
-            L = sanitizeVoiceSample(tubeSaturate(L, drive));
-            R = sanitizeVoiceSample(tubeSaturate(R, drive));
+            L = tubeSaturate(L, drive);
+            R = tubeSaturate(R, drive);
         }
 
-        // 6. CANOPY AIR (Clean High Boost instead of derivative shimmer)
+        // 6. CANOPY AIR (One-Pole High Shelf) - STABILIZED SHIMMER
         if (currentCanopy > 0.05f)
         {
-            float airLevel = 1.0f + (currentCanopy * 0.22f);
-            L *= airLevel;
-            R *= airLevel;
+            float airGain = currentCanopy * 0.65f;
+            float dL = L - lastLeftFilterOut;
+            float dR = R - lastRightFilterOut;
+            L = L + std::tanh(dL * airGain);
+            R = R + std::tanh(dR * airGain);
         }
+        lastLeftFilterOut = L;
+        lastRightFilterOut = R;
 
         float amMod = 1.0f - (std::abs(lfoVal) * currentPulseA * 0.18f);
         float gain = env * masterScale * amMod;
