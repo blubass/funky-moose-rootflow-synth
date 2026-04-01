@@ -23,6 +23,8 @@ public:
     void mouseExit(const juce::MouseEvent& e) override;
     void mouseDoubleClick(const juce::MouseEvent& e) override;
     void mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel) override;
+    
+    juce::Point<float> getNodePositionRelative(const juce::String& paramID) const;
 
 private:
     void timerCallback() override;

@@ -104,13 +104,23 @@ public:
             float speed = 0.4f + n.value * 1.2f; 
             n.activity  = 0.5f + 0.5f * std::sin(time * speed + float(i));
 
-            // Organic Drift – slower, like deep sea plankton
+            // Organic Drift & Parameter Sync
             if (!n.isDragging)
             {
+                // 1. Sync Y-position to the parameter value (1.0 at top, 0.0 at bottom)
+                // We use a slightly more organic mapping that preserves some vertical layout bias
+                float targetY = 1.0f - n.value;
+                
+                // Springy interpolation to make the movement feel 'solid' and 'plastisch'
+                n.position.y += (targetY - n.position.y) * 0.08f;
+
+                // 2. Slow organic drift for X
                 n.position.x = juce::jlimit(0.05f, 0.95f,
-                    n.position.x + std::sin(time * 0.22f + (float)i * 1.3f) * 0.0002f);
-                n.position.y = juce::jlimit(0.05f, 0.95f,
-                    n.position.y + std::cos(time * 0.18f + (float)i * 1.1f) * 0.0002f);
+                    n.position.x + std::sin(time * 0.22f + (float)i * 1.3f) * 0.0003f);
+                
+                // 3. Add 'Energy' jitter to make them look alive when active
+                n.position.x += std::cos(time * 1.5f + (float)i) * n.energy * 0.0008f;
+                n.position.y += std::sin(time * 1.8f + (float)i * 0.5f) * n.energy * 0.0005f;
             }
         }
 

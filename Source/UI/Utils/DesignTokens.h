@@ -164,31 +164,44 @@ namespace RootFlow
     {
         const float depth = juce::jlimit(1.0f, 8.0f, corner * 0.18f);
         
-        // --- MULTI-LAYERED DEEP SHADOW ---
-        g.setColour(juce::Colours::black.withAlpha(0.40f * glow));
-        g.fillRoundedRectangle(r.translated(0.0f, depth * 1.5f + 2.0f).expanded(4.0f, 2.0f), corner + 4.0f);
+        // --- MULTI-LAYERED DEEP SHADOW (Deeper for 3D feel) ---
+        g.setColour(juce::Colours::black.withAlpha(0.45f * glow));
+        g.fillRoundedRectangle(r.translated(0.0f, depth * 2.0f + 3.0f).expanded(5.0f, 2.5f), corner + 5.0f);
+        g.setColour(juce::Colours::black.withAlpha(0.20f * glow));
+        g.fillRoundedRectangle(r.translated(0.0f, depth * 1.0f + 1.0f).expanded(2.0f, 1.0f), corner + 2.0f);
 
-        // --- THE SEMI-TRANSPARENT GLASS BODY (Glassmorphism Fix) ---
-        juce::ColourGradient panelGrad(panelSoft.brighter(0.12f).withAlpha(0.68f * glow), r.getCentreX(), r.getY(),
-                                       panel.darker(0.18f).withAlpha(0.72f * glow), r.getCentreX(), r.getBottom(), false);
+        // --- THE SEMI-TRANSPARENT GLASS BODY (Glassmorphism with Depth) ---
+        juce::ColourGradient panelGrad(panelSoft.brighter(0.15f).withAlpha(0.72f * glow), r.getCentreX(), r.getY(),
+                                       panel.darker(0.22f).withAlpha(0.76f * glow), r.getCentreX(), r.getBottom(), false);
         g.setGradientFill(panelGrad);
         g.fillRoundedRectangle(r, corner);
 
-        // --- SPECULAR TOP RIM LIGHT ---
-        g.setColour(juce::Colours::white.withAlpha(0.18f * glow));
-        g.drawRoundedRectangle(r.reduced(0.5f), corner, 1.4f);
+        // --- SPECULAR TOP RIM LIGHT (Crisper edge) ---
+        g.setColour(juce::Colours::white.withAlpha(0.24f * glow));
+        g.drawRoundedRectangle(r.reduced(0.5f), corner, 1.6f);
         
-        // --- INTERNAL DEPTH / BEVEL ---
-        juce::ColourGradient upperBevel(juce::Colours::white.withAlpha(0.12f * glow),
+        // --- INTERNAL DEPTH / BEVEL (Simulating glass thickness) ---
+        juce::ColourGradient upperBevel(juce::Colours::white.withAlpha(0.16f * glow),
                                         r.getCentreX(), r.getY() + 1.2f,
                                         juce::Colours::transparentBlack,
                                         r.getCentreX(), r.getY() + r.getHeight() * 0.45f, false);
         g.setGradientFill(upperBevel);
         g.fillRoundedRectangle(r.reduced(1.2f), corner - 1.2f);
 
-        // --- REINFORCED OUTER BORDER ---
-        g.setColour(juce::Colours::cyan.withAlpha(0.22f * glow));
-        g.drawRoundedRectangle(r, corner, 1.8f);
+        juce::ColourGradient lowerOcclusion(juce::Colours::transparentBlack,
+                                            r.getCentreX(), r.getBottom() - r.getHeight() * 0.35f,
+                                            juce::Colours::black.withAlpha(0.14f * glow),
+                                            r.getCentreX(), r.getBottom() - 1.0f, false);
+        g.setGradientFill(lowerOcclusion);
+        g.fillRoundedRectangle(r.reduced(1.4f), corner - 1.4f);
+
+        // --- REINFORCED OUTER BORDER (Bioluminescent Rim) ---
+        g.setColour(juce::Colours::cyan.withAlpha(0.26f * glow));
+        g.drawRoundedRectangle(r, corner, 2.0f);
+        
+        // Sharp Bottom highlight to separate from shadow
+        g.setColour(juce::Colours::white.withAlpha(0.12f * glow));
+        g.drawLine(r.getX() + corner, r.getBottom() - 0.5f, r.getRight() - corner, r.getBottom() - 0.5f, 0.8f);
     }
 
     static inline juce::Path makeOrganicPod(juce::Rectangle<float> r, bool mirror = false)

@@ -674,6 +674,21 @@ void EnergyDisplay::triggerSporeBurst()
     }
 }
 
+juce::Point<float> EnergyDisplay::getNodePositionRelative(const juce::String& paramID) const
+{
+    if (nodeSystem != nullptr)
+    {
+        const juce::ScopedLock sl (nodeSystem->getLock());
+        for (const auto& n : nodeSystem->getNodes())
+        {
+            if (n.paramID == paramID)
+                return n.position;
+        }
+    }
+
+    return { 0.5f, 0.5f };
+}
+
 void EnergyDisplay::resized() {}
 
 int EnergyDisplay::findNodeAt(juce::Point<float> mousePos)

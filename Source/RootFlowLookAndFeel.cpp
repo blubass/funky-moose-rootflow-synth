@@ -81,12 +81,7 @@ void RootFlowLookAndFeel::fillResizableWindowBackground(juce::Graphics& g,
 
 void RootFlowLookAndFeel::drawPanel(juce::Graphics& g, juce::Rectangle<float> r)
 {
-    g.setColour(getPanelColor());
-    g.fillRoundedRectangle(r, 10.0f);
-
-    // Subtile Glow-Field Border
-    g.setColour(getAccentColor().withAlpha(0.08f));
-    g.drawRoundedRectangle(r, 10.0f, 1.0f);
+    RootFlow::drawPanel(g, r);
 }
 
 void RootFlowLookAndFeel::drawRotarySlider(juce::Graphics& g,
@@ -105,36 +100,43 @@ void RootFlowLookAndFeel::drawRotarySlider(juce::Graphics& g,
     const float angle = rotaryStartAngle + sliderPos * (rotaryEndAngle - rotaryStartAngle);
     const float trackRadius = radius - 5.0f;
 
-    g.setColour(juce::Colours::black.withAlpha(0.36f));
-    g.fillEllipse(juce::Rectangle<float>(radius * 2.34f, radius * 2.34f).withCentre(centre.translated(0.0f, 7.0f)));
-    g.setColour(juce::Colours::black.withAlpha(0.20f));
-    g.fillEllipse(juce::Rectangle<float>(radius * 2.16f, radius * 2.16f).withCentre(centre.translated(0.0f, 3.0f)));
-    g.setColour(panel.darker(0.50f).withAlpha(0.94f));
-    g.fillEllipse(juce::Rectangle<float>(radius * 2.10f, radius * 2.10f).withCentre(centre));
+    // Deep Outer Shadow
+    g.setColour(juce::Colours::black.withAlpha(0.42f));
+    g.fillEllipse(juce::Rectangle<float>(radius * 2.38f, radius * 2.38f).withCentre(centre.translated(0.0f, 9.0f)));
+    g.setColour(juce::Colours::black.withAlpha(0.24f));
+    g.fillEllipse(juce::Rectangle<float>(radius * 2.22f, radius * 2.22f).withCentre(centre.translated(0.0f, 4.0f)));
+    
+    // Housing / Socket
+    g.setColour(panel.darker(0.60f).withAlpha(0.96f));
+    g.fillEllipse(juce::Rectangle<float>(radius * 2.12f, radius * 2.12f).withCentre(centre));
 
-    juce::ColourGradient housing(panel.brighter(0.18f), centre.x, centre.y - radius,
-                                 bg.darker(0.34f), centre.x, centre.y + radius, false);
+    juce::ColourGradient housing(panel.brighter(0.22f), centre.x, centre.y - radius,
+                                 bg.darker(0.45f), centre.x, centre.y + radius, false);
     g.setGradientFill(housing);
     g.fillEllipse(juce::Rectangle<float>(radius * 2.0f, radius * 2.0f).withCentre(centre));
 
-    juce::ColourGradient topBulge(juce::Colours::white.withAlpha(0.10f), centre.x, centre.y - radius,
-                                  juce::Colours::transparentBlack, centre.x, centre.y + radius * 0.10f, false);
+    // Top Rim Highlight (Plastisch)
+    juce::ColourGradient topBulge(juce::Colours::white.withAlpha(0.14f), centre.x, centre.y - radius,
+                                  juce::Colours::transparentBlack, centre.x, centre.y + radius * 0.15f, false);
     g.setGradientFill(topBulge);
-    g.fillEllipse(juce::Rectangle<float>(radius * 1.92f, radius * 1.92f).withCentre(centre.translated(0.0f, -1.0f)));
+    g.fillEllipse(juce::Rectangle<float>(radius * 1.94f, radius * 1.94f).withCentre(centre.translated(0.0f, -1.2f)));
 
-    juce::ColourGradient innerShade(juce::Colours::transparentBlack, centre.x, centre.y - radius * 0.10f,
-                                    juce::Colours::black.withAlpha(0.20f), centre.x, centre.y + radius, false);
+    // Inner Recess Shadow
+    juce::ColourGradient innerShade(juce::Colours::transparentBlack, centre.x, centre.y - radius * 0.15f,
+                                    juce::Colours::black.withAlpha(0.28f), centre.x, centre.y + radius, false);
     g.setGradientFill(innerShade);
-    g.fillEllipse(juce::Rectangle<float>(radius * 1.88f, radius * 1.88f).withCentre(centre.translated(0.0f, 0.5f)));
+    g.fillEllipse(juce::Rectangle<float>(radius * 1.90f, radius * 1.90f).withCentre(centre.translated(0.0f, 0.8f)));
 
+    // Fine detail rings for depth
+    g.setColour(juce::Colours::white.withAlpha(0.22f));
+    g.drawEllipse(juce::Rectangle<float>(radius * 1.94f, radius * 1.94f).withCentre(centre.translated(0.0f, -0.6f)), 1.1f);
+    g.setColour(primary.withAlpha(hot ? 0.28f : 0.16f));
+    g.drawEllipse(juce::Rectangle<float>(radius * 2.0f, radius * 2.0f).withCentre(centre), 1.6f);
+    
     g.setColour(juce::Colours::white.withAlpha(0.18f));
-    g.drawEllipse(juce::Rectangle<float>(radius * 1.92f, radius * 1.92f).withCentre(centre.translated(0.0f, -0.4f)), 1.0f);
-    g.setColour(primary.withAlpha(hot ? 0.22f : 0.12f));
-    g.drawEllipse(juce::Rectangle<float>(radius * 2.0f, radius * 2.0f).withCentre(centre), 1.4f);
-    g.setColour(juce::Colours::white.withAlpha(0.16f));
-    g.drawEllipse(juce::Rectangle<float>(radius * 1.76f, radius * 1.76f).withCentre(centre), 0.9f);
-    g.setColour(juce::Colours::black.withAlpha(0.22f));
-    g.drawEllipse(juce::Rectangle<float>(radius * 1.58f, radius * 1.58f).withCentre(centre.translated(0.0f, 1.0f)), 0.8f);
+    g.drawEllipse(juce::Rectangle<float>(radius * 1.78f, radius * 1.78f).withCentre(centre), 1.0f);
+    g.setColour(juce::Colours::black.withAlpha(0.26f));
+    g.drawEllipse(juce::Rectangle<float>(radius * 1.60f, radius * 1.60f).withCentre(centre.translated(0.0f, 1.2f)), 0.9f);
 
     for (int i = 0; i <= 12; ++i)
     {
@@ -164,12 +166,18 @@ void RootFlowLookAndFeel::drawRotarySlider(juce::Graphics& g,
     g.strokePath(valueArc, juce::PathStrokeType(0.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
     auto coreBounds = juce::Rectangle<float>(radius * 1.48f, radius * 1.48f).withCentre(centre);
-    g.setColour(juce::Colours::black.withAlpha(0.28f));
-    g.fillEllipse(coreBounds.expanded(6.0f).translated(0.0f, 5.0f));
-    g.setColour(panel.darker(0.40f).withAlpha(0.92f));
-    g.fillEllipse(coreBounds.expanded(2.0f));
-    juce::ColourGradient coreGrad(secondary.brighter(0.20f).withAlpha(0.94f), coreBounds.getCentreX(), coreBounds.getY(),
-                                  panel.darker(0.12f).withAlpha(0.96f), coreBounds.getCentreX(), coreBounds.getBottom(), false);
+    
+    // Core Shadow
+    g.setColour(juce::Colours::black.withAlpha(0.36f));
+    g.fillEllipse(coreBounds.expanded(8.0f).translated(0.0f, 6.0f));
+    g.setColour(juce::Colours::black.withAlpha(0.18f));
+    g.fillEllipse(coreBounds.expanded(4.0f).translated(0.0f, 2.0f));
+
+    g.setColour(panel.darker(0.45f).withAlpha(0.96f));
+    g.fillEllipse(coreBounds.expanded(2.5f));
+    
+    juce::ColourGradient coreGrad(secondary.brighter(0.25f).withAlpha(0.96f), coreBounds.getCentreX(), coreBounds.getY(),
+                                  panel.darker(0.18f).withAlpha(0.98f), coreBounds.getCentreX(), coreBounds.getBottom(), false);
     g.setGradientFill(coreGrad);
     g.fillEllipse(coreBounds);
 
@@ -208,15 +216,25 @@ void RootFlowLookAndFeel::drawRotarySlider(juce::Graphics& g,
     }
 
     juce::Path pointer;
-    auto pointerRect = juce::Rectangle<float>(radius * 0.19f, radius * 0.98f).withCentre({ centre.x, centre.y - radius * 0.24f });
+    auto pointerRect = juce::Rectangle<float>(radius * 0.20f, radius * 0.98f).withCentre({ centre.x, centre.y - radius * 0.24f });
     pointer.addRoundedRectangle(pointerRect, pointerRect.getWidth() * 0.5f);
     pointer.applyTransform(juce::AffineTransform::rotation(angle, centre.x, centre.y));
-    g.setColour(juce::Colours::black.withAlpha(0.26f));
-    g.fillPath(pointer, juce::AffineTransform::translation(0.0f, 2.0f));
-    g.setColour(primary.withAlpha(0.90f));
+    
+    // Deep physical shadow for the pointer
+    g.setColour(juce::Colours::black.withAlpha(0.34f));
+    g.fillPath(pointer, juce::AffineTransform::translation(0.0f, 3.5f));
+    g.setColour(juce::Colours::black.withAlpha(0.18f));
+    g.fillPath(pointer, juce::AffineTransform::translation(0.0f, 1.8f));
+    
+    g.setColour(primary.withAlpha(0.96f));
     g.fillPath(pointer);
-    g.setColour(juce::Colours::white.withAlpha(0.34f));
-    g.fillPath(pointer, juce::AffineTransform::scale(0.55f, 0.72f, centre.x, centre.y));
+    
+    // Pointer Detail
+    g.setColour(juce::Colours::white.withAlpha(0.42f));
+    g.fillPath(pointer, juce::AffineTransform::scale(0.50f, 0.68f, centre.x, centre.y));
+    
+    g.setColour(juce::Colours::black.withAlpha(0.14f));
+    g.strokePath(pointer, juce::PathStrokeType(0.6f));
 
     const float orbRadius = 3.8f + sliderPos * 2.4f;
     const auto thumbPoint = juce::Point<float>(centre.x + std::cos(angle - juce::MathConstants<float>::halfPi) * trackRadius,
@@ -267,35 +285,37 @@ void RootFlowLookAndFeel::drawLinearSlider(juce::Graphics& g,
                                             housing.getHeight() - (sideVertical ? 10.0f : 16.0f))
                          .withCentre(housing.getCentre());
 
-        g.setColour(juce::Colours::black.withAlpha(0.34f));
-        g.fillRoundedRectangle(housing.expanded(sideVertical ? 1.8f : 8.0f, sideVertical ? 4.6f : 6.6f).translated(0.0f, sideVertical ? 3.6f : 4.2f),
+        // Deep Housing Shadow
+        g.setColour(juce::Colours::black.withAlpha(0.40f));
+        g.fillRoundedRectangle(housing.expanded(sideVertical ? 2.2f : 9.0f, sideVertical ? 5.2f : 7.6f).translated(0.0f, sideVertical ? 4.2f : 5.8f),
+                               housing.getWidth() * 0.60f);
+        g.setColour(juce::Colours::black.withAlpha(0.18f));
+        g.fillRoundedRectangle(housing.translated(0.0f, sideVertical ? 2.4f : 3.2f),
                                housing.getWidth() * 0.58f);
-        g.setColour(juce::Colours::black.withAlpha(0.14f));
-        g.fillRoundedRectangle(housing.translated(0.0f, sideVertical ? 2.0f : 2.4f),
-                               housing.getWidth() * 0.56f);
-        g.setColour(panel.darker(0.42f).withAlpha(0.94f));
-        g.fillRoundedRectangle(housing.expanded(sideVertical ? 0.4f : 1.2f, sideVertical ? 0.6f : 1.0f),
-                               housing.getWidth() * 0.58f);
+        
+        g.setColour(panel.darker(0.50f).withAlpha(0.96f));
+        g.fillRoundedRectangle(housing.expanded(sideVertical ? 0.6f : 1.5f, sideVertical ? 0.8f : 1.2f),
+                               housing.getWidth() * 0.60f);
 
-        juce::ColourGradient shellGrad(panel.brighter(0.16f), housing.getCentreX(), housing.getY(),
-                                       bg.darker(0.14f), housing.getCentreX(), housing.getBottom(), false);
+        juce::ColourGradient shellGrad(panel.brighter(0.20f), housing.getCentreX(), housing.getY(),
+                                       bg.darker(0.22f), housing.getCentreX(), housing.getBottom(), false);
         g.setGradientFill(shellGrad);
-        g.fillRoundedRectangle(housing, housing.getWidth() * 0.56f);
+        g.fillRoundedRectangle(housing, housing.getWidth() * 0.58f);
 
-        juce::ColourGradient topBulge(juce::Colours::white.withAlpha(0.09f), housing.getCentreX(), housing.getY(),
-                                      juce::Colours::transparentBlack, housing.getCentreX(), housing.getY() + housing.getHeight() * 0.36f, false);
+        juce::ColourGradient topBulge(juce::Colours::white.withAlpha(0.12f), housing.getCentreX(), housing.getY(),
+                                      juce::Colours::transparentBlack, housing.getCentreX(), housing.getY() + housing.getHeight() * 0.38f, false);
         g.setGradientFill(topBulge);
-        g.fillRoundedRectangle(housing.reduced(1.0f), housing.getWidth() * 0.52f);
+        g.fillRoundedRectangle(housing.reduced(1.2f), housing.getWidth() * 0.54f);
 
-        juce::ColourGradient lowerOcclusion(juce::Colours::transparentBlack, housing.getCentreX(), housing.getY() + housing.getHeight() * 0.42f,
-                                            juce::Colours::black.withAlpha(0.18f), housing.getCentreX(), housing.getBottom(), false);
+        juce::ColourGradient lowerOcclusion(juce::Colours::transparentBlack, housing.getCentreX(), housing.getY() + housing.getHeight() * 0.44f,
+                                            juce::Colours::black.withAlpha(0.22f), housing.getCentreX(), housing.getBottom(), false);
         g.setGradientFill(lowerOcclusion);
-        g.fillRoundedRectangle(housing.reduced(1.2f), housing.getWidth() * 0.50f);
+        g.fillRoundedRectangle(housing.reduced(1.4f), housing.getWidth() * 0.52f);
 
-        g.setColour(primary.withAlpha(hot ? 0.18f : 0.10f));
-        g.drawRoundedRectangle(housing, housing.getWidth() * 0.56f, 1.2f);
-        g.setColour(juce::Colours::white.withAlpha(0.14f));
-        g.drawRoundedRectangle(housing.reduced(1.0f), housing.getWidth() * 0.50f, 0.8f);
+        g.setColour(primary.withAlpha(hot ? 0.22f : 0.12f));
+        g.drawRoundedRectangle(housing, housing.getWidth() * 0.58f, 1.4f);
+        g.setColour(juce::Colours::white.withAlpha(0.18f));
+        g.drawRoundedRectangle(housing.reduced(1.2f), housing.getWidth() * 0.52f, 0.9f);
 
         for (int i = 0; i <= 5; ++i)
         {
@@ -335,37 +355,47 @@ void RootFlowLookAndFeel::drawLinearSlider(juce::Graphics& g,
                                              housing.getWidth() * (sideVertical ? 0.56f : 0.72f))
                           .withCentre({ housing.getCentreX(), track.getBottom() + (sideVertical ? 4.0f : 5.0f) }));
 
-        auto knobBounds = juce::Rectangle<float>(housing.getWidth() * (sideVertical ? 0.98f : 1.32f),
-                                                 housing.getWidth() * (sideVertical ? 0.58f : 0.94f))
+        auto knobBounds = juce::Rectangle<float>(housing.getWidth() * (sideVertical ? 1.02f : 1.36f),
+                                                 housing.getWidth() * (sideVertical ? 0.62f : 0.98f))
                               .withCentre({ housing.getCentreX(), juce::jlimit(track.getY(), track.getBottom(), sliderPos) });
-        g.setColour(juce::Colours::black.withAlpha(0.24f));
-        g.fillRoundedRectangle(knobBounds.expanded(sideVertical ? 2.4f : 5.6f, sideVertical ? 3.0f : 3.8f).translated(0.0f, 2.0f),
-                               knobBounds.getHeight() * 0.58f);
-        g.setColour(primary.withAlpha(hot ? 0.32f : 0.24f));
-        g.fillRoundedRectangle(knobBounds.expanded(sideVertical ? 2.0f : 5.0f, sideVertical ? 1.4f : 3.0f),
-                               knobBounds.getHeight() * 0.54f);
-
-        juce::ColourGradient knobGrad(secondary.brighter(0.16f), knobBounds.getCentreX(), knobBounds.getY(),
-                                      primary.darker(0.12f), knobBounds.getCentreX(), knobBounds.getBottom(), false);
-        g.setGradientFill(knobGrad);
-        g.fillRoundedRectangle(knobBounds, knobBounds.getHeight() * 0.52f);
-        g.setColour(juce::Colours::white.withAlpha(0.48f));
-        g.drawRoundedRectangle(knobBounds.reduced(0.8f), knobBounds.getHeight() * 0.46f, 0.9f);
-        g.setColour(juce::Colours::white.withAlpha(0.26f));
-        g.fillRoundedRectangle(knobBounds.withHeight(knobBounds.getHeight() * 0.36f).translated(0.0f, -knobBounds.getHeight() * 0.08f),
-                               knobBounds.getHeight() * 0.34f);
+        
+        // Knob Shadow (Physical)
+        g.setColour(juce::Colours::black.withAlpha(0.32f));
+        g.fillRoundedRectangle(knobBounds.expanded(sideVertical ? 3.0f : 6.4f, sideVertical ? 3.8f : 4.8f).translated(0.0f, 3.5f),
+                               knobBounds.getHeight() * 0.60f);
         g.setColour(juce::Colours::black.withAlpha(0.16f));
-        g.drawRoundedRectangle(knobBounds.reduced(1.6f).translated(0.0f, 1.0f), knobBounds.getHeight() * 0.42f, 0.8f);
+        g.fillRoundedRectangle(knobBounds.expanded(sideVertical ? 1.5f : 3.2f, sideVertical ? 1.8f : 2.4f).translated(0.0f, 1.8f),
+                               knobBounds.getHeight() * 0.56f);
 
-        for (int i = -1; i <= 1; ++i)
+        g.setColour(primary.withAlpha(hot ? 0.38f : 0.28f));
+        g.fillRoundedRectangle(knobBounds.expanded(sideVertical ? 2.2f : 5.4f, sideVertical ? 1.6f : 3.4f),
+                               knobBounds.getHeight() * 0.56f);
+
+        juce::ColourGradient knobGrad(secondary.brighter(0.20f), knobBounds.getCentreX(), knobBounds.getY(),
+                                      primary.darker(0.18f), knobBounds.getCentreX(), knobBounds.getBottom(), false);
+        g.setGradientFill(knobGrad);
+        g.fillRoundedRectangle(knobBounds, knobBounds.getHeight() * 0.54f);
+        
+        g.setColour(juce::Colours::white.withAlpha(0.56f));
+        g.drawRoundedRectangle(knobBounds.reduced(0.8f), knobBounds.getHeight() * 0.48f, 1.0f);
+        g.setColour(juce::Colours::white.withAlpha(0.32f));
+        g.fillRoundedRectangle(knobBounds.withHeight(knobBounds.getHeight() * 0.38f).translated(0.0f, -knobBounds.getHeight() * 0.08f),
+                               knobBounds.getHeight() * 0.36f);
+        g.setColour(juce::Colours::black.withAlpha(0.20f));
+        g.drawRoundedRectangle(knobBounds.reduced(1.8f).translated(0.0f, 1.2f), knobBounds.getHeight() * 0.44f, 0.9f);
+
+        // Tactile Grip Ridges (Increased density and depth with hover glow)
+        for (int i = -2; i <= 2; ++i)
         {
-            const float yy = knobBounds.getCentreY() + (float) i * knobBounds.getHeight() * 0.16f;
-            g.setColour(juce::Colours::black.withAlpha(0.18f));
-            g.drawLine(knobBounds.getX() + knobBounds.getWidth() * 0.24f, yy + 1.0f,
-                       knobBounds.getRight() - knobBounds.getWidth() * 0.24f, yy + 1.0f, 1.2f);
-            g.setColour(juce::Colours::white.withAlpha(0.16f));
-            g.drawLine(knobBounds.getX() + knobBounds.getWidth() * 0.24f, yy,
-                       knobBounds.getRight() - knobBounds.getWidth() * 0.24f, yy, 0.8f);
+            const float ridgeY = knobBounds.getCentreY() + (float) i * knobBounds.getHeight() * 0.14f;
+            g.setColour(juce::Colours::black.withAlpha(0.28f));
+            g.drawLine(knobBounds.getX() + knobBounds.getWidth() * 0.18f, ridgeY + 1.2f,
+                       knobBounds.getRight() - knobBounds.getWidth() * 0.18f, ridgeY + 1.2f, 1.4f);
+            
+            const float alpha = hot ? 0.32f : 0.18f;
+            g.setColour(juce::Colours::white.withAlpha(alpha));
+            g.drawLine(knobBounds.getX() + knobBounds.getWidth() * 0.18f, ridgeY,
+                       knobBounds.getRight() - knobBounds.getWidth() * 0.18f, ridgeY, hot ? 1.1f : 0.9f);
         }
     }
     else if (podHorizontal)
@@ -374,31 +404,31 @@ void RootFlowLookAndFeel::drawLinearSlider(juce::Graphics& g,
         auto track = juce::Rectangle<float>(housing.getWidth() - 12.0f, juce::jmax(4.5f, housing.getHeight() * 0.16f)).withCentre(housing.getCentre());
         const float thumbX = juce::jlimit(track.getX(), track.getRight(), sliderPos);
 
-        g.setColour(juce::Colours::black.withAlpha(0.28f));
-        g.fillRoundedRectangle(housing.expanded(5.0f, 4.5f).translated(0.0f, 3.2f), housing.getHeight() * 0.56f);
-        g.setColour(juce::Colours::black.withAlpha(0.12f));
-        g.fillRoundedRectangle(housing.translated(0.0f, 1.8f), housing.getHeight() * 0.54f);
-        g.setColour(panel.darker(0.40f).withAlpha(0.94f));
-        g.fillRoundedRectangle(housing.expanded(0.8f, 0.6f), housing.getHeight() * 0.56f);
+        g.setColour(juce::Colours::black.withAlpha(0.38f));
+        g.fillRoundedRectangle(housing.expanded(5.4f, 4.8f).translated(0.0f, 3.8f), housing.getHeight() * 0.58f);
+        g.setColour(juce::Colours::black.withAlpha(0.16f));
+        g.fillRoundedRectangle(housing.translated(0.0f, 2.2f), housing.getHeight() * 0.56f);
+        g.setColour(panel.darker(0.48f).withAlpha(0.96f));
+        g.fillRoundedRectangle(housing.expanded(1.0f, 0.8f), housing.getHeight() * 0.58f);
 
-        juce::ColourGradient shellGrad(panel.brighter(0.14f), housing.getX(), housing.getCentreY(),
-                                       bg.darker(0.14f), housing.getRight(), housing.getCentreY(), false);
+        juce::ColourGradient shellGrad(panel.brighter(0.18f), housing.getX(), housing.getCentreY(),
+                                       bg.darker(0.16f), housing.getRight(), housing.getCentreY(), false);
         g.setGradientFill(shellGrad);
-        g.fillRoundedRectangle(housing, housing.getHeight() * 0.54f);
+        g.fillRoundedRectangle(housing, housing.getHeight() * 0.56f);
 
-        juce::ColourGradient topBulge(juce::Colours::white.withAlpha(0.08f), housing.getCentreX(), housing.getY(),
-                                      juce::Colours::transparentBlack, housing.getCentreX(), housing.getY() + housing.getHeight() * 0.50f, false);
+        juce::ColourGradient topBulge(juce::Colours::white.withAlpha(0.10f), housing.getCentreX(), housing.getY(),
+                                      juce::Colours::transparentBlack, housing.getCentreX(), housing.getY() + housing.getHeight() * 0.52f, false);
         g.setGradientFill(topBulge);
-        g.fillRoundedRectangle(housing.reduced(1.0f), housing.getHeight() * 0.50f);
+        g.fillRoundedRectangle(housing.reduced(1.2f), housing.getHeight() * 0.52f);
         juce::ColourGradient lowerOcclusion(juce::Colours::transparentBlack, housing.getCentreX(), housing.getY() + housing.getHeight() * 0.44f,
-                                            juce::Colours::black.withAlpha(0.16f), housing.getCentreX(), housing.getBottom(), false);
+                                            juce::Colours::black.withAlpha(0.18f), housing.getCentreX(), housing.getBottom(), false);
         g.setGradientFill(lowerOcclusion);
-        g.fillRoundedRectangle(housing.reduced(1.0f), housing.getHeight() * 0.48f);
+        g.fillRoundedRectangle(housing.reduced(1.2f), housing.getHeight() * 0.50f);
 
-        g.setColour(primary.withAlpha(hot ? 0.16f : 0.09f));
-        g.drawRoundedRectangle(housing, housing.getHeight() * 0.54f, 1.0f);
-        g.setColour(juce::Colours::white.withAlpha(0.12f));
-        g.drawRoundedRectangle(housing.reduced(1.0f), housing.getHeight() * 0.48f, 0.7f);
+        g.setColour(primary.withAlpha(hot ? 0.20f : 0.12f));
+        g.drawRoundedRectangle(housing, housing.getHeight() * 0.56f, 1.2f);
+        g.setColour(juce::Colours::white.withAlpha(0.16f));
+        g.drawRoundedRectangle(housing.reduced(1.2f), housing.getHeight() * 0.50f, 0.8f);
 
         for (int i = 0; i <= 6; ++i)
         {
@@ -448,15 +478,18 @@ void RootFlowLookAndFeel::drawLinearSlider(juce::Graphics& g,
         g.setColour(juce::Colours::black.withAlpha(0.16f));
         g.drawRoundedRectangle(thumb.reduced(1.5f).translated(0.0f, 1.0f), thumb.getWidth() * 0.36f, 0.7f);
 
-        for (int i = -1; i <= 1; ++i)
+        // Tactile Grip Ridges (Horizontal density with hover glow)
+        for (int i = -2; i <= 2; ++i)
         {
-            const float xx = thumb.getCentreX() + (float) i * thumb.getWidth() * 0.16f;
-            g.setColour(juce::Colours::black.withAlpha(0.18f));
-            g.drawLine(xx, thumb.getY() + thumb.getHeight() * 0.24f + 1.0f,
-                       xx, thumb.getBottom() - thumb.getHeight() * 0.24f + 1.0f, 1.1f);
-            g.setColour(juce::Colours::white.withAlpha(0.16f));
-            g.drawLine(xx, thumb.getY() + thumb.getHeight() * 0.24f,
-                       xx, thumb.getBottom() - thumb.getHeight() * 0.24f, 0.8f);
+            const float ridgeX = thumb.getCentreX() + (float) i * thumb.getWidth() * 0.14f;
+            g.setColour(juce::Colours::black.withAlpha(0.28f));
+            g.drawLine(ridgeX + 0.8f, thumb.getY() + thumb.getHeight() * 0.18f + 1.0f,
+                       ridgeX + 0.8f, thumb.getBottom() - thumb.getHeight() * 0.18f + 1.0f, 1.4f);
+            
+            const float alpha = hot ? 0.35f : 0.18f;
+            g.setColour(juce::Colours::white.withAlpha(alpha));
+            g.drawLine(ridgeX, thumb.getY() + thumb.getHeight() * 0.18f,
+                       ridgeX, thumb.getBottom() - thumb.getHeight() * 0.18f, hot ? 1.1f : 0.9f);
         }
     }
     else if (ambientSlider)
@@ -465,31 +498,31 @@ void RootFlowLookAndFeel::drawLinearSlider(juce::Graphics& g,
         auto track = housing.reduced(16.0f, juce::jmax(4.0f, housing.getHeight() * 0.34f));
         const float thumbX = juce::jlimit(track.getX(), track.getRight(), sliderPos);
 
-        g.setColour(juce::Colours::black.withAlpha(0.30f));
-        g.fillRoundedRectangle(housing.expanded(6.0f, 4.5f).translated(0.0f, 3.2f), housing.getHeight() * 0.56f);
-        g.setColour(juce::Colours::black.withAlpha(0.12f));
-        g.fillRoundedRectangle(housing.translated(0.0f, 1.8f), housing.getHeight() * 0.54f);
-        g.setColour(panel.darker(0.42f).withAlpha(0.94f));
-        g.fillRoundedRectangle(housing.expanded(0.8f, 0.6f), housing.getHeight() * 0.56f);
+        g.setColour(juce::Colours::black.withAlpha(0.42f));
+        g.fillRoundedRectangle(housing.expanded(6.5f, 4.8f).translated(0.0f, 4.0f), housing.getHeight() * 0.58f);
+        g.setColour(juce::Colours::black.withAlpha(0.18f));
+        g.fillRoundedRectangle(housing.translated(0.0f, 2.2f), housing.getHeight() * 0.56f);
+        g.setColour(panel.darker(0.52f).withAlpha(0.96f));
+        g.fillRoundedRectangle(housing.expanded(1.0f, 0.8f), housing.getHeight() * 0.58f);
 
-        juce::ColourGradient shellGrad(panel.brighter(0.14f), housing.getX(), housing.getCentreY(),
-                                       bg.darker(0.18f), housing.getRight(), housing.getCentreY(), false);
+        juce::ColourGradient shellGrad(panel.brighter(0.16f), housing.getX(), housing.getCentreY(),
+                                       bg.darker(0.20f), housing.getRight(), housing.getCentreY(), false);
         g.setGradientFill(shellGrad);
-        g.fillRoundedRectangle(housing, housing.getHeight() * 0.54f);
+        g.fillRoundedRectangle(housing, housing.getHeight() * 0.56f);
 
-        juce::ColourGradient topBulge(juce::Colours::white.withAlpha(0.09f), housing.getCentreX(), housing.getY(),
-                                      juce::Colours::transparentBlack, housing.getCentreX(), housing.getY() + housing.getHeight() * 0.52f, false);
+        juce::ColourGradient topBulge(juce::Colours::white.withAlpha(0.12f), housing.getCentreX(), housing.getY(),
+                                      juce::Colours::transparentBlack, housing.getCentreX(), housing.getY() + housing.getHeight() * 0.54f, false);
         g.setGradientFill(topBulge);
-        g.fillRoundedRectangle(housing.reduced(1.0f), housing.getHeight() * 0.50f);
+        g.fillRoundedRectangle(housing.reduced(1.2f), housing.getHeight() * 0.52f);
         juce::ColourGradient lowerOcclusion(juce::Colours::transparentBlack, housing.getCentreX(), housing.getY() + housing.getHeight() * 0.44f,
-                                            juce::Colours::black.withAlpha(0.18f), housing.getCentreX(), housing.getBottom(), false);
+                                            juce::Colours::black.withAlpha(0.20f), housing.getCentreX(), housing.getBottom(), false);
         g.setGradientFill(lowerOcclusion);
-        g.fillRoundedRectangle(housing.reduced(1.0f), housing.getHeight() * 0.48f);
+        g.fillRoundedRectangle(housing.reduced(1.2f), housing.getHeight() * 0.50f);
 
-        g.setColour(primary.withAlpha(hot ? 0.18f : 0.10f));
-        g.drawRoundedRectangle(housing, housing.getHeight() * 0.54f, 1.1f);
-        g.setColour(juce::Colours::white.withAlpha(0.12f));
-        g.drawRoundedRectangle(housing.reduced(1.0f), housing.getHeight() * 0.48f, 0.8f);
+        g.setColour(primary.withAlpha(hot ? 0.22f : 0.12f));
+        g.drawRoundedRectangle(housing, housing.getHeight() * 0.56f, 1.3f);
+        g.setColour(juce::Colours::white.withAlpha(0.16f));
+        g.drawRoundedRectangle(housing.reduced(1.2f), housing.getHeight() * 0.50f, 0.9f);
 
         for (int i = 0; i <= 4; ++i)
         {
@@ -539,15 +572,18 @@ void RootFlowLookAndFeel::drawLinearSlider(juce::Graphics& g,
         g.setColour(juce::Colours::black.withAlpha(0.16f));
         g.drawRoundedRectangle(thumb.reduced(1.6f).translated(0.0f, 1.0f), thumb.getWidth() * 0.36f, 0.7f);
 
-        for (int i = -1; i <= 1; ++i)
+        // Tactile Grip Ridges (Ambient style with hover glow)
+        for (int i = -2; i <= 2; ++i)
         {
-            const float xx = thumb.getCentreX() + (float) i * thumb.getWidth() * 0.14f;
-            g.setColour(juce::Colours::black.withAlpha(0.18f));
-            g.drawLine(xx, thumb.getY() + thumb.getHeight() * 0.26f + 1.0f,
-                       xx, thumb.getBottom() - thumb.getHeight() * 0.26f + 1.0f, 1.1f);
-            g.setColour(juce::Colours::white.withAlpha(0.16f));
-            g.drawLine(xx, thumb.getY() + thumb.getHeight() * 0.26f,
-                       xx, thumb.getBottom() - thumb.getHeight() * 0.26f, 0.8f);
+            const float ridgeX = thumb.getCentreX() + (float) i * thumb.getWidth() * 0.14f;
+            g.setColour(juce::Colours::black.withAlpha(0.32f));
+            g.drawLine(ridgeX + 0.8f, thumb.getY() + thumb.getHeight() * 0.20f + 1.2f,
+                       ridgeX + 0.8f, thumb.getBottom() - thumb.getHeight() * 0.20f + 1.2f, 1.5f);
+            
+            const float alpha = hot ? 0.40f : 0.20f;
+            g.setColour(juce::Colours::white.withAlpha(alpha));
+            g.drawLine(ridgeX, thumb.getY() + thumb.getHeight() * 0.20f,
+                       ridgeX, thumb.getBottom() - thumb.getHeight() * 0.20f, hot ? 1.2f : 1.0f);
         }
     }
     else
@@ -632,15 +668,18 @@ void RootFlowLookAndFeel::drawLinearSlider(juce::Graphics& g,
         g.setColour(juce::Colours::black.withAlpha(0.18f));
         g.drawEllipse(knobBounds.reduced(2.0f).translated(0.0f, 1.0f), 0.8f);
 
-        for (int i = -1; i <= 1; ++i)
+        // Tactile Grip Ridges (Standard style with hover glow)
+        for (int i = -2; i <= 2; ++i)
         {
-            const float xx = knobBounds.getCentreX() + (float) i * knobBounds.getWidth() * 0.14f;
-            g.setColour(juce::Colours::black.withAlpha(0.18f));
-            g.drawLine(xx, knobBounds.getY() + knobBounds.getHeight() * 0.24f + 1.0f,
-                       xx, knobBounds.getBottom() - knobBounds.getHeight() * 0.24f + 1.0f, 1.1f);
-            g.setColour(juce::Colours::white.withAlpha(0.16f));
-            g.drawLine(xx, knobBounds.getY() + knobBounds.getHeight() * 0.24f,
-                       xx, knobBounds.getBottom() - knobBounds.getHeight() * 0.24f, 0.8f);
+            const float ridgeX = knobBounds.getCentreX() + (float) i * knobBounds.getWidth() * 0.12f;
+            g.setColour(juce::Colours::black.withAlpha(0.28f));
+            g.drawLine(ridgeX + 0.8f, knobBounds.getY() + knobBounds.getHeight() * 0.22f + 1.2f,
+                       ridgeX + 0.8f, knobBounds.getBottom() - knobBounds.getHeight() * 0.22f + 1.2f, 1.4f);
+            
+            const float alpha = hot ? 0.38f : 0.20f;
+            g.setColour(juce::Colours::white.withAlpha(alpha));
+            g.drawLine(ridgeX, knobBounds.getY() + knobBounds.getHeight() * 0.22f,
+                       ridgeX, knobBounds.getBottom() - knobBounds.getHeight() * 0.22f, hot ? 1.0f : 0.8f);
         }
     }
 }
@@ -682,27 +721,32 @@ void RootFlowLookAndFeel::drawButtonBackground(juce::Graphics& g,
     else
     {
         const bool toggled = b.getToggleState();
-        auto base = juce::Colour(0xff0d1815).withAlpha(toggled ? 0.92f : 0.84f);
-        if (hoverVisual) base = base.brighter(0.14f);
-        if (isPressed) base = accent.withAlpha(0.18f);
-        auto bezel = r.expanded(2.2f, 2.0f).translated(0.0f, 0.8f);
+        auto base = juce::Colour(0xff0d1815).withAlpha(toggled ? 0.94f : 0.86f);
+        if (hoverVisual) base = base.brighter(0.18f);
+        if (isPressed) base = accent.withAlpha(0.22f);
+        auto bezel = r.expanded(2.8f, 2.4f).translated(0.0f, 1.2f);
 
-        juce::ColourGradient bezelGrad(RootFlow::panelSoft.brighter(0.10f).withAlpha(0.34f), bezel.getCentreX(), bezel.getY(),
-                                       bg.darker(0.34f).withAlpha(0.54f), bezel.getCentreX(), bezel.getBottom(), false);
+        // Deep Bezel Shadow
+        g.setColour(juce::Colours::black.withAlpha(0.38f));
+        g.fillRoundedRectangle(bezel.translated(0.0f, 3.5f), 12.0f);
+
+        juce::ColourGradient bezelGrad(RootFlow::panelSoft.brighter(0.14f).withAlpha(0.48f), bezel.getCentreX(), bezel.getY(),
+                                       bg.darker(0.42f).withAlpha(0.68f), bezel.getCentreX(), bezel.getBottom(), false);
         g.setGradientFill(bezelGrad);
-        g.fillRoundedRectangle(bezel, 11.5f);
+        g.fillRoundedRectangle(bezel, 12.0f);
+        g.setColour(juce::Colours::black.withAlpha(0.18f));
+        g.drawRoundedRectangle(bezel.reduced(0.8f), 11.2f, 1.0f);
+
+        // Button Depression
+        g.setColour(juce::Colours::black.withAlpha(toggled ? 0.28f : 0.22f));
+        g.fillRoundedRectangle(r.translated(0.0f, 3.8f).expanded(2.0f, 0.8f), 11.0f);
         g.setColour(juce::Colours::black.withAlpha(0.12f));
-        g.drawRoundedRectangle(bezel.reduced(0.8f), 10.8f, 0.8f);
+        g.fillRoundedRectangle(r.translated(0.0f, 1.8f), 10.5f);
 
-        g.setColour(juce::Colours::black.withAlpha(toggled ? 0.22f : 0.16f));
-        g.fillRoundedRectangle(r.translated(0.0f, 3.0f).expanded(1.5f, 0.5f), 10.5f);
-        g.setColour(juce::Colours::black.withAlpha(0.08f));
-        g.fillRoundedRectangle(r.translated(0.0f, 1.5f), 10.0f);
-
-        juce::ColourGradient btnGrad(base.brighter(toggled ? 0.22f : 0.10f), r.getCentreX(), r.getY(),
-                                     base.darker(0.18f), r.getCentreX(), r.getBottom(), false);
+        juce::ColourGradient btnGrad(base.brighter(toggled ? 0.28f : 0.14f), r.getCentreX(), r.getY(),
+                                     base.darker(0.24f), r.getCentreX(), r.getBottom(), false);
         g.setGradientFill(btnGrad);
-        g.fillRoundedRectangle(r, 9.5f);
+        g.fillRoundedRectangle(r, 10.0f);
 
         juce::ColourGradient topBulge(juce::Colours::white.withAlpha(toggled ? 0.10f : 0.07f),
                                       r.getCentreX(), r.getY(),
@@ -787,43 +831,51 @@ void RootFlowLookAndFeel::drawComboBox(juce::Graphics& g, int width, int height,
                                        int, int, int, int, juce::ComboBox& box)
 {
     auto r = box.getLocalBounds().toFloat().reduced(0.5f);
-    auto bezel = r.expanded(2.6f, 2.0f).translated(0.0f, 0.8f);
+    auto bezel = r.expanded(3.0f, 2.4f).translated(0.0f, 1.2f);
+    const bool hovered = RootFlow::areHoverEffectsEnabled() && box.isMouseOver();
 
-    juce::ColourGradient bezelGrad(RootFlow::panelSoft.brighter(0.10f).withAlpha(0.32f), bezel.getCentreX(), bezel.getY(),
-                                   bg.darker(0.38f).withAlpha(0.56f), bezel.getCentreX(), bezel.getBottom(), false);
+    // Deep Bezel Shadow
+    g.setColour(juce::Colours::black.withAlpha(0.42f));
+    g.fillRoundedRectangle(bezel.translated(0.0f, 4.0f), 12.5f);
+
+    juce::ColourGradient bezelGrad(RootFlow::panelSoft.brighter(0.14f).withAlpha(0.46f), bezel.getCentreX(), bezel.getY(),
+                                   bg.darker(0.45f).withAlpha(0.66f), bezel.getCentreX(), bezel.getBottom(), false);
     g.setGradientFill(bezelGrad);
-    g.fillRoundedRectangle(bezel, 12.0f);
+    g.fillRoundedRectangle(bezel, 12.5f);
+    g.setColour(juce::Colours::black.withAlpha(0.16f));
+    g.drawRoundedRectangle(bezel.reduced(0.8f), 11.5f, 1.0f);
+
+    // Box Depression
+    g.setColour(juce::Colours::black.withAlpha(0.24f));
+    g.fillRoundedRectangle(r.translated(0.0f, 4.0f).expanded(1.8f, 0.8f), 11.5f);
     g.setColour(juce::Colours::black.withAlpha(0.12f));
-    g.drawRoundedRectangle(bezel.reduced(0.8f), 11.0f, 0.8f);
+    g.fillRoundedRectangle(r.translated(0.0f, 1.8f), 10.8f);
 
-    g.setColour(juce::Colours::black.withAlpha(0.18f));
-    g.fillRoundedRectangle(r.translated(0.0f, 3.0f).expanded(1.5f, 0.5f), 10.8f);
-    g.setColour(juce::Colours::black.withAlpha(0.08f));
-    g.fillRoundedRectangle(r.translated(0.0f, 1.5f), 10.2f);
-
-    juce::ColourGradient boxGrad(juce::Colour(0xff0f1d18).withAlpha(0.94f), r.getCentreX(), r.getY(),
-                                 juce::Colour(0xff091510).withAlpha(0.90f), r.getCentreX(), r.getBottom(), false);
+    juce::ColourGradient boxGrad(juce::Colour(0xff0f1d18).withAlpha(0.96f), r.getCentreX(), r.getY(),
+                                 juce::Colour(0xff08120d).withAlpha(0.92f), r.getCentreX(), r.getBottom(), false);
     g.setGradientFill(boxGrad);
-    g.fillRoundedRectangle(r, 10.0f);
+    g.fillRoundedRectangle(r, 10.5f);
 
-    juce::ColourGradient topBulge(juce::Colours::white.withAlpha(0.08f),
+    // Dynamic Top Rim Highlight
+    juce::ColourGradient topBulge(juce::Colours::white.withAlpha(hovered ? 0.16f : 0.10f),
                                   r.getCentreX(), r.getY(),
                                   juce::Colours::transparentBlack,
-                                  r.getCentreX(), r.getY() + r.getHeight() * 0.46f, false);
+                                  r.getCentreX(), r.getY() + r.getHeight() * 0.52f, false);
     g.setGradientFill(topBulge);
-    g.fillRoundedRectangle(r.reduced(1.0f), 9.0f);
+    g.fillRoundedRectangle(r.reduced(1.2f), 9.6f);
 
     juce::ColourGradient lowerOcclusion(juce::Colours::transparentBlack,
-                                        r.getCentreX(), r.getY() + r.getHeight() * 0.42f,
-                                        juce::Colours::black.withAlpha(0.15f),
+                                        r.getCentreX(), r.getY() + r.getHeight() * 0.44f,
+                                        juce::Colours::black.withAlpha(0.24f),
                                         r.getCentreX(), r.getBottom(), false);
     g.setGradientFill(lowerOcclusion);
-    g.fillRoundedRectangle(r.reduced(1.0f), 9.0f);
+    g.fillRoundedRectangle(r.reduced(1.4f), 9.4f);
 
-    g.setColour((box.hasKeyboardFocus(true) ? accent : accentSoft).withAlpha((RootFlow::areHoverEffectsEnabled() && box.isMouseOver()) ? 0.30f : 0.14f));
-    g.drawRoundedRectangle(r, 10.0f, 1.0f);
+    g.setColour((box.hasKeyboardFocus(true) ? accent : accentSoft).withAlpha(hovered ? 0.38f : 0.22f));
+    g.drawRoundedRectangle(r, 10.5f, 1.2f);
+    
     g.setColour(juce::Colours::white.withAlpha(0.12f));
-    g.drawRoundedRectangle(r.reduced(1.0f), 9.0f, 0.8f);
+    g.drawRoundedRectangle(r.reduced(1.2f), 9.2f, 0.9f);
 
     auto sheen = r.withHeight(r.getHeight() * 0.46f);
     g.setColour(juce::Colours::white.withAlpha(0.06f));

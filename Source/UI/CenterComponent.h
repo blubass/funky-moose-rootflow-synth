@@ -358,32 +358,54 @@ private:
     {
         const auto target = energyDisplay.getBounds().toFloat().getCentre();
 
-        auto drawFibre = [&g, target, focusedSlider, this] (juce::Slider& slider)
+        auto drawFibre = [&g, focusedSlider, this] (juce::Slider& slider)
         {
             if (&slider == &evolution) return;
 
+            const auto paramID = getSliderParamID(slider);
+            if (paramID.isEmpty()) return;
+
+            // Get actual relative position of the node in the energy display
+            const auto nodeRelPos = energyDisplay.getNodePositionRelative(paramID);
+            const auto displayBounds = energyDisplay.getBounds().toFloat();
+            
+            // Map to CenterComponent coordinates
+            const auto targetNodePos = juce::Point<float>(
+                displayBounds.getX() + nodeRelPos.x * displayBounds.getWidth(),
+                displayBounds.getY() + nodeRelPos.y * displayBounds.getHeight()
+            );
+
             const auto colour = getSliderTint(slider);
             auto b = slider.getBounds().toFloat();
-            const bool leftSide = b.getCentreX() < target.x;
+            const bool leftSide = b.getCentreX() < getWidth() * 0.5f;
+            
             const auto start = juce::Point<float>(leftSide ? b.getRight() - 12.0f : b.getX() + 12.0f, b.getCentreY());
-            const auto end = juce::Point<float>(leftSide ? target.x - 46.0f : target.x + 46.0f,
-                                                target.y + (b.getCentreY() - target.y) * 0.22f);
+            const auto end = targetNodePos;
             const bool emphasise = &slider == focusedSlider;
 
             juce::Path fibre;
             fibre.startNewSubPath(start);
-            fibre.cubicTo(start.x + (leftSide ? 48.0f : -48.0f), start.y - 12.0f,
-                          end.x + (leftSide ? -36.0f : 36.0f), end.y - 18.0f,
-                          end.x, end.y);
+            
+            // Curved path that feels organic
+            float ctrl1X = start.x + (leftSide ? 40.0f : -40.0f);
+            float ctrl2X = end.x + (leftSide ? -30.0f : 30.0f);
+            fibre.cubicTo(ctrl1X, start.y, ctrl2X, end.y, end.x, end.y);
 
-            g.setColour(colour.withAlpha(emphasise ? 0.07f : 0.04f));
-            g.strokePath(fibre, juce::PathStrokeType(emphasise ? 4.0f : 2.8f,
+            g.setColour(colour.withAlpha(emphasise ? 0.08f : 0.04f));
+            g.strokePath(fibre, juce::PathStrokeType(emphasise ? 3.8f : 2.6f,
                                                      juce::PathStrokeType::curved,
                                                      juce::PathStrokeType::rounded));
-            g.setColour(colour.withAlpha(emphasise ? 0.14f : 0.09f));
-            g.strokePath(fibre, juce::PathStrokeType(emphasise ? 1.0f : 0.8f,
+            
+            g.setColour(colour.withAlpha(emphasise ? 0.16f : 0.10f));
+            g.strokePath(fibre, juce::PathStrokeType(emphasise ? 1.2f : 0.9f,
                                                      juce::PathStrokeType::curved,
                                                      juce::PathStrokeType::rounded));
+
+            if (emphasise)
+            {
+                g.setColour(juce::Colours::white.withAlpha(0.12f));
+                g.strokePath(fibre, juce::PathStrokeType(0.6f));
+            }
         };
 
         drawFibre(flow);
@@ -416,6 +438,19 @@ private:
         }
 
         return nullptr;
+    }
+
+    juce::String getSliderParamID(const juce::Slider& slider) const
+    {
+        if (&slider == &flow)        return "sapFlow";
+        if (&slider == &vitality)    return "sapVitality";
+        if (&slider == &texture)     return "sapTexture";
+        if (&slider == &canopy)      return "canopy";
+        if (&slider == &instability) return "instability";
+        if (&slider == &atmos)       return "atmosphere";
+        if (&slider == &seasons)     return "ecoSystem";
+        if (&slider == &evolution)   return "evolution";
+        return {};
     }
 
     juce::Colour getSliderTint(const juce::Slider& slider) const

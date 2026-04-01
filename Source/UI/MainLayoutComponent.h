@@ -402,6 +402,9 @@ public:
 
         RootFlow::drawGlowOrb(g, { shell.getX() + 30.0f, shell.getY() + 26.0f }, 6.2f, RootFlow::accent, 0.52f);
         RootFlow::drawGlowOrb(g, { shell.getRight() - 30.0f, shell.getY() + 26.0f }, 6.2f, RootFlow::amber, 0.46f);
+
+        // --- GLOBAL PARAMETER TETHERS ---
+        drawAllPanelTethers(g);
     }
 
     void paintOverChildren(juce::Graphics& g) override
@@ -795,6 +798,77 @@ private:
         const auto trail = pointOnCubic(start, controlA, controlB, end, std::fmod(phase + 0.22f, 1.0f));
         RootFlow::drawGlowOrb(g, lead, 3.3f + 0.9f * strength, tint, 0.42f * strength);
         RootFlow::drawGlowOrb(g, trail, 2.2f + 0.6f * strength, tint.interpolatedWith(juce::Colours::white, 0.12f), 0.16f * strength);
+    }
+
+    void drawAllPanelTethers(juce::Graphics& g)
+    {
+        auto& root = getRootPanel();
+        auto& pulse = getPulsePanel();
+        
+        // Root Panel Tethers
+        drawParameterTether(g, root.getDepthSlider(), "rootDepth");
+        drawParameterTether(g, root.getSoilSlider(), "rootSoil");
+        drawParameterTether(g, root.getAnchorSlider(), "rootAnchor");
+        
+        // Pulse Panel Tethers
+        drawParameterTether(g, pulse.getRateSlider(), "pulseRate");
+        drawParameterTether(g, pulse.getBreathSlider(), "pulseBreath");
+        drawParameterTether(g, pulse.getGrowthSlider(), "pulseGrowth");
+
+        // Master Sliders
+        drawParameterTether(g, masterVolumeSlider, "masterVolume");
+        drawParameterTether(g, masterMixSlider, "masterMix");
+        drawParameterTether(g, monoMakerFreqSlider, "monoMakerFreq");
+        drawParameterTether(g, masterCompressorSlider, "masterCompressor");
+    }
+
+    void drawParameterTether(juce::Graphics& g, juce::Slider& slider, const juce::String& paramID)
+    {
+        auto& center = getCenterComponent();
+        auto& display = center.getEnergyDisplay();
+        
+        // Get actual node position
+        const auto nodeRelPos = display.getNodePositionRelative(paramID);
+        const auto displayBounds = display.getBounds().toFloat().translated((float)center.getX(), (float)center.getY());
+        
+        const auto targetNodePos = juce::Point<float>(
+            displayBounds.getX() + nodeRelPos.x * displayBounds.getWidth(),
+            displayBounds.getY() + nodeRelPos.y * displayBounds.getHeight()
+        );
+
+        // Get slider source point
+        auto sliderBounds = slider.getBounds().toFloat();
+        if (auto* parent = slider.getParentComponent())
+            sliderBounds = sliderBounds.translated((float)parent->getX(), (float)parent->getY());
+            
+        const bool leftSide = sliderBounds.getCentreX() < getWidth() * 0.5f;
+        const auto start = juce::Point<float>(leftSide ? sliderBounds.getRight() - 6.0f : sliderBounds.getX() + 6.0f, 
+                                              sliderBounds.getCentreY());
+        
+        const bool isFocused = slider.isMouseOverOrDragging() || slider.isMouseButtonDown();
+        const float alphaBase = isFocused ? 0.12f : 0.022f;
+        const auto tint = RootFlow::accent.interpolatedWith(RootFlow::violet, leftSide ? 0.1f : 0.4f);
+
+        juce::Path tether;
+        tether.startNewSubPath(start);
+        
+        float dist = start.getDistanceFrom(targetNodePos);
+        float ctrlOffset = juce::jmin(120.0f, dist * 0.4f);
+        
+        tether.cubicTo(start.x + (leftSide ? ctrlOffset : -ctrlOffset), start.y,
+                       targetNodePos.x + (leftSide ? -ctrlOffset * 0.5f : ctrlOffset * 0.5f), targetNodePos.y,
+                       targetNodePos.x, targetNodePos.y);
+
+        g.setColour(tint.withAlpha(alphaBase * 0.4f));
+        g.strokePath(tether, juce::PathStrokeType(isFocused ? 3.0f : 1.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.setColour(tint.withAlpha(alphaBase));
+        g.strokePath(tether, juce::PathStrokeType(isFocused ? 1.0f : 0.6f));
+        
+        if (isFocused)
+        {
+            g.setColour(juce::Colours::white.withAlpha(0.08f));
+            g.strokePath(tether, juce::PathStrokeType(0.4f));
+        }
     }
 
     void drawStageActivityBubble(juce::Graphics& g,
