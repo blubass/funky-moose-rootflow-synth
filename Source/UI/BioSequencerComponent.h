@@ -58,7 +58,20 @@ public:
             p.tree, "sequencerGate", gateSlider);
         addAndMakeVisible(gateSlider);
 
+        probButton.setButtonText("EVO");
+        probButton.setClickingTogglesState(true);
+        probAtt = std::make_unique<juce::ButtonParameterAttachment>(
+            *p.tree.getParameter("sequencerProbOn"), probButton);
+        addAndMakeVisible(probButton);
+
+        jitButton.setButtonText("JIT");
+        jitButton.setClickingTogglesState(true);
+        jitAtt = std::make_unique<juce::ButtonParameterAttachment>(
+            *p.tree.getParameter("sequencerJitterOn"), jitButton);
+        addAndMakeVisible(jitButton);
+
         refreshPowerButtonText();
+        setOpaque(false);
         startTimerHz(60);
     }
 
@@ -75,6 +88,10 @@ public:
         controlBand.removeFromLeft(8);
         stepBox.setBounds(controlBand.removeFromLeft(64));
         powerButton.setBounds(controlBand.removeFromRight(56));
+        controlBand.removeFromRight(8);
+        jitButton.setBounds(controlBand.removeFromRight(44));
+        controlBand.removeFromRight(4);
+        probButton.setBounds(controlBand.removeFromRight(44));
 
         gateSlider.setBounds(getGateSliderBounds().toNearestInt());
     }
@@ -93,15 +110,10 @@ public:
         {
             proc.clearSequencerSteps();
         }
-        // SHIFT + Click: Randomize this step's velocity
-        else if (e.mods.isShiftDown())
+        // CMD + SHIFT + Click: Randomize probability
+        else if (e.mods.isCommandDown() && e.mods.isShiftDown())
         {
-            proc.randomizeSequencerStepVelocity(hit);
-        }
-        // Right Click: Cycle velocity states
-        else if (e.mods.isRightButtonDown())
-        {
-            proc.cycleSequencerStepState(hit);
+            proc.randomizeSequencerStepProbability(hit);
         }
         // Regular Left Click: Toggle state
         else
@@ -127,7 +139,10 @@ public:
             return;
 
         hoveredStep = hit;
-        proc.adjustSequencerStepVelocity(hit, wheel.deltaY * 0.12f);
+        if (e.mods.isCommandDown())
+            proc.adjustSequencerStepProbability(hit, wheel.deltaY * 0.12f);
+        else
+            proc.adjustSequencerStepVelocity(hit, wheel.deltaY * 0.12f);
         repaint();
     }
 
@@ -198,6 +213,8 @@ public:
         drawControlCapsule(g, rateBox.getBounds().toFloat().expanded(4.0f, 4.0f), RootFlow::accentSoft);
         drawControlCapsule(g, stepBox.getBounds().toFloat().expanded(4.0f, 4.0f), RootFlow::accent);
         drawControlCapsule(g, powerButton.getBounds().toFloat().expanded(4.0f, 4.0f), RootFlow::amber);
+        drawControlCapsule(g, probButton.getBounds().toFloat().expanded(4.0f, 4.0f), RootFlow::accentSoft);
+        drawControlCapsule(g, jitButton.getBounds().toFloat().expanded(4.0f, 4.0f), RootFlow::violet);
 
         auto statusArea = juce::Rectangle<float>((float) stepBox.getRight() + 12.0f,
                                                  (float) rateBox.getY() + 1.0f,
@@ -369,6 +386,16 @@ public:
                 RootFlow::drawBioThread(g, { x, y + radius * 0.15f }, hub, baseColor.brighter(0.2f), 0.18f, 1.3f);
             }
 
+            // Draw Probability Seed (Internal Core)
+            if (active && step.probability < 0.99f)
+            {
+                float seedRadius = radius * 0.25f * step.probability;
+                g.setColour(juce::Colours::black.withAlpha(0.4f));
+                g.fillEllipse(x - seedRadius, y - seedRadius, seedRadius * 2, seedRadius * 2);
+                g.setColour(baseColor.brighter(0.4f).withAlpha(0.6f));
+                g.drawEllipse(x - seedRadius, y - seedRadius, seedRadius * 2, seedRadius * 2, 0.8f);
+            }
+
             if ((i % 4) == 0)
             {
                 g.setFont(RootFlow::getFont(8.2f));
@@ -411,7 +438,7 @@ public:
                            bubble,
                            focusStateText,
                            "STEP " + juce::String(focusStep + 1).paddedLeft('0', 2),
-                           step.active ? "VEL " + formatPercent(step.velocity) : "VEL --",
+                           step.active ? "VEL " + formatPercent(step.velocity) + " / PROB " + formatPercent(step.probability) : "VEL --",
                            focusStepColour,
                            focusStep == hoveredStep || focusStep == curStep);
         }
@@ -445,7 +472,7 @@ public:
 
         g.setFont(RootFlow::getFont(8.8f).boldened());
         g.setColour((isOn ? RootFlow::textMuted : RootFlow::textMuted.darker(0.12f)).withAlpha(0.90f));
-        g.drawFittedText("CLICK TOGGLE / RIGHT CYCLE / WHEEL LEVEL / SHIFT RANDOM / ALT CLEAR",
+        g.drawFittedText("CLICK TOGGLE / RIGHT CYCLE / WHEEL VEL / CMD+WHEEL PROB / SHIFT+RAND VEL / CMD+SHIFT+RAND PROB / ALT CLEAR",
                          legendInner,
                          juce::Justification::centred,
                          1);
@@ -459,6 +486,21 @@ public:
         g.fillEllipse(ledX - 4.0f, ledY - 4.0f, 8.0f, 8.0f);
         g.setColour(ledCol.withAlpha(ledAlpha));
         g.fillEllipse(ledX - 2.0f, ledY - 2.0f, 4.0f, 4.0f);
+
+        // Evolution LED
+        auto drawLed = [&](juce::Rectangle<float> buttonBounds, juce::Colour color, bool active)
+        {
+            float alpha = isOn && active ? 1.0f : 0.2f;
+            float lx = buttonBounds.getX() - 8.0f;
+            float ly = buttonBounds.getCentreY();
+            g.setColour(color.withAlpha(alpha * 0.4f));
+            g.fillEllipse(lx - 3.5f, ly - 3.5f, 7.0f, 7.0f);
+            g.setColour(color.withAlpha(alpha));
+            g.fillEllipse(lx - 1.8f, ly - 1.8f, 3.6f, 3.6f);
+        };
+
+        drawLed(probButton.getBounds().toFloat(), RootFlow::accentSoft, probButton.getToggleState());
+        drawLed(jitButton.getBounds().toFloat(), RootFlow::violet, jitButton.getToggleState());
     }
 
     bool hasActivityFocus() const
@@ -525,12 +567,16 @@ private:
 
     RootFlowAudioProcessor& proc;
     juce::TextButton        powerButton;
+    juce::TextButton        probButton;
+    juce::TextButton        jitButton;
     juce::ComboBox          rateBox;
     juce::ComboBox          stepBox;
     juce::Slider            gateSlider;
     int                     hoveredStep = -1;
 
     std::unique_ptr<juce::ButtonParameterAttachment> seqOnAtt;
+    std::unique_ptr<juce::ButtonParameterAttachment> probAtt;
+    std::unique_ptr<juce::ButtonParameterAttachment> jitAtt;
     std::unique_ptr<juce::ComboBoxParameterAttachment> rateAtt;
     std::unique_ptr<juce::ComboBoxParameterAttachment> stepAtt;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> gateAtt;

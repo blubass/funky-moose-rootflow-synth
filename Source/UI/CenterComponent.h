@@ -8,6 +8,7 @@ class CenterComponent : public juce::Component
 public:
     CenterComponent()
     {
+        setOpaque(false);
         flow.setName("FLOW");
         vitality.setName("VITALITY");
         texture.setName("TEXTURE");
@@ -15,6 +16,7 @@ public:
         instability.setName("INSTABILITY");
         atmos.setName("ATMOS");
         seasons.setName("SEASONS");
+        evolution.setName("EVOLUTION");
 
         setupSlider(flow);
         setupSlider(vitality);
@@ -23,6 +25,7 @@ public:
         setupSlider(instability);
         setupSlider(atmos);
         setupSlider(seasons);
+        setupSlider(evolution);
         wireSlider(flow);
         wireSlider(vitality);
         wireSlider(texture);
@@ -30,6 +33,7 @@ public:
         wireSlider(instability);
         wireSlider(atmos);
         wireSlider(seasons);
+        wireSlider(evolution);
 
         addAndMakeVisible(flow);
         addAndMakeVisible(vitality);
@@ -38,37 +42,53 @@ public:
         addAndMakeVisible(instability);
         addAndMakeVisible(atmos);
         addAndMakeVisible(seasons);
-        addAndMakeVisible(energyDisplay);
+        addAndMakeVisible(evolution);
+    addAndMakeVisible(energyDisplay);
     }
+    
+
 
     void resized() override
     {
-        auto area = getLocalBounds().reduced(8);
-        area.removeFromTop(20);
+        auto area = getLocalBounds().reduced(6);
+        
+        // 1. Evolution macro master zone (52px) - COMPLETELY CLEAR OF SEQUENCER
+        auto masterZone = area.removeFromTop(52).toFloat(); 
+        evolution.setBounds(masterZone.withSize(area.getWidth() * 0.64f, 16.0f)
+                                     .withCentre(juce::Point<float>(area.getCentreX(), 36.0f))
+                                     .toNearestInt());
 
-        const int wingWidth = juce::jlimit(170, 250, juce::roundToInt(area.getWidth() * 0.25f));
-        auto leftWing = area.removeFromLeft(wingWidth).reduced(16, 34);
-        auto rightWing = area.removeFromRight(wingWidth).reduced(16, 34);
-        auto displayArea = area.reduced(4, 18);
+        // 2. Gap for visual breathing
+        area.removeFromTop(8);
 
+        const int wingWidth = juce::jlimit(165, 230, juce::roundToInt(area.getWidth() * 0.23f));
+        auto leftWing = area.removeFromLeft(wingWidth).reduced(6, 12);
+        auto rightWing = area.removeFromRight(wingWidth).reduced(6, 12);
+        
+        // 3. Node display MUST NOT overlap the master zone or labels!
+        auto displayArea = area.reduced(2, 2);
+        energyDisplay.setBounds(displayArea.withTrimmedTop(4)); 
+        
         layoutWing(leftWing, { &flow, &vitality, &texture, &canopy });
         layoutWing(rightWing, { &instability, &atmos, &seasons });
-        energyDisplay.setBounds(displayArea);
     }
-
+ 
     void paint(juce::Graphics& g) override
     {
         auto area = getLocalBounds().toFloat().reduced(6.0f);
-        auto leftShapeArea = area.withWidth(area.getWidth() * 0.27f).withTrimmedTop(24.0f).withTrimmedBottom(24.0f);
+        auto leftShapeArea = area.withWidth(area.getWidth() * 0.24f).withTrimmedTop(60.0f).withTrimmedBottom(10.0f);
         auto rightShapeArea = leftShapeArea.withX(area.getRight() - leftShapeArea.getWidth());
-        auto coreArea = area.withTrimmedLeft(leftShapeArea.getWidth() - 30.0f)
-                            .withTrimmedRight(rightShapeArea.getWidth() - 30.0f)
-                            .withTrimmedTop(44.0f)
-                            .withTrimmedBottom(36.0f);
+        
+        // 3. Main glass panel starts even lower now (56px down)
+        auto coreArea = area.withTrimmedLeft(leftShapeArea.getWidth() - 12.0f)
+                            .withTrimmedRight(rightShapeArea.getWidth() - 12.0f)
+                            .withTrimmedTop(56.0f)
+                            .withTrimmedBottom(4.0f);
         auto* focusedSlider = findFocusedSlider();
         const bool focusOnLeft = focusedSlider == &flow || focusedSlider == &vitality
                               || focusedSlider == &texture || focusedSlider == &canopy;
         const bool focusOnRight = focusedSlider == &instability || focusedSlider == &atmos || focusedSlider == &seasons;
+        const bool focusOnEvo = focusedSlider == &evolution;
         const auto focusTint = focusedSlider != nullptr ? getSliderTint(*focusedSlider) : getGroveTint();
         const auto streamTint = getStreamTint();
         const auto groveTint = getGroveTint();
@@ -79,6 +99,14 @@ public:
         RootFlow::drawOrganicPanel(g, leftShapeArea, false);
         RootFlow::drawOrganicPanel(g, rightShapeArea, true);
         RootFlow::drawGlassPanel(g, coreArea, 36.0f, 0.80f);
+
+        if (focusOnEvo)
+        {
+            g.setColour(focusTint.withAlpha(0.04f));
+            g.fillRoundedRectangle(coreArea.reduced(2.0f), 32.0f);
+            g.setColour(focusTint.withAlpha(0.12f));
+            g.drawRoundedRectangle(coreArea.reduced(1.5f), 34.0f, 1.2f);
+        }
 
         {
             juce::Graphics::ScopedSaveState state(g);
@@ -140,7 +168,7 @@ public:
             g.strokePath(rightShape, juce::PathStrokeType(1.3f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         }
 
-        if (focusedSlider != nullptr)
+        if (focusedSlider != nullptr && !focusOnEvo)
         {
             g.setColour(focusTint.withAlpha(0.022f));
             g.fillRoundedRectangle(coreArea.reduced(2.0f), 32.0f);
@@ -208,6 +236,7 @@ public:
     juce::Slider& getInstabilitySlider() { return instability; }
     juce::Slider& getAtmosSlider() { return atmos; }
     juce::Slider& getSeasonsSlider() { return seasons; }
+    juce::Slider& getEvolution() { return evolution; }
     EnergyDisplay& getEnergyDisplay() { return energyDisplay; }
     juce::Slider* getFocusedSlider() const { return findFocusedSlider(); }
     juce::Colour getFocusTint() const
@@ -289,22 +318,39 @@ private:
         }
     }
 
+ 
+ 
     void drawSliderLabels(juce::Graphics& g, const juce::Slider* focusedSlider)
     {
-        for (auto* slider : { &flow, &vitality, &texture, &canopy, &instability, &atmos, &seasons })
+        for (auto* slider : { &flow, &vitality, &texture, &canopy, &instability, &atmos, &seasons, &evolution })
         {
-            auto labelArea = slider->getBounds().withHeight(16).withBottom(slider->getY() - 1);
-            const auto just = slider->getBounds().getCentreX() < getWidth() / 2
-                ? juce::Justification::bottomLeft
-                : juce::Justification::bottomRight;
-            const bool isFocused = slider == focusedSlider;
-            const auto tint = getSliderTint(*slider);
-            g.setFont(RootFlow::getFont(isFocused ? 11.2f : 10.2f).boldened());
-            g.setColour(juce::Colours::black.withAlpha(isFocused ? 0.32f : 0.22f));
-            g.drawText(slider->getName(), labelArea.translated(0, 1), just, false);
-            g.setColour((isFocused ? RootFlow::text.interpolatedWith(tint, 0.22f)
-                                   : RootFlow::text.interpolatedWith(tint, 0.08f)).withAlpha(isFocused ? 0.98f : 0.94f));
-            g.drawText(slider->getName(), labelArea, just, false);
+            const bool isEvo = slider == &evolution;
+            
+            if (isEvo)
+            {
+                // Evolution master markers - SEED and DECAY (Main title is now in MainLayout)
+                g.setFont(RootFlow::getFont(8.8f).boldened());
+                g.setColour(juce::Colours::white.withAlpha(0.85f));
+                auto bounds = slider->getBounds().toFloat();
+                g.drawText("SEED", bounds.withWidth(40).translated(-36, 0), juce::Justification::centredRight, false);
+                g.drawText("DECAY", bounds.withWidth(40).translated(bounds.getWidth() - 4.0f, 0), juce::Justification::centredLeft, false);
+            }
+            else
+            {
+                auto labelArea = slider->getBounds().withHeight(16).withBottom(slider->getY() - 1);
+                const auto just = (slider->getBounds().getCentreX() < getWidth() / 2
+                                    ? juce::Justification::bottomLeft
+                                    : juce::Justification::bottomRight);
+                
+                const bool isFocused = slider == focusedSlider;
+                const auto tint = getSliderTint(*slider);
+                g.setFont(RootFlow::getFont(isFocused ? 11.2f : 10.2f).boldened());
+                g.setColour(juce::Colours::black.withAlpha(isFocused ? 0.32f : 0.22f));
+                g.drawText(slider->getName(), labelArea.translated(0, 1), just, false);
+                g.setColour((isFocused ? RootFlow::text.interpolatedWith(tint, 0.22f)
+                                    : RootFlow::text.interpolatedWith(tint, 0.08f)).withAlpha(isFocused ? 0.98f : 0.94f));
+                g.drawText(slider->getName(), labelArea, just, false);
+            }
         }
     }
 
@@ -314,6 +360,8 @@ private:
 
         auto drawFibre = [&g, target, focusedSlider, this] (juce::Slider& slider)
         {
+            if (&slider == &evolution) return;
+
             const auto colour = getSliderTint(slider);
             auto b = slider.getBounds().toFloat();
             const bool leftSide = b.getCentreX() < target.x;
@@ -352,7 +400,7 @@ private:
         for (auto* slider : { static_cast<const juce::Slider*>(&flow), static_cast<const juce::Slider*>(&vitality),
                               static_cast<const juce::Slider*>(&texture), static_cast<const juce::Slider*>(&canopy),
                               static_cast<const juce::Slider*>(&instability), static_cast<const juce::Slider*>(&atmos),
-                              static_cast<const juce::Slider*>(&seasons) })
+                              static_cast<const juce::Slider*>(&seasons), static_cast<const juce::Slider*>(&evolution) })
         {
             if (slider->isMouseButtonDown())
                 return const_cast<juce::Slider*>(slider);
@@ -361,7 +409,7 @@ private:
         for (auto* slider : { static_cast<const juce::Slider*>(&flow), static_cast<const juce::Slider*>(&vitality),
                               static_cast<const juce::Slider*>(&texture), static_cast<const juce::Slider*>(&canopy),
                               static_cast<const juce::Slider*>(&instability), static_cast<const juce::Slider*>(&atmos),
-                              static_cast<const juce::Slider*>(&seasons) })
+                              static_cast<const juce::Slider*>(&seasons), static_cast<const juce::Slider*>(&evolution) })
         {
             if (RootFlow::isInteractiveHoverActive(*slider) && ! slider->isMouseButtonDown())
                 return const_cast<juce::Slider*>(slider);
@@ -372,6 +420,8 @@ private:
 
     juce::Colour getSliderTint(const juce::Slider& slider) const
     {
+        if (&slider == &evolution)
+            return RootFlow::accent.interpolatedWith(RootFlow::amber, 0.45f);
         if (&slider == &flow)
             return RootFlow::accent.interpolatedWith(RootFlow::accentSoft, 0.38f);
         if (&slider == &vitality)
@@ -390,6 +440,8 @@ private:
 
     juce::String getSliderTitle(const juce::Slider& slider) const
     {
+        if (&slider == &evolution)
+            return "EVOLUTION CORE";
         if (&slider == &flow)
             return "NEURAL FLOW";
         if (&slider == &vitality)
@@ -444,6 +496,6 @@ private:
                               slider.isMouseButtonDown() ? 0.88f : 0.56f);
     }
 
-    RootFlow::InteractiveSlider flow, vitality, texture, canopy, instability, atmos, seasons;
+    RootFlow::InteractiveSlider flow, vitality, texture, canopy, instability, atmos, seasons, evolution;
     EnergyDisplay energyDisplay;
 };

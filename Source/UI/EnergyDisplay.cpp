@@ -476,33 +476,46 @@ void EnergyDisplay::paint(juce::Graphics& g)
 
         nervePath.quadraticTo(ctrlX, ctrlY, x2, y2);
 
-        float absAmt = std::abs(c.amount);
+        // Mycelium Health visual scaling
+        float healthScale = c.health;
+        float absAmt = std::abs(c.amount) * healthScale;
         juce::Colour connCol = c.amount < 0.0f
             ? RootFlow::amber.interpolatedWith(RootFlow::violet, 0.28f)
             : RootFlow::accent.interpolatedWith(RootFlow::accentSoft, 0.35f);
-        float alpha = 0.16f + (a.energy + b.energy) * 0.22f;
+        
+        // Fading based on health
+        float alpha = (0.16f + (a.energy + b.energy) * 0.22f) * healthScale;
+        
+        if (healthScale < 0.3f) // Flickering for dying mycelium
+        {
+            float flicker = 0.7f + 0.3f * std::sin(time * 25.0f + (float)c.source);
+            alpha *= flicker;
+        }
 
         g.setColour(connCol.withAlpha(0.07f * alpha * absAmt));
-        g.strokePath(nervePath, juce::PathStrokeType(5.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.strokePath(nervePath, juce::PathStrokeType(5.5f * healthScale, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
         g.setColour(connCol.withAlpha(0.42f * alpha));
-        g.strokePath(nervePath, juce::PathStrokeType(1.0f));
+        g.strokePath(nervePath, juce::PathStrokeType(juce::jmax(0.4f, 1.0f * healthScale)));
         
-        g.setColour(juce::Colours::white.withAlpha(0.35f * a.energy));
-        g.strokePath(nervePath, juce::PathStrokeType(0.6f));
+        g.setColour(juce::Colours::white.withAlpha(0.35f * a.energy * healthScale));
+        g.strokePath(nervePath, juce::PathStrokeType(0.6f * healthScale));
 
-        g.setColour(connCol.withAlpha(0.08f + absAmt * 0.10f));
-        g.fillEllipse(x1 - 2.0f, y1 - 2.0f, 4.0f, 4.0f);
-        g.fillEllipse(x2 - 2.0f, y2 - 2.0f, 4.0f, 4.0f);
+        g.setColour(connCol.withAlpha((0.08f + absAmt * 0.10f) * healthScale));
+        g.fillEllipse(x1 - 2.0f * healthScale, y1 - 2.0f * healthScale, 4.0f * healthScale, 4.0f * healthScale);
+        g.fillEllipse(x2 - 2.0f * healthScale, y2 - 2.0f * healthScale, 4.0f * healthScale, 4.0f * healthScale);
 
         float pathLen = nervePath.getLength();
         for (auto& p : c.particles)
         {
+            // Density of particles also drops with health
+            if (juce::Random::getSystemRandom().nextFloat() > (healthScale + 0.2f)) continue;
+
             for (size_t h = 0; h < p.history.size(); ++h)
             {
                 auto histPos = nervePath.getPointAlongPath(p.history[h] * pathLen);
                 const float trailAlpha = (1.0f - (float) h / (float) p.history.size()) * 0.12f * alpha;
-                const float trailSize = 0.7f + (1.0f - (float) h / (float) p.history.size()) * 1.6f;
+                const float trailSize = (0.7f + (1.0f - (float) h / (float) p.history.size()) * 1.6f) * healthScale;
                 g.setColour(connCol.withAlpha(trailAlpha));
                 g.fillEllipse(histPos.x - trailSize * 0.5f, histPos.y - trailSize * 0.5f, trailSize, trailSize);
             }

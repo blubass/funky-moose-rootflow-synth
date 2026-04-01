@@ -32,7 +32,9 @@ struct NodeConnection
     int   source = -1;
     int   target = -1;
     int   targetSlot = -1; // Cached Parameter Slot Index
-    float amount = 0.5f;
+    float amount = 0.5f;   // User-defined base amount
+    float health = 1.0f;   // Mycelium health (0.0 -> 1.0)
+    bool  isPersistent = false; // If true, won't decay (future use)
 
     std::vector<FlowParticle> particles;
 };
@@ -98,18 +100,39 @@ public:
             float bPulse = std::pow(std::sin(beatPhase * juce::MathConstants<float>::pi) * 0.5f + 0.5f, 2.0f);
             n.energy   = 0.85f * n.energy + 0.15f * (rms * 1.5f + n.value * 0.4f + bPulse * 0.3f);
             
-            float speed = 1.0f + n.value * 4.0f;
+            // Slowed down breathing pulse
+            float speed = 0.4f + n.value * 1.2f; 
             n.activity  = 0.5f + 0.5f * std::sin(time * speed + float(i));
 
-            // Organic Drift – nodes float like plankton (only when not dragged)
+            // Organic Drift – slower, like deep sea plankton
             if (!n.isDragging)
             {
                 n.position.x = juce::jlimit(0.05f, 0.95f,
-                    n.position.x + std::sin(time * 0.5f + (float)i * 1.3f) * 0.0004f);
+                    n.position.x + std::sin(time * 0.22f + (float)i * 1.3f) * 0.0002f);
                 n.position.y = juce::jlimit(0.05f, 0.95f,
-                    n.position.y + std::cos(time * 0.4f + (float)i * 1.1f) * 0.0004f);
+                    n.position.y + std::cos(time * 0.18f + (float)i * 1.1f) * 0.0002f);
             }
         }
+
+        // Decay and Growth for connections (Mycelium)
+        for (auto& c : connections)
+        {
+            const auto& src = nodes[(size_t)c.source];
+            const auto& dst = nodes[(size_t)c.target];
+            
+            // Gain health if nodes are active (Growth)
+            if (src.energy > 0.05f || dst.energy > 0.05f)
+                c.health = juce::jmin(1.0f, c.health + 0.002f * (src.energy + dst.energy));
+            
+            // Constant slow decay (Aging)
+            if (!c.isPersistent)
+                c.health = juce::jmax(0.0f, c.health - 0.0003f);
+        }
+
+        // Prune dead mycelium
+        connections.erase(std::remove_if(connections.begin(), connections.end(),
+            [](const NodeConnection& c) { return !c.isPersistent && c.health < 0.04f; }),
+            connections.end());
 
         updateParticles(rms, 0.016f, beatPhase);
     }
@@ -206,6 +229,50 @@ public:
     {
         const juce::ScopedLock sl (lock);
         return { nodes, connections };
+    }
+
+    juce::ValueTree saveConnections() const
+    {
+        const juce::ScopedLock sl (lock);
+        juce::ValueTree vt("CONNECTIONS");
+        for (const auto& c : connections)
+        {
+            juce::ValueTree cv("LINK");
+            cv.setProperty("src", c.source, nullptr);
+            cv.setProperty("dst", c.target, nullptr);
+            cv.setProperty("amt", c.amount, nullptr);
+            cv.setProperty("h", c.health, nullptr);
+            cv.setProperty("p", c.isPersistent, nullptr);
+            vt.addChild(cv, -1, nullptr);
+        }
+        return vt;
+    }
+
+    void loadConnections(const juce::ValueTree& vt)
+    {
+        if (!vt.hasType("CONNECTIONS")) return;
+        const juce::ScopedLock sl (lock);
+        connections.clear();
+        for (int i = 0; i < vt.getNumChildren(); ++i)
+        {
+            auto cv = vt.getChild(i);
+            NodeConnection c;
+            c.source = cv.getProperty("src");
+            c.target = cv.getProperty("dst");
+            c.amount = cv.getProperty("amt");
+            c.health = cv.getProperty("h");
+            c.isPersistent = cv.getProperty("p");
+            
+            // Re-initialise particles
+            for (int pIdx = 0; pIdx < 4; ++pIdx)
+            {
+                FlowParticle p;
+                p.t = juce::Random::getSystemRandom().nextFloat();
+                p.speed = 0.1f + juce::Random::getSystemRandom().nextFloat() * 0.3f;
+                c.particles.push_back(p);
+            }
+            connections.push_back(c);
+        }
     }
 
     std::vector<FlowNode>&       getNodes()       { return nodes; }

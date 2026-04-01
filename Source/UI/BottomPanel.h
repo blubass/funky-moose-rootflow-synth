@@ -21,6 +21,8 @@ public:
         addAndMakeVisible(bloom);
         addAndMakeVisible(rain);
         addAndMakeVisible(sun);
+
+        setOpaque(false);
     }
 
     void resized() override

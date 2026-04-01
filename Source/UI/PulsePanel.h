@@ -21,6 +21,8 @@ public:
         addAndMakeVisible(rate);
         addAndMakeVisible(breath);
         addAndMakeVisible(growth);
+
+        setOpaque(false);
     }
 
     void resized() override

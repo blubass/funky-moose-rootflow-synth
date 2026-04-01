@@ -119,17 +119,20 @@ public:
 
         addAndMakeVisible(rootPanel);
         addAndMakeVisible(pulsePanel);
-        addAndMakeVisible(centerComponent);
         addAndMakeVisible(bottomPanel);
         addAndMakeVisible(bioSeq);
+        addAndMakeVisible(centerComponent); // Added last to ensure Evolution Master is visible on top
 
+        setOpaque(false);
         startTimerHz(30);
     }
 
     void paint(juce::Graphics& g) override
     {
         auto bounds = getLocalBounds().toFloat();
-        RootFlow::fillBackdrop(g, bounds);
+        
+        // The backdrop is now drawn globally by the Editor to ensure full window coverage.
+        // We only draw the organic overlays here.
 
         // Add the Mycelium Network for that deep organic "Bio-Web" look
         RootFlow::drawMyceliumNetwork(g, bounds, RootFlow::accentSoft, 0.045f, 1337);
@@ -426,6 +429,19 @@ public:
         RootFlow::drawTabLabel(g, seqTabArea, "BIO-SEQUENCER");
         RootFlow::drawTabLabel(g, coreTabArea, "CENTER PANEL");
         RootFlow::drawTabLabel(g, pulseTabArea, "PULSE FIELD");
+
+        // --- EVOLUTION MASTER LABEL (DRAWN ON TOP OF EVERYTHING) ---
+        auto evolutionBox = centerComponent.getEvolution().getBounds().toFloat()
+                                          .translated((float) centerComponent.getX(),
+                                                      (float) centerComponent.getY());
+        auto evolutionLabelArea = evolutionBox.withHeight(20.0f).translated(0.0f, -20.0f);
+        
+        g.setFont(RootFlow::getFont(14.0f).boldened());
+        g.setColour(juce::Colours::black.withAlpha(0.55f));
+        g.drawText("EVOLUTION MASTER", evolutionLabelArea.translated(0.0f, 1.0f), juce::Justification::centred, false);
+        g.setColour(juce::Colours::white.withAlpha(0.96f));
+        g.drawText("EVOLUTION MASTER", evolutionLabelArea, juce::Justification::centred, false);
+
         auto masterSectionBounds = volLabel.getBounds()
                                        .getUnion(masterVolumeSlider.getBounds())
                                        .getUnion(mixLabel.getBounds())
@@ -704,6 +720,8 @@ public:
     CenterComponent&       getCenterComponent()  { return centerComponent; }
     BottomPanel&           getBottomPanel()      { return bottomPanel; }
     BioSequencerComponent& getBioSeq()           { return bioSeq; }
+
+    float getPulsePhase() const noexcept { return (float) pulsePhase; }
 
 private:
     juce::Colour getSystemTint() const

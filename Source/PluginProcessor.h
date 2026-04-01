@@ -307,6 +307,8 @@ public:
     void cycleSequencerStepState(int stepIndex);
     void toggleSequencerStepActive(int stepIndex);
     void adjustSequencerStepVelocity(int stepIndex, float delta);
+    void adjustSequencerStepProbability(int stepIndex, float delta);
+    void randomizeSequencerStepProbability(int stepIndex);
     void previewSequencerStep(int stepIndex);
     void updateSequencer(int numSamples, juce::MidiBuffer& midiMessages);
     void resetSequencer();
@@ -319,6 +321,7 @@ private:
     double sampleCounter = 0.0;
     int lastSequencerNote = -1;
     bool sequencerNoteActive = false;
+    bool sequencerWasEnabled = false;
     double sequencerGateSamples = 0.0;
 
     std::vector<int> heldMidiNotes;

@@ -21,6 +21,8 @@ public:
         addAndMakeVisible(depth);
         addAndMakeVisible(soil);
         addAndMakeVisible(anchor);
+
+        setOpaque(false);
     }
 
     void resized() override

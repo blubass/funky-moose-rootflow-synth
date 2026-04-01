@@ -28,7 +28,7 @@ RootFlowVoice::RootFlowVoice()
     adsrParams.attack = 0.015f;  // 15ms Attack
     adsrParams.decay = 0.18f;
     adsrParams.sustain = 0.72f;
-    adsrParams.release = 0.25f;  // 250ms Release
+    adsrParams.release = 0.68f;  // Increased from 0.25f for softer stopping
     adsr.setParameters(adsrParams);
 }
 

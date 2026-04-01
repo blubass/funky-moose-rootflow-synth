@@ -1,0 +1,48 @@
+{
+  "Name": "Funky Moose Rootflow Synth",
+  "Version": "1.2.0",
+  "Factory Info": {
+    "Vendor": "Funky Moose Audio",
+    "URL": "",
+    "E-Mail": "",
+    "Flags": {
+      "Unicode": true,
+      "Classes Discardable": false,
+      "Component Non Discardable": false,
+    },
+  },
+  "Classes": [
+    {
+      "CID": "ABCDEF019182FAEB464D41415254464C",
+      "Category": "Audio Module Class",
+      "Name": "Funky Moose Rootflow Synth",
+      "Vendor": "Funky Moose Audio",
+      "Version": "1.2.0",
+      "SDKVersion": "VST 3.7.12",
+      "Sub Categories": [
+        "Instrument",
+        "Synth",
+      ],
+      "Class Flags": 2,
+      "Cardinality": 2147483647,
+      "Snapshots": [
+      ],
+    },
+    {
+      "CID": "ABCDEF011234ABCD464D41415254464C",
+      "Category": "Component Controller Class",
+      "Name": "Funky Moose Rootflow Synth",
+      "Vendor": "Funky Moose Audio",
+      "Version": "1.2.0",
+      "SDKVersion": "VST 3.7.12",
+      "Sub Categories": [
+        "Instrument",
+        "Synth",
+      ],
+      "Class Flags": 2,
+      "Cardinality": 2147483647,
+      "Snapshots": [
+      ],
+    },
+  ],
+}

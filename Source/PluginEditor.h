@@ -4,6 +4,7 @@
 #include "JuceHeader.h"
 #include "RootFlowLookAndFeel.h"
 #include "UI/MainLayoutComponent.h"
+#include "UI/AtmosphericOverlay.h"
 
 class RootFlowAudioProcessor;
 
@@ -15,6 +16,7 @@ public:
     ~RootFlowAudioProcessorEditor() override;
 
     void paint(juce::Graphics&) override;
+    void paintOverChildren(juce::Graphics&) override;
     void resized() override;
     void timerCallback() override;
     void visibilityChanged() override;
@@ -45,6 +47,7 @@ private:
     juce::ComboBox waveSelector;
     juce::MidiKeyboardComponent keyboardDrawer;
     std::unique_ptr<MainLayoutComponent> mainLayout;
+    AtmosphericOverlay atmosphericOverlay;
     RootFlowLookAndFeel look;
 
     using Attachment = juce::AudioProcessorValueTreeState::SliderAttachment;
@@ -66,6 +69,7 @@ private:
     std::unique_ptr<Attachment> bloomAtt;
     std::unique_ptr<Attachment> rainAtt;
     std::unique_ptr<Attachment> sunAtt;
+    std::unique_ptr<Attachment> evolutionAtt;
     std::unique_ptr<ComboAttachment> waveAttachment;
 
     juce::ComboBox oversamplingSelector;
@@ -74,6 +78,7 @@ private:
     bool headerControlStateInitialised = false;
     int cachedPresetItemCount = -1;
     juce::Component* headerFocusedControl = nullptr;
+    float smoothedMidiVelocity = 0.0f; // for MIDI-reactive bio-dust decay
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RootFlowAudioProcessorEditor)
 };

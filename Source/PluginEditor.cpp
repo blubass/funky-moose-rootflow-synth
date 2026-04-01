@@ -55,6 +55,7 @@ void drawHeaderChip(juce::Graphics& g,
                     bool emphasise = false)
 {
     RootFlow::drawGlassPanel(g, area, area.getHeight() * 0.5f, emphasise ? 0.72f : 0.56f);
+    
     g.setColour(tint.withAlpha(emphasise ? 0.055f : 0.030f));
     g.fillRoundedRectangle(area.reduced(2.0f), area.getHeight() * 0.44f);
 
@@ -248,7 +249,10 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
 
     // Main Layout components are added and initialized
     mainLayout = std::make_unique<MainLayoutComponent>(p);
+    mainLayout->setOpaque(false); // Let the Editor's backdrop shine through
     addAndMakeVisible(*mainLayout);
+
+    startTimerHz(30); // Global UI Animation Pulse
 
     // --- ACTUAL ATTACHMENTS FOR SUB-PANELS ---
     auto& rp = mainLayout->getRootPanel();
@@ -271,12 +275,13 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
     seasonsAtt      = std::make_unique<Attachment>(p.tree, "ecoSystem",    cc.getSeasonsSlider());
 
     // Connect the Visualizer to the Processor
-    cc.getEnergyDisplay().setProcessor(&p);
+    cc.getEnergyDisplay().setProcessor(&audioProcessor);
 
     auto& bp = mainLayout->getBottomPanel();
-    bloomAtt    = std::make_unique<Attachment>(p.tree, "bloom", bp.getBloomSlider());
-    rainAtt     = std::make_unique<Attachment>(p.tree, "rain",  bp.getRainSlider());
-    sunAtt      = std::make_unique<Attachment>(p.tree, "sun",   bp.getSunSlider());
+    bloomAtt = std::make_unique<Attachment>(audioProcessor.tree, "bloom", bp.getBloomSlider());
+    rainAtt = std::make_unique<Attachment>(audioProcessor.tree, "rain", bp.getRainSlider());
+    sunAtt = std::make_unique<Attachment>(audioProcessor.tree, "sun", bp.getSunSlider());
+    evolutionAtt = std::make_unique<Attachment>(audioProcessor.tree, "evolution", cc.getEvolution());
 
     // --- GLOBAL HEADER UI ---
     addAndMakeVisible(presetBox);
@@ -383,6 +388,7 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
     };
 
     for (auto* headerControl : { static_cast<juce::Component*>(&waveSelector),
+                                 static_cast<juce::Component*>(&oversamplingSelector),
                                  static_cast<juce::Component*>(&presetBox),
                                  static_cast<juce::Component*>(&presetSaveButton),
                                  static_cast<juce::Component*>(&presetDeleteButton),
@@ -400,6 +406,11 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
     refreshHeaderControlState();
     updateAnimationTimerState();
     setSize(1240, 820);
+
+    // Overlay MUST be added LAST so it sits on top of every other child in Z-order
+    addAndMakeVisible(atmosphericOverlay);
+
+    startTimerHz(60); // Faster refresh for smoother bioluminescent glow & dust
 }
 
 RootFlowAudioProcessorEditor::~RootFlowAudioProcessorEditor()
@@ -425,11 +436,14 @@ RootFlowAudioProcessorEditor::~RootFlowAudioProcessorEditor()
 
 void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
 {
-    auto full = getLocalBounds().toFloat();
-    RootFlow::fillBackdrop(g, full);
+    const auto bounds = getLocalBounds().toFloat();
+    
+    float phase = (mainLayout != nullptr) ? mainLayout->getPulsePhase() : 0.0f;
+    RootFlow::fillBackdrop(g, bounds, phase);
 
+    auto mainArea = bounds;
     const auto headerHeight = getHeaderHeightForSize(getHeight());
-    auto headerArea = full.removeFromTop((float) headerHeight);
+    auto headerArea = mainArea.removeFromTop((float) headerHeight);
     juce::ColourGradient headerGrad(juce::Colour(0xff09140f).withAlpha(0.92f), headerArea.getTopLeft(),
                                     juce::Colour(0xff07110d).withAlpha(0.82f), headerArea.getBottomRight(), false);
     g.setGradientFill(headerGrad);
@@ -476,7 +490,7 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
     }
     else if (focusOversampling)
     {
-        focusSection = "HQ DSP";
+        focusSection = "Upsampling";
         focusValue = oversamplingSelector.getText().isNotEmpty() ? oversamplingSelector.getText() : juce::String("1x");
         focusTint = RootFlow::accentSoft;
     }
@@ -546,7 +560,8 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
         focusTint = RootFlow::accentSoft;
     }
 
-    auto leftCluster = waveSelector.getBounds().getUnion(presetBox.getBounds())
+    auto leftCluster = waveSelector.getBounds().getUnion(oversamplingSelector.getBounds())
+                                      .getUnion(presetBox.getBounds())
                                       .getUnion(presetSaveButton.getBounds())
                                       .getUnion(presetDeleteButton.getBounds())
                                       .getUnion(mutateButton.getBounds())
@@ -589,6 +604,7 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
     };
 
     auto waveCaptionArea = makeCaptionArea(waveSelector.getBounds().toFloat().expanded(2.0f, 0.0f), leftCaptionBand, 60.0f);
+    auto oversamplingCaptionArea = makeCaptionArea(oversamplingSelector.getBounds().toFloat().expanded(2.0f, 0.0f), leftCaptionBand, 46.0f);
     auto presetCaptionArea = makeCaptionArea(presetBox.getBounds().toFloat().expanded(2.0f, 0.0f), leftCaptionBand, 74.0f);
     auto actionsCaptionAnchor = presetSaveButton.getBounds()
                                 .getUnion(presetDeleteButton.getBounds())
@@ -607,6 +623,7 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
                                                                       : RootFlow::violet.interpolatedWith(RootFlow::amber, 0.45f);
 
     drawToolbarCaption(g, waveCaptionArea, "OSC", RootFlow::accentSoft);
+    drawToolbarCaption(g, oversamplingCaptionArea, "HD", RootFlow::accentSoft);
     drawToolbarCaption(g, presetCaptionArea, "PATCH", RootFlow::accent);
     drawToolbarCaption(g, actionsCaptionArea, "ACTIONS", actionTint);
     const auto visualsTint = popupOverlaysEnabled ? RootFlow::amber
@@ -927,10 +944,36 @@ void RootFlowAudioProcessorEditor::resized()
 
     if (mainLayout != nullptr)
         mainLayout->setBounds(bounds.reduced(compactHeaderLayout ? 8 : 10, 0));
+
+    // Overlay covers the full window, on top of everything
+    atmosphericOverlay.setBounds(getLocalBounds());
 }
 
 void RootFlowAudioProcessorEditor::timerCallback()
 {
+    repaint();
+
+    // Drive overlay from synth params
+    float phase          = (mainLayout != nullptr) ? mainLayout->getPulsePhase() : 0.0f;
+    float atmosIntensity = *audioProcessor.tree.getRawParameterValue("atmosphere");
+
+    // MIDI-reactive bio-dust: grab latest velocity, smooth decay
+    auto midiSnap = audioProcessor.getMidiActivitySnapshot();
+    const bool midiActive = (midiSnap.type == RootFlowAudioProcessor::MidiActivitySnapshot::Type::note
+                             && midiSnap.value > 0);
+    float rawVel = midiActive ? juce::jlimit(0.0f, 1.0f, (float) midiSnap.value / 127.0f) : 0.0f;
+
+    // Smooth: 5-frame attack, ~60-frame decay (≈2 s at 30 Hz)
+    if (rawVel > smoothedMidiVelocity)
+        smoothedMidiVelocity = rawVel;                    // instant attack
+    else
+        smoothedMidiVelocity *= 0.95f;                   // slow decay
+
+    atmosphericOverlay.setPhase(phase);
+    atmosphericOverlay.setIntensity(atmosIntensity);
+    atmosphericOverlay.setMidiVelocity(smoothedMidiVelocity);
+    atmosphericOverlay.repaint();
+
     refreshHeaderControlState();
 }
 
@@ -1096,3 +1139,7 @@ void RootFlowAudioProcessorEditor::mouseUp(const juce::MouseEvent& e)
         repaint();
     }
 }
+
+// paintOverChildren intentionally empty — atmospheric effects are
+// handled by AtmosphericOverlay (added last = top Z-order child).
+void RootFlowAudioProcessorEditor::paintOverChildren(juce::Graphics&) {}

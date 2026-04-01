@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -DNDEBUG -flto=thin -arch arm64 -arch x86_64 -mmacosx-version-min=12.0 -Wl,-search_paths_first -Wl,-headerpad_max_install_names "CMakeFiles/RootFlow_vst3_helper.dir/Users/uwearthurfelchle/Developer/JUCE/install/include/JUCE-8.0.10/modules/juce_audio_plugin_client/VST3/juce_VST3ManifestHelper.mm.o" -o RootFlow_vst3_helper  -framework Foundation

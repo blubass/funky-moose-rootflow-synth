@@ -8,7 +8,7 @@ class RootFlowAudioProcessor;
 class EnergyDisplay : public juce::Component, private juce::Timer
 {
 public:
-    EnergyDisplay() = default;
+    EnergyDisplay() { setOpaque(false); }
 
     void setProcessor(RootFlowAudioProcessor* p);
     void triggerSporeBurst();

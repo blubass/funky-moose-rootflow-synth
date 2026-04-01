@@ -85,7 +85,7 @@ constexpr std::array<const char*, 5> factoryPresetUtilityParameterIDs {
     "oscWave"
 };
 
-constexpr std::array<const char*, 26> managedParameterIDs {
+constexpr std::array<const char*, 27> managedParameterIDs {
     "rootDepth", "rootSoil", "rootAnchor",
     "sapFlow", "sapVitality", "sapTexture",
     "pulseRate", "pulseBreath", "pulseGrowth",
@@ -95,7 +95,8 @@ constexpr std::array<const char*, 26> managedParameterIDs {
     "ecoSystem",
     "sequencerOn", "sequencerRate", "sequencerSteps", "sequencerGate",
     "oscWave",
-    "masterVolume", "masterCompressor", "masterMix", "monoMakerToggle", "monoMakerFreq"
+    "masterVolume", "masterCompressor", "masterMix", "monoMakerToggle", "monoMakerFreq",
+    "evolution"
 };
 
 constexpr std::array<const char*, 24> mutationParameterIDs {
@@ -468,6 +469,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout RootFlowAudioProcessor::crea
                                                                   juce::StringArray { "1/4", "1/8", "1/16", "1/32" }, 2));
     params.push_back(std::make_unique<juce::AudioParameterInt>(juce::ParameterID("sequencerSteps", 1), "Seq Steps", 4, 16, 8));
     params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID("sequencerGate", 1), "Seq Gate", 0.1f, 1.0f, 0.5f));
+    params.push_back(std::make_unique<juce::AudioParameterBool>(juce::ParameterID("sequencerProbOn", 1), "Seq Probability", true));
+    params.push_back(std::make_unique<juce::AudioParameterBool>(juce::ParameterID("sequencerJitterOn", 1), "Seq Jitter", true));
 
     params.push_back(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID("oscWave", 1), "Waveform",
                                                                   juce::StringArray { "Sine", "Saw", "Pulse" }, 0));
@@ -481,7 +484,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout RootFlowAudioProcessor::crea
     params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID("monoMakerFreq", 1), "Mono Freq",
                                                                  juce::NormalisableRange<float>(20.0f, 400.0f, 1.0f, 0.5f), 80.0f));
 
-    params.push_back(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID("oversampling", 1), "Oversampling",
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID("evolution", 1), "Evolution", 0.0f, 1.0f, 0.5f));
+
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID("oversampling", 1), "Upsampling",
                                                                   juce::StringArray { "1x (Off)", "2x", "4x" }, 0));
 
     return { params.begin(), params.end() };
@@ -640,6 +645,10 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     buffer.clear();
     performPendingProcessingStateReset();
 
+    const float evolution = *tree.getRawParameterValue("evolution");
+    const float evolutionGrowth = juce::jlimit(0.0f, 1.0f, evolution / 0.65f);
+    const float evolutionDecay  = juce::jlimit(0.0f, 1.0f, (evolution - 0.70f) / 0.30f);
+
     std::array<float, 16> baseValues {{
         *tree.getRawParameterValue("rootDepth"),
         *tree.getRawParameterValue("rootSoil"),
@@ -658,6 +667,25 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         *tree.getRawParameterValue("sun"),
         *tree.getRawParameterValue("ecoSystem")
     }};
+
+    // --- EVOLUTION MACRO MORPHING ---
+    // Seed -> Bloom -> Decay Logic
+    
+    // 1. Soil (Release): Shorter at 0%, grows long, even longer at decay
+    baseValues[1]  = juce::jlimit(0.0f, 1.0f, baseValues[1] * (0.05f + evolutionGrowth * 0.95f + evolutionDecay * 0.6f));
+    // 2. Sap Flow (Harmonics/Presence): Grows with evolution
+    baseValues[3]  = juce::jlimit(0.0f, 1.0f, baseValues[3] * (0.2f + evolutionGrowth * 0.8f));
+    // 3. Texture: Increases in Bloom, becomes noisy/chaotic in Decay
+    baseValues[5]  = juce::jlimit(0.0f, 1.0f, baseValues[5] * (0.3f + evolutionGrowth * 0.7f) + evolutionDecay * 0.4f);
+    // 4. Instability: Minimal until Bloom, then massive increase towards Decay
+    baseValues[11] = juce::jlimit(0.0f, 1.0f, baseValues[11] + evolutionDecay * 0.75f + (evolutionGrowth * 0.08f));
+    // 5. Bloom & Rain FX: Fade in as the plant grows
+    baseValues[12] = juce::jlimit(0.0f, 1.0f, baseValues[12] * (evolutionGrowth * 0.85f + evolutionDecay * 1.5f));
+    baseValues[13] = juce::jlimit(0.0f, 1.0f, baseValues[13] * (evolutionGrowth * 0.80f + evolutionDecay * 0.9f));
+    // 6. Canopy: Fullest at peak Bloom (0.65), then starts to wither (Decay)
+    float canopyMorph = 1.0f - std::abs(evolution - 0.65f) * 1.3f;
+    baseValues[9]  = juce::jlimit(0.0f, 1.0f, baseValues[9] * (0.4f + juce::jmax(0.0f, canopyMorph) * 0.6f));
+
     std::array<float, 16> modulationValues {};
 
     {
@@ -675,7 +703,7 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             const int targetSlot = connection.targetSlot;
 
             if (targetSlot >= 0 && juce::isPositiveAndBelow(targetSlot, (int) modulationValues.size()))
-                modulationValues[(size_t) targetSlot] += source.value * connection.amount;
+                modulationValues[(size_t) targetSlot] += source.value * connection.amount * connection.health;
         }
     }
 
@@ -765,9 +793,26 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         midiMessages.swapWith(unisonMidi);
     }
 
+    const bool sequencerActive = *tree.getRawParameterValue("sequencerOn") > 0.5f;
+
+    // 1. Process all incoming MIDI events to update internal state (heldMidiNotes)
     handleIncomingMidiMessages(midiMessages);
+
+    // 2. Update the UI keyboard state BEFORE we filter the MIDI buffer.
+    // This ensures physical key releases are always seen by the UI, preventing sticking keys on the screen.
+    // We only INJECT events from the UI keyboard into the buffer if the sequencer is actually OFF.
+    keyboardState.processNextMidiBuffer(midiMessages, 0, numSamplesOriginal, !sequencerActive);
+
+    // 3. Run the arpeggiator/sequencer logic. 
+    // This will filter physical NoteOn/NoteOff messages from the buffer if active, but they were already processed by the UI above.
     updateSequencer(numSamplesOriginal, midiMessages);
-    keyboardState.processNextMidiBuffer(midiMessages, 0, numSamplesOriginal, true);
+    
+    // Transition reset for keyboard state to prevent ghost notes during mode switch
+    if (sequencerActive != sequencerWasEnabled)
+    {
+        keyboardState.reset();
+        sequencerWasEnabled = sequencerActive; // Sync here as well just in case
+    }
 
     juce::MidiBuffer oversampledMidi;
     const int oversamplingMultiplier = 1 << currentOversamplingFactor;
@@ -2554,7 +2599,10 @@ juce::AudioProcessorEditor* RootFlowAudioProcessor::createEditor()
 void RootFlowAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     auto state = tree.copyState();
-    appendCustomState(state);
+    
+    // Save Node System connections into the XML
+    state.addChild(nodeSystem.saveConnections(), -1, nullptr);
+    
     std::unique_ptr<juce::XmlElement> xml (state.createXml());
     copyXmlToBinary (*xml, destData);
 }
@@ -2563,16 +2611,22 @@ void RootFlowAudioProcessor::setStateInformation (const void* data, int sizeInBy
 {
     std::unique_ptr<juce::XmlElement> xmlState (getXmlFromBinary (data, sizeInBytes));
     if (xmlState.get() != nullptr)
+    {
         if (xmlState->hasTagName (tree.state.getType()))
         {
             auto restoredState = juce::ValueTree::fromXml(*xmlState);
             restoreCustomState(restoredState);
+            
+            // Restore Node System connections
+            nodeSystem.loadConnections(restoredState.getChildWithName("CONNECTIONS"));
+            
             presetLoadInProgress.fetch_add(1, std::memory_order_acq_rel);
             tree.replaceState (restoredState);
             presetLoadInProgress.fetch_sub(1, std::memory_order_acq_rel);
             currentPresetDirty.store(0, std::memory_order_relaxed);
             requestProcessingStateReset();
         }
+    }
 }
 
 void RootFlowAudioProcessor::resetSequencer()
@@ -2656,6 +2710,26 @@ void RootFlowAudioProcessor::adjustSequencerStepVelocity(int stepIndex, float de
     step.velocity = juce::jlimit(0.05f, 1.0f, step.velocity + delta);
 }
 
+void RootFlowAudioProcessor::adjustSequencerStepProbability(int stepIndex, float delta)
+{
+    if (! juce::isPositiveAndBelow(stepIndex, (int) sequencerSteps.size()))
+        return;
+
+    const juce::SpinLock::ScopedLockType lock(sequencerStateLock);
+    auto& step = sequencerSteps[(size_t) stepIndex];
+    step.probability = juce::jlimit(0.0f, 1.0f, step.probability + delta);
+}
+
+void RootFlowAudioProcessor::randomizeSequencerStepProbability(int stepIndex)
+{
+    if (! juce::isPositiveAndBelow(stepIndex, (int) sequencerSteps.size()))
+        return;
+
+    const juce::SpinLock::ScopedLockType lock(sequencerStateLock);
+    auto& step = sequencerSteps[(size_t) stepIndex];
+    step.probability = juce::Random::getSystemRandom().nextFloat();
+}
+
 void RootFlowAudioProcessor::previewSequencerStep(int stepIndex)
 {
     if (! juce::isPositiveAndBelow(stepIndex, (int) sequencerSteps.size()))
@@ -2668,22 +2742,38 @@ void RootFlowAudioProcessor::previewSequencerStep(int stepIndex)
 void RootFlowAudioProcessor::updateSequencer(int numSamples, juce::MidiBuffer& midiMessages)
 {
     const bool isEnabled = *tree.getRawParameterValue("sequencerOn") > 0.5f;
-    if (!isEnabled)
+    
+    // Transition Handling: Kill hanging manual notes when toggling sequencer
+    if (isEnabled != sequencerWasEnabled)
     {
-        if (sequencerNoteActive)
+        // HARD KILL: Directly tell the synth engine to stop all voices across all channels
+        for (int ch = 1; ch <= 16; ++ch)
+            synth.allNotesOff(ch, false);
+            
+        // Also clear the MIDI buffer just in case
+        midiMessages.clear();
+        
+        currentArpIndex = -1; // Reset arpeggiator sync
+        sequencerWasEnabled = isEnabled;
+        
+        if (! isEnabled && sequencerNoteActive)
         {
             midiMessages.addEvent(juce::MidiMessage::noteOff(1, lastSequencerNote), 0);
             sequencerNoteActive = false;
         }
-        return;
     }
 
+    if (! isEnabled)
+        return;
+
     // Filter incoming NoteOn/NoteOff messages if the sequencer is active to prevent polyphonic bleed
+    // and conflicts with sequenced notes.
+    // IMPORTANT: Allow AllNotesOff/AllSoundOff to pass so the transition kill works!
     juce::MidiBuffer filteredMidi;
     for (const auto metadata : midiMessages)
     {
         const auto msg = metadata.getMessage();
-        if (! msg.isNoteOn() && ! msg.isNoteOff())
+        if (! msg.isNoteOn() && ! msg.isNoteOff() && ! msg.isAllNotesOff() && ! msg.isAllSoundOff())
             filteredMidi.addEvent(msg, metadata.samplePosition);
     }
     midiMessages.swapWith(filteredMidi);
@@ -2758,16 +2848,31 @@ void RootFlowAudioProcessor::updateSequencer(int numSamples, juce::MidiBuffer& m
 
             if (step.active)
             {
-                const juce::ScopedLock sl (noteLock);
-                if (!heldMidiNotes.empty())
+                // --- BIOLOGICAL EVOLUTION: Probability & Jitter ---
+                auto& rng = juce::Random::getSystemRandom();
+                
+                // 1. Probability Check (Evolving Rhythms)
+                const bool probOn = tree.getRawParameterValue("sequencerProbOn")->load() > 0.5f;
+                if (!probOn || rng.nextFloat() <= step.probability)
                 {
-                    currentArpIndex = (currentArpIndex + 1) % (int)heldMidiNotes.size();
-                    lastSequencerNote = heldMidiNotes[(size_t)currentArpIndex];
+                    const juce::ScopedLock sl (noteLock);
+                    if (!heldMidiNotes.empty())
+                    {
+                        currentArpIndex = (currentArpIndex + 1) % (int)heldMidiNotes.size();
+                        lastSequencerNote = heldMidiNotes[(size_t)currentArpIndex];
 
-                    const float dynamicVelocity = juce::jlimit(0.1f, 1.0f, step.velocity * (0.8f + energy * 0.4f));
-                    midiMessages.addEvent(juce::MidiMessage::noteOn(1, lastSequencerNote, dynamicVelocity), i);
-                    sequencerNoteActive = true;
-                    sequencerTriggered.store(true);
+                        const float dynamicVelocity = juce::jlimit(0.1f, 1.0f, step.velocity * (0.8f + energy * 0.4f));
+                        
+                        // 2. Jitter (Micro-Timing based on Instability)
+                        const bool jitterOn = tree.getRawParameterValue("sequencerJitterOn")->load() > 0.5f;
+                        const float instability = *tree.getRawParameterValue("instability");
+                        const int jitterSamples = jitterOn ? juce::roundToInt((rng.nextFloat() - 0.5f) * instability * samplesPerStep * 0.15f) : 0;
+                        const int triggerPos = juce::jlimit(0, numSamples - 1, i + jitterSamples);
+                        
+                        midiMessages.addEvent(juce::MidiMessage::noteOn(1, lastSequencerNote, dynamicVelocity), triggerPos);
+                        sequencerNoteActive = true;
+                        sequencerTriggered.store(true);
+                    }
                 }
             }
 
@@ -2801,8 +2906,8 @@ float RootFlowAudioProcessor::getModulatedValue(const juce::String& paramID) con
 
         if (target.paramID == paramID)
         {
-            // Modulation: Source-Wert skaliert mit Connection-Amount
-            mod += source.value * c.amount;
+            // Modulation: Source-Wert skaliert mit Connection-Amount und Bio-Health (Mycelium)
+            mod += source.value * c.amount * c.health;
         }
     }
 

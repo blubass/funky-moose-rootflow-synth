@@ -118,145 +118,77 @@ namespace RootFlow
         return juce::Font(juce::FontOptions(size).withStyle("Plain")).withExtraKerningFactor(0.1f);
     }
 
-    static inline void fillBackdrop(juce::Graphics& g, juce::Rectangle<float> r)
+    static inline void fillBackdrop(juce::Graphics& g, juce::Rectangle<float> r, float phase = 0.0f)
     {
-        juce::ColourGradient base(bg.brighter(0.12f), r.getCentreX(), r.getY() - r.getHeight() * 0.10f,
-                                  bg.darker(0.18f), r.getCentreX(), r.getBottom(), false);
+        const float slowBreath = 0.5f + 0.5f * std::sin(phase * juce::MathConstants<float>::pi);
+
+        // --- DEEP AMBIENT CORE (Bottom Layer) ---
+        juce::ColourGradient base(bg.brighter(0.20f + slowBreath * 0.12f), r.getCentreX(), r.getY(),
+                                  bg.darker(0.45f), r.getCentreX(), r.getBottom(), false);
         g.setGradientFill(base);
         g.fillRect(r);
 
-        juce::ColourGradient nebula(violet.withAlpha(0.10f), r.getX() + r.getWidth() * 0.18f, r.getY() + r.getHeight() * 0.22f,
-                                    juce::Colours::transparentBlack, r.getX() + r.getWidth() * 0.35f, r.getY() + r.getHeight() * 0.55f, true);
-        g.setGradientFill(nebula);
-        g.fillEllipse(r.getX() + r.getWidth() * 0.02f, r.getY() + r.getHeight() * 0.08f, r.getWidth() * 0.42f, r.getHeight() * 0.34f);
+        // Bio-dust particles are now rendered as foreground in AtmosphericOverlay
+    }
 
-        juce::ColourGradient tealMist(accent.withAlpha(0.09f), r.getRight() - r.getWidth() * 0.22f, r.getY() + r.getHeight() * 0.16f,
-                                      juce::Colours::transparentBlack, r.getRight() - r.getWidth() * 0.12f, r.getY() + r.getHeight() * 0.44f, true);
-        g.setGradientFill(tealMist);
-        g.fillEllipse(r.getRight() - r.getWidth() * 0.36f, r.getY() + r.getHeight() * 0.04f, r.getWidth() * 0.34f, r.getHeight() * 0.30f);
+    static inline void drawAtmospherics(juce::Graphics& g, juce::Rectangle<float> r, float phase = 0.0f)
+    {
+        const float breath = 0.5f + 0.5f * std::sin(phase * juce::MathConstants<float>::twoPi);
+        juce::ColourGradient overhead(juce::Colours::cyan.withAlpha(0.25f + breath * 0.12f), r.getCentreX(), r.getY(),
+                                      juce::Colours::transparentBlack, r.getCentreX(), r.getY() + r.getHeight() * 0.75f, true);
+        g.setGradientFill(overhead);
+        g.fillEllipse(r.getX() - r.getWidth() * 0.2f, r.getY() - r.getHeight() * 0.45f, r.getWidth() * 1.4f, r.getHeight() * 1.1f);
 
-        juce::ColourGradient growthMist(accentSoft.withAlpha(0.06f), r.getX() + r.getWidth() * 0.40f, r.getY() + r.getHeight() * 0.34f,
-                                        juce::Colours::transparentBlack, r.getX() + r.getWidth() * 0.46f, r.getBottom() - r.getHeight() * 0.18f, true);
-        g.setGradientFill(growthMist);
-        g.fillEllipse(r.getX() + r.getWidth() * 0.26f, r.getY() + r.getHeight() * 0.24f, r.getWidth() * 0.30f, r.getHeight() * 0.42f);
-
-        juce::ColourGradient amberHaze(amber.withAlpha(0.05f), r.getCentreX(), r.getY() + r.getHeight() * 0.10f,
-                                       juce::Colours::transparentBlack, r.getCentreX(), r.getY() + r.getHeight() * 0.36f, true);
-        g.setGradientFill(amberHaze);
-        g.fillEllipse(r.getCentreX() - r.getWidth() * 0.18f, r.getY() - r.getHeight() * 0.02f, r.getWidth() * 0.36f, r.getHeight() * 0.24f);
-
-        for (int i = 0; i < 28; ++i)
+        for (int i = 0; i < 5; ++i)
         {
-            const float fx = std::fmod(std::sin((float) i * 91.713f) * 43758.54f, 1.0f);
-            const float fy = std::fmod(std::sin((float) i * 47.127f) * 9631.27f, 1.0f);
-            const float x = r.getX() + std::abs(fx) * r.getWidth();
-            const float y = r.getY() + std::abs(fy) * r.getHeight() * 0.82f;
-            const float size = 0.65f + (float) (i % 3) * 0.50f;
-            const juce::Colour star = (i % 5 == 0 ? accent : juce::Colours::white).withAlpha(0.035f + (float) (i % 7) * 0.018f);
-            g.setColour(star);
-            g.fillEllipse(x, y, size, size);
+            juce::Path ray;
+            float pulseOffset = std::sin(phase * juce::MathConstants<float>::twoPi + (float) i * 1.3f) * 60.0f;
+            // x relative to r.getX() so rays appear correctly inside the overlay bounds
+            float xBase = r.getX() + r.getWidth() * (0.05f + i * 0.22f) + pulseOffset;
+            ray.startNewSubPath(xBase, r.getY());
+            ray.lineTo(xBase + 160.0f, r.getY());
+            ray.lineTo(xBase + 380.0f + pulseOffset * 2.8f, r.getBottom());
+            ray.lineTo(xBase - 160.0f + pulseOffset * 2.8f, r.getBottom());
+            ray.closeSubPath();
+            float rayIntensity = (0.28f - i * 0.04f) * (0.6f + breath * 0.4f);
+            juce::ColourGradient rayGrad(juce::Colours::white.withAlpha(rayIntensity), xBase + 80.0f, r.getY(),
+                                         juce::Colours::transparentBlack, xBase + 80.0f, r.getBottom(), false);
+            g.setGradientFill(rayGrad);
+            g.fillPath(ray);
+            g.setColour(juce::Colours::cyan.withAlpha(rayIntensity * 0.35f));
+            g.strokePath(ray, juce::PathStrokeType(1.5f));
         }
     }
 
     static inline void drawGlassPanel(juce::Graphics& g, juce::Rectangle<float> r, float corner = 18.0f, float glow = 1.0f)
     {
         const float depth = juce::jlimit(1.0f, 8.0f, corner * 0.18f);
-        const auto seat = r.expanded(3.4f, 3.0f).translated(0.0f, depth * 0.34f + 1.0f);
-        juce::ColourGradient seatGrad(panelSoft.brighter(0.08f).withAlpha(0.26f * glow),
-                                      seat.getCentreX(), seat.getY(),
-                                      bg.darker(0.40f).withAlpha(0.58f * glow),
-                                      seat.getCentreX(), seat.getBottom(), false);
-        g.setGradientFill(seatGrad);
-        g.fillRoundedRectangle(seat, corner + 3.0f);
-        g.setColour(juce::Colours::black.withAlpha(0.12f * glow));
-        g.drawRoundedRectangle(seat.reduced(1.0f), corner + 2.0f, 0.9f);
+        
+        // --- MULTI-LAYERED DEEP SHADOW ---
+        g.setColour(juce::Colours::black.withAlpha(0.40f * glow));
+        g.fillRoundedRectangle(r.translated(0.0f, depth * 1.5f + 2.0f).expanded(4.0f, 2.0f), corner + 4.0f);
 
-        g.setColour(juce::Colours::black.withAlpha(0.20f * glow));
-        g.fillRoundedRectangle(r.translated(0.0f, depth + 2.0f).expanded(2.0f, 1.0f), corner + 1.5f);
-        g.setColour(juce::Colours::black.withAlpha(0.12f * glow));
-        g.fillRoundedRectangle(r.translated(0.0f, depth * 0.55f).expanded(0.8f, 0.4f), corner + 0.8f);
-
-        juce::ColourGradient panelGrad(panelSoft.brighter(0.10f).interpolatedWith(accent, 0.04f), r.getCentreX(), r.getY(),
-                                       panel.darker(0.12f).interpolatedWith(violet, 0.08f), r.getCentreX(), r.getBottom(), false);
+        // --- THE SEMI-TRANSPARENT GLASS BODY (Glassmorphism Fix) ---
+        juce::ColourGradient panelGrad(panelSoft.brighter(0.12f).withAlpha(0.68f * glow), r.getCentreX(), r.getY(),
+                                       panel.darker(0.18f).withAlpha(0.72f * glow), r.getCentreX(), r.getBottom(), false);
         g.setGradientFill(panelGrad);
         g.fillRoundedRectangle(r, corner);
 
-        juce::ColourGradient upperBevel(juce::Colours::white.withAlpha(0.070f * glow),
-                                        r.getCentreX(), r.getY() + 1.0f,
+        // --- SPECULAR TOP RIM LIGHT ---
+        g.setColour(juce::Colours::white.withAlpha(0.18f * glow));
+        g.drawRoundedRectangle(r.reduced(0.5f), corner, 1.4f);
+        
+        // --- INTERNAL DEPTH / BEVEL ---
+        juce::ColourGradient upperBevel(juce::Colours::white.withAlpha(0.12f * glow),
+                                        r.getCentreX(), r.getY() + 1.2f,
                                         juce::Colours::transparentBlack,
-                                        r.getCentreX(), r.getY() + r.getHeight() * 0.44f, false);
+                                        r.getCentreX(), r.getY() + r.getHeight() * 0.45f, false);
         g.setGradientFill(upperBevel);
-        g.fillRoundedRectangle(r.reduced(1.0f), corner - 1.0f);
+        g.fillRoundedRectangle(r.reduced(1.2f), corner - 1.2f);
 
-        juce::ColourGradient lowerOcclusion(juce::Colours::transparentBlack,
-                                            r.getCentreX(), r.getY() + r.getHeight() * 0.46f,
-                                            juce::Colours::black.withAlpha(0.14f * glow),
-                                            r.getCentreX(), r.getBottom(), false);
-        g.setGradientFill(lowerOcclusion);
-        g.fillRoundedRectangle(r.reduced(1.8f), corner - 1.8f);
-
-        juce::ColourGradient colourFilm(accent.withAlpha(0.020f * glow), r.getX(), r.getY(),
-                                        violet.withAlpha(0.018f * glow), r.getRight(), r.getBottom(), false);
-        g.setGradientFill(colourFilm);
-        g.fillRoundedRectangle(r.reduced(2.0f), corner - 2.0f);
-
-        juce::ColourGradient innerPocket(juce::Colours::transparentBlack,
-                                         r.getCentreX(), r.getY() + r.getHeight() * 0.18f,
-                                         juce::Colours::black.withAlpha(0.10f * glow),
-                                         r.getCentreX(), r.getBottom() - 1.0f, false);
-        g.setGradientFill(innerPocket);
-        g.fillRoundedRectangle(r.reduced(2.8f), corner - 2.8f);
-
-        {
-            juce::Graphics::ScopedSaveState state(g);
-            juce::Path clip;
-            clip.addRoundedRectangle(r.reduced(2.0f), corner - 2.0f);
-            g.reduceClipRegion(clip);
-
-            juce::ColourGradient leftWall(juce::Colours::white.withAlpha(0.024f * glow),
-                                          r.getX() + r.getWidth() * 0.08f, r.getY(),
-                                          juce::Colours::transparentBlack,
-                                          r.getX() + r.getWidth() * 0.18f, r.getBottom(), false);
-            g.setGradientFill(leftWall);
-            g.fillRect(juce::Rectangle<float>(r.getX() + 2.0f, r.getY() + 2.0f,
-                                              juce::jmax(8.0f, r.getWidth() * 0.12f), r.getHeight() - 4.0f));
-
-            juce::ColourGradient rightWall(juce::Colours::transparentBlack,
-                                           r.getRight() - r.getWidth() * 0.18f, r.getY(),
-                                           juce::Colours::black.withAlpha(0.070f * glow),
-                                           r.getRight() - r.getWidth() * 0.06f, r.getBottom(), false);
-            g.setGradientFill(rightWall);
-            g.fillRect(juce::Rectangle<float>(r.getRight() - juce::jmax(8.0f, r.getWidth() * 0.12f) - 2.0f,
-                                              r.getY() + 2.0f,
-                                              juce::jmax(8.0f, r.getWidth() * 0.12f), r.getHeight() - 4.0f));
-        }
-
-        auto lowerLip = juce::Rectangle<float>(r.getWidth() - 10.0f, juce::jmax(8.0f, r.getHeight() * 0.18f))
-                            .withCentre({ r.getCentreX(), r.getBottom() - juce::jmax(5.0f, r.getHeight() * 0.11f) });
-        juce::ColourGradient lowerLipGrad(juce::Colours::transparentBlack,
-                                          lowerLip.getCentreX(), lowerLip.getY(),
-                                          juce::Colours::white.withAlpha(0.050f * glow),
-                                          lowerLip.getCentreX(), lowerLip.getBottom(), false);
-        g.setGradientFill(lowerLipGrad);
-        g.fillRoundedRectangle(lowerLip, juce::jmax(6.0f, corner - 7.0f));
-
-        g.setColour(juce::Colours::white.withAlpha(0.014f * glow));
-        g.fillRoundedRectangle(r.reduced(3.4f).withHeight(r.getHeight() * 0.40f), corner - 3.4f);
-
-        g.setColour(accent.withAlpha(0.12f * glow));
-        g.drawRoundedRectangle(r, corner, 1.0f);
-
-        g.setColour(juce::Colours::white.withAlpha(0.12f * glow));
-        g.drawRoundedRectangle(r.reduced(1.5f), corner - 1.5f, 0.8f);
-
-        g.setColour(juce::Colours::black.withAlpha(0.16f * glow));
-        g.drawRoundedRectangle(r.reduced(3.0f).translated(0.0f, 1.0f), corner - 3.0f, 0.8f);
-
-        juce::Path highlight;
-        highlight.startNewSubPath(r.getX() + corner, r.getY() + 1.5f);
-        highlight.quadraticTo(r.getCentreX(), r.getY() - r.getHeight() * 0.08f, r.getRight() - corner, r.getY() + r.getHeight() * 0.08f);
-        g.setColour(juce::Colours::white.withAlpha(0.080f * glow));
-        g.strokePath(highlight, juce::PathStrokeType(1.2f));
+        // --- REINFORCED OUTER BORDER ---
+        g.setColour(juce::Colours::cyan.withAlpha(0.22f * glow));
+        g.drawRoundedRectangle(r, corner, 1.8f);
     }
 
     static inline juce::Path makeOrganicPod(juce::Rectangle<float> r, bool mirror = false)
@@ -294,55 +226,27 @@ namespace RootFlow
         {
             juce::Graphics::ScopedSaveState state(g);
             auto shadow = shape;
-            shadow.applyTransform(juce::AffineTransform::translation(0.0f, 8.0f));
-            g.setColour(juce::Colours::black.withAlpha(0.18f));
-            g.fillPath(shadow);
-            shadow.applyTransform(juce::AffineTransform::translation(0.0f, -4.0f));
-            g.setColour(juce::Colours::black.withAlpha(0.09f));
+            shadow.applyTransform(juce::AffineTransform::translation(0.0f, 12.0f));
+            g.setColour(juce::Colours::black.withAlpha(0.35f));
             g.fillPath(shadow);
         }
 
-        juce::ColourGradient fill(panelSoft.brighter(0.16f).interpolatedWith(accent, 0.02f), r.getX() + r.getWidth() * 0.42f, r.getY(),
-                                  violet.darker(0.18f).interpolatedWith(panel, 0.58f), r.getCentreX(), r.getBottom(), false);
+        // --- SEMI-TRANSPARENT ORGANIC FILL ---
+        juce::ColourGradient fill(panelSoft.brighter(0.25f).withAlpha(0.65f), r.getX() + r.getWidth() * 0.42f, r.getY(),
+                                   violet.darker(0.30f).withAlpha(0.75f), r.getCentreX(), r.getBottom(), false);
         g.setGradientFill(fill);
         g.fillPath(shape);
 
-        {
-            juce::Graphics::ScopedSaveState state(g);
-            g.reduceClipRegion(shape);
-
-            juce::ColourGradient topBulge(juce::Colours::white.withAlpha(0.09f),
-                                          r.getCentreX(), r.getY() + r.getHeight() * 0.02f,
-                                          juce::Colours::transparentBlack,
-                                          r.getCentreX(), r.getY() + r.getHeight() * 0.42f, false);
-            g.setGradientFill(topBulge);
-            g.fillEllipse(r.getX() + r.getWidth() * 0.08f, r.getY() - r.getHeight() * 0.04f,
-                          r.getWidth() * 0.84f, r.getHeight() * 0.46f);
-
-            juce::ColourGradient lowerShade(juce::Colours::transparentBlack,
-                                            r.getCentreX(), r.getY() + r.getHeight() * 0.46f,
-                                            juce::Colours::black.withAlpha(0.18f),
-                                            r.getCentreX(), r.getBottom() + r.getHeight() * 0.06f, false);
-            g.setGradientFill(lowerShade);
-            g.fillEllipse(r.getX() + r.getWidth() * 0.06f, r.getY() + r.getHeight() * 0.44f,
-                          r.getWidth() * 0.88f, r.getHeight() * 0.58f);
-        }
-
-        juce::ColourGradient aura(accent.withAlpha(0.06f), r.getCentreX(), r.getY() + r.getHeight() * 0.12f,
+        // --- BIOLUMINESCENT AURA (INTERIOR GLOW) ---
+        juce::ColourGradient aura(juce::Colours::cyan.withAlpha(0.12f), r.getCentreX(), r.getY() + r.getHeight() * 0.15f,
                                   juce::Colours::transparentBlack, r.getCentreX(), r.getBottom(), true);
         g.setGradientFill(aura);
         g.fillPath(shape);
 
-        juce::ColourGradient violetVeil(violet.withAlpha(0.05f), mirror ? r.getX() + r.getWidth() * 0.26f : r.getRight() - r.getWidth() * 0.26f,
-                                        r.getY() + r.getHeight() * 0.18f,
-                                        juce::Colours::transparentBlack, r.getCentreX(), r.getBottom(), true);
-        g.setGradientFill(violetVeil);
-        g.fillPath(shape);
-
-        g.setColour(juce::Colours::white.withAlpha(0.10f));
-        g.strokePath(shape, juce::PathStrokeType(1.2f));
-        g.setColour(accent.withAlpha(0.14f));
-        g.strokePath(shape, juce::PathStrokeType(2.8f));
+        g.setColour(juce::Colours::white.withAlpha(0.15f));
+        g.strokePath(shape, juce::PathStrokeType(1.6f));
+        g.setColour(juce::Colours::cyan.withAlpha(0.22f));
+        g.strokePath(shape, juce::PathStrokeType(3.5f));
     }
 
     static inline juce::Path makeSideColumnShell(juce::Rectangle<float> r, bool mirror = false)

@@ -1,0 +1,9 @@
+/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles/RootFlow.dir
+/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles/RootFlow_All.dir
+/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles/RootFlow_Standalone.dir
+/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles/RootFlow_AU.dir
+/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles/RootFlow_VST3.dir
+/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles/RootFlow_vst3_helper.dir
+/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles/RootFlowAssets.dir
+/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles/edit_cache.dir
+/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles/rebuild_cache.dir

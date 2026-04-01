@@ -60,7 +60,7 @@ public:
         reverb.setParameters(params);
 
         // Lowpass damping factor based on vitality
-        targetDamp = 0.75f - (sapVitality * 0.35f);
+        targetDamp = 0.82f - (sapVitality * 0.28f); // More damping (softer)
     }
 
     void process(juce::AudioBuffer<float>& buffer)
@@ -93,6 +93,7 @@ public:
             for (int i = 0; i < numSamples; ++i)
             {
                 // Simple Low-Pass on the Reverb Tail (Soil effect)
+                // Heavier darkening for RootFlow organic feel
                 float s = wetPtr[i];
                 s = s * (1.0f - targetDamp) + last * targetDamp;
                 last = s;
@@ -109,7 +110,7 @@ private:
     juce::LinearSmoothedValue<float> smoothedMix;
     juce::LinearSmoothedValue<float> smoothedSize;
     float prevL = 0.0f, prevR = 0.0f;
-    float targetDamp = 0.93f; // Deep analog darkening of reverb tail
+    float targetDamp = 0.94f; // Deep analog darkening of reverb tail
 };
 
 /**
@@ -153,9 +154,9 @@ public:
         modSpeed = 0.0001f + (pulseBreath * 0.0008f) + (plantEnergy * 0.0004f);
 
         // Base delay time
-        baseDelayMs = 180.0f + (sapFlow * 400.0f);
-        feedback = 0.22f + (sapTexture * 0.38f); // Max 0.60, more stable (was 0.80)
-        modDepth = 40.0f + (canopy * 80.0f);
+        baseDelayMs = 220.0f + (sapFlow * 380.0f);
+        feedback = 0.18f + (sapTexture * 0.32f); // Max 0.50, softer feedback loop
+        modDepth = 35.0f + (canopy * 65.0f);
     }
 
     void process(juce::AudioBuffer<float>& buffer)
@@ -184,8 +185,8 @@ public:
 
                 // Feedback loop with organic tape saturation & frequency damping
                 float fbRaw = dry + delayed * feedback;
-                tapeLp[ch % 2] = tapeLp[ch % 2] * 0.45f + fbRaw * 0.55f; // One-pole lowpass for tape echo effect
-                float fbSignal = std::tanh(tapeLp[ch % 2]);
+                tapeLp[ch % 2] = tapeLp[ch % 2] * 0.65f + fbRaw * 0.35f; // Softer one-pole lowpass
+                float fbSignal = std::tanh(tapeLp[ch % 2] * 1.15f); // Slightly saturated for warmth
                 delay[ch % 2].pushSample(0, fbSignal);
 
                 samples[i] = dry * (1.0f - mix) + delayed * mix;
