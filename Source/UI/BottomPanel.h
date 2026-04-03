@@ -42,10 +42,10 @@ public:
     void paint(juce::Graphics& g) override
     {
         auto area = getLocalBounds().toFloat().reduced(4.0f);
-        RootFlow::drawGlassPanel(g, area, 28.0f, 0.68f);
+        RootFlow::drawGlassPanel(g, area, 28.0f, 0.60f);
 
-        g.setFont(RootFlow::getFont(11.2f).boldened());
-        g.setColour(RootFlow::text.withAlpha(0.82f));
+        g.setFont(RootFlow::getFont(10.0f).boldened());
+        g.setColour(RootFlow::textMuted.interpolatedWith(RootFlow::text, 0.34f).withAlpha(0.72f));
         g.drawText("AMBIENT FIELD", area.withHeight(18.0f).translated(0.0f, 4.0f), juce::Justification::centred, false);
 
         for (auto* slider : { &bloom, &rain, &sun })
@@ -158,22 +158,22 @@ private:
         auto infoBounds = slider.getBounds().withY(slider.getBottom() + 3).withHeight(18).toFloat();
         auto chip = infoBounds.reduced(22.0f, 0.0f);
 
-        RootFlow::drawGlassPanel(g, chip, chip.getHeight() * 0.5f, 0.46f);
-        g.setColour(tint.withAlpha(0.08f));
+        RootFlow::drawGlassPanel(g, chip, chip.getHeight() * 0.5f, 0.34f);
+        g.setColour(tint.withAlpha(0.05f));
         g.fillRoundedRectangle(chip.reduced(2.0f), chip.getHeight() * 0.42f);
 
-        g.setFont(RootFlow::getFont(9.5f).boldened());
-        g.setColour(RootFlow::text.withAlpha(0.98f));
+        g.setFont(RootFlow::getFont(8.8f).boldened());
+        g.setColour(RootFlow::textMuted.interpolatedWith(RootFlow::text, 0.42f).withAlpha(0.84f));
         g.drawText(combinedText, infoBounds.toNearestInt(), juce::Justification::centred, false);
     }
 
     void drawFieldCapsule(juce::Graphics& g, juce::Rectangle<float> area, const juce::String& text, juce::Colour tint) const
     {
-        RootFlow::drawGlassPanel(g, area, area.getHeight() * 0.5f, 0.50f);
-        g.setColour(tint.withAlpha(0.08f));
+        RootFlow::drawGlassPanel(g, area, area.getHeight() * 0.5f, 0.34f);
+        g.setColour(tint.withAlpha(0.05f));
         g.fillRoundedRectangle(area.reduced(2.0f), area.getHeight() * 0.42f);
-        g.setFont(RootFlow::getFont(9.4f).boldened());
-        g.setColour(RootFlow::text.interpolatedWith(tint, 0.10f).withAlpha(0.92f));
+        g.setFont(RootFlow::getFont(8.6f).boldened());
+        g.setColour(RootFlow::textMuted.interpolatedWith(RootFlow::text.interpolatedWith(tint, 0.08f), 0.48f).withAlpha(0.80f));
         g.drawFittedText(text, area.toNearestInt().reduced(8, 0), juce::Justification::centred, 1);
     }
 

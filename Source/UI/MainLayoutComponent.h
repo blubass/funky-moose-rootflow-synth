@@ -22,7 +22,7 @@ public:
 
         // Bioluminescent Glow Effect for Title
         auto* glow = new juce::GlowEffect();
-        glow->setGlowProperties(4.5f, RootFlow::accent.withAlpha(0.12f));
+        glow->setGlowProperties(3.2f, RootFlow::accent.withAlpha(0.08f));
         titleLabel.setComponentEffect(glow);
 
         addAndMakeVisible(titleLabel);
@@ -34,7 +34,7 @@ public:
                                 RootFlow::accent.interpolatedWith(RootFlow::accentSoft, 0.24f));
 
         auto* rootflowGlow = new juce::GlowEffect();
-        rootflowGlow->setGlowProperties(8.0f, RootFlow::accent.withAlpha(0.26f));
+        rootflowGlow->setGlowProperties(5.6f, RootFlow::accent.withAlpha(0.16f));
         rootflowLabel.setComponentEffect(rootflowGlow);
 
         addAndMakeVisible(rootflowLabel);
@@ -91,25 +91,27 @@ public:
         masterCompressorSlider.getProperties().set("rootflowStyle", "side-vertical");
         masterCompressorSlider.setName("COMPRESSOR");
 
+        auto styleMasterLabel = [] (juce::Label& label)
+        {
+            label.setJustificationType(juce::Justification::centred);
+            label.setColour(juce::Label::textColourId,
+                            RootFlow::textMuted.interpolatedWith(RootFlow::accentSoft, 0.22f).withAlpha(0.72f));
+            label.setFont(juce::Font(juce::FontOptions(7.8f)).withExtraKerningFactor(0.16f));
+        };
+
         addAndMakeVisible(volLabel);
-        volLabel.setJustificationType(juce::Justification::centred);
-        volLabel.setColour(juce::Label::textColourId, RootFlow::accentSoft);
-        volLabel.setFont(juce::Font(juce::FontOptions(9.0f)));
+        styleMasterLabel(volLabel);
 
         addAndMakeVisible(mixLabel);
-        mixLabel.setJustificationType(juce::Justification::centred);
-        mixLabel.setColour(juce::Label::textColourId, RootFlow::accentSoft);
-        mixLabel.setFont(juce::Font(juce::FontOptions(9.0f)));
+        styleMasterLabel(mixLabel);
 
         addAndMakeVisible(freqLabel);
-        freqLabel.setJustificationType(juce::Justification::centred);
-        freqLabel.setColour(juce::Label::textColourId, RootFlow::accentSoft);
-        freqLabel.setFont(juce::Font(juce::FontOptions(9.0f)));
+        styleMasterLabel(freqLabel);
 
         addAndMakeVisible(compLabel);
-        compLabel.setJustificationType(juce::Justification::centred);
-        compLabel.setColour(juce::Label::textColourId, RootFlow::accentSoft);
-        compLabel.setFont(juce::Font(juce::FontOptions(9.0f)));
+        styleMasterLabel(compLabel);
+
+        monoMakerToggle.setAlpha(0.82f);
 
         volAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(p.tree, "masterVolume", masterVolumeSlider);
         mixAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(p.tree, "masterMix", masterMixSlider);
@@ -294,19 +296,19 @@ public:
         auto titleCanopy = titleLabel.getBounds()
                               .getUnion(rootflowLabel.getBounds())
                               .toFloat()
-                              .expanded(24.0f, 8.0f)
+                              .expanded(20.0f, 6.0f)
                               .translated(0.0f, 1.0f);
-        auto titleFascia = titleCanopy.expanded(18.0f, 10.0f).translated(0.0f, 4.0f);
-        g.setColour(juce::Colours::black.withAlpha(0.18f));
-        g.fillRoundedRectangle(titleFascia.translated(0.0f, 4.0f), titleFascia.getHeight() * 0.56f);
-        juce::ColourGradient fasciaGrad(RootFlow::panelSoft.brighter(0.08f), titleFascia.getCentreX(), titleFascia.getY(),
-                                        RootFlow::panel.darker(0.18f), titleFascia.getCentreX(), titleFascia.getBottom(), false);
+        auto titleFascia = titleCanopy.expanded(14.0f, 8.0f).translated(0.0f, 3.0f);
+        g.setColour(juce::Colours::black.withAlpha(0.13f));
+        g.fillRoundedRectangle(titleFascia.translated(0.0f, 3.0f), titleFascia.getHeight() * 0.54f);
+        juce::ColourGradient fasciaGrad(RootFlow::panelSoft.brighter(0.04f), titleFascia.getCentreX(), titleFascia.getY(),
+                                        RootFlow::panel.darker(0.20f), titleFascia.getCentreX(), titleFascia.getBottom(), false);
         g.setGradientFill(fasciaGrad);
         g.fillRoundedRectangle(titleFascia, titleFascia.getHeight() * 0.54f);
-        g.setColour(juce::Colours::white.withAlpha(0.10f));
+        g.setColour(juce::Colours::white.withAlpha(0.07f));
         g.drawRoundedRectangle(titleFascia.reduced(1.0f), titleFascia.getHeight() * 0.50f, 0.8f);
-        RootFlow::drawGlassPanel(g, titleCanopy, titleCanopy.getHeight() * 0.5f, 0.28f + idleBreath * 0.04f);
-        g.setColour(systemTint.withAlpha(0.010f + idleBreath * 0.008f));
+        RootFlow::drawGlassPanel(g, titleCanopy, titleCanopy.getHeight() * 0.5f, 0.18f + idleBreath * 0.03f);
+        g.setColour(systemTint.withAlpha(0.006f + idleBreath * 0.004f));
         g.fillRoundedRectangle(titleCanopy.reduced(2.0f), titleCanopy.getHeight() * 0.42f);
 
         juce::Path titleSheen;
@@ -314,25 +316,20 @@ public:
         titleSheen.cubicTo(titleCanopy.getX() + titleCanopy.getWidth() * 0.24f, titleCanopy.getY() + titleCanopy.getHeight() * 0.08f,
                            titleCanopy.getRight() - titleCanopy.getWidth() * 0.24f, titleCanopy.getY() + titleCanopy.getHeight() * 0.08f,
                            titleCanopy.getRight() - titleCanopy.getWidth() * 0.12f, titleCanopy.getBottom() - 3.0f);
-        g.setColour(juce::Colours::white.withAlpha(0.012f + idleBreath * 0.008f));
+        g.setColour(juce::Colours::white.withAlpha(0.008f + idleBreath * 0.005f));
         g.strokePath(titleSheen, juce::PathStrokeType(0.9f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
         const auto rootflowBounds = rootflowLabel.getBounds().toFloat();
-        juce::ColourGradient rootflowAura(RootFlow::accent.withAlpha(0.06f + idleBreath * 0.03f),
+        juce::ColourGradient rootflowAura(RootFlow::accent.withAlpha(0.03f + idleBreath * 0.015f),
                                           rootflowBounds.getCentreX(), rootflowBounds.getCentreY(),
-                                          RootFlow::violet.withAlpha(0.04f + idleBreath * 0.02f),
+                                          RootFlow::violet.withAlpha(0.02f + idleBreath * 0.01f),
                                           rootflowBounds.getX(), rootflowBounds.getBottom(), true);
         g.setGradientFill(rootflowAura);
         g.fillRoundedRectangle(rootflowBounds.expanded(12.0f, 6.0f), rootflowBounds.getHeight() * 0.54f);
 
         const auto dividerX = (float) ((titleLabel.getRight() + rootflowLabel.getX()) / 2);
-        g.setColour(RootFlow::textMuted.withAlpha(0.08f + idleBreath * 0.03f));
+        g.setColour(RootFlow::textMuted.withAlpha(0.045f + idleBreath * 0.015f));
         g.drawLine(dividerX, titleCanopy.getY() + 8.0f, dividerX, titleCanopy.getBottom() - 8.0f, 1.0f);
-
-        RootFlow::drawGlowOrb(g, { titleCanopy.getX() + 20.0f, titleCanopy.getCentreY() }, 2.4f, RootFlow::accentSoft, 0.10f + idleBreath * 0.04f);
-        RootFlow::drawGlowOrb(g, { titleCanopy.getRight() - 20.0f, titleCanopy.getCentreY() }, 2.4f, RootFlow::amber, 0.09f + idleBreath * 0.03f);
-        RootFlow::drawGlowOrb(g, { rootflowBounds.getX() + 8.0f, rootflowBounds.getCentreY() }, 2.7f, RootFlow::accent, 0.13f + idleBreath * 0.05f);
-        RootFlow::drawGlowOrb(g, { rootflowBounds.getRight() - 8.0f, rootflowBounds.getCentreY() }, 2.4f, RootFlow::violet, 0.11f + idleBreath * 0.04f);
 
         juce::Path bridge;
         auto bridgeY = shell.getBottom() - 126.0f;
@@ -429,7 +426,7 @@ public:
         auto ambientBand = bottomPanel.getBounds().toFloat().reduced(52.0f, 10.0f).withHeight(24.0f);
 
         RootFlow::drawTabLabel(g, rootTabArea, "ROOT FIELD");
-        RootFlow::drawTabLabel(g, seqTabArea, "BIO-SEQUENCER");
+        RootFlow::drawTabLabel(g, seqTabArea, "BIO-SEQUENCER", RootFlow::TabLabelStyle::prominent);
         RootFlow::drawTabLabel(g, coreTabArea, "CENTER PANEL");
         RootFlow::drawTabLabel(g, pulseTabArea, "PULSE FIELD");
 
@@ -439,11 +436,9 @@ public:
                                                       (float) centerComponent.getY());
         auto evolutionLabelArea = evolutionBox.withHeight(20.0f).translated(0.0f, -20.0f);
         
-        g.setFont(RootFlow::getFont(14.0f).boldened());
-        g.setColour(juce::Colours::black.withAlpha(0.55f));
-        g.drawText("EVOLUTION MASTER", evolutionLabelArea.translated(0.0f, 1.0f), juce::Justification::centred, false);
-        g.setColour(juce::Colours::white.withAlpha(0.96f));
-        g.drawText("EVOLUTION MASTER", evolutionLabelArea, juce::Justification::centred, false);
+        RootFlow::drawTabLabel(g,
+                               evolutionLabelArea.withTrimmedLeft(10.0f).withTrimmedRight(10.0f),
+                               "EVOLUTION MASTER");
 
         auto masterSectionBounds = volLabel.getBounds()
                                        .getUnion(masterVolumeSlider.getBounds())
@@ -725,6 +720,35 @@ public:
     BioSequencerComponent& getBioSeq()           { return bioSeq; }
 
     float getPulsePhase() const noexcept { return (float) pulsePhase; }
+    juce::Rectangle<int> getTitleSeedDockBounds() const
+    {
+        if (titleLabel.getBounds().isEmpty() || rootflowLabel.getBounds().isEmpty())
+            return {};
+
+        auto titleCanopy = titleLabel.getBounds()
+                              .getUnion(rootflowLabel.getBounds())
+                              .toFloat()
+                              .expanded(24.0f, 8.0f)
+                              .translated(0.0f, 1.0f);
+        auto titleFascia = titleCanopy.expanded(18.0f, 10.0f).translated(0.0f, 4.0f);
+        auto dock = titleFascia.reduced(26.0f, 6.0f);
+
+        const auto titleBounds = titleLabel.getBounds().toFloat();
+        const auto titleFont = titleLabel.getFont();
+        const float titleTextWidth = juce::GlyphArrangement::getStringBounds(titleFont, titleLabel.getText()).getWidth() + 12.0f;
+        const float titleTextLeft = titleBounds.getRight() - titleTextWidth;
+        dock.setRight(juce::jmin(dock.getRight(), titleTextLeft - 18.0f));
+
+        if (dock.getWidth() < 110.0f)
+            return {};
+
+        const float rowHeight = juce::jlimit(20.0f, 26.0f, dock.getHeight() - 4.0f);
+        return juce::Rectangle<float>(dock.getX(),
+                                      dock.getCentreY() - rowHeight * 0.5f,
+                                      dock.getWidth(),
+                                      rowHeight)
+            .toNearestInt();
+    }
 
 private:
     juce::Colour getSystemTint() const

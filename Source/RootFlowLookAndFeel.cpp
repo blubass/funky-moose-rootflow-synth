@@ -72,9 +72,8 @@ void RootFlowLookAndFeel::fillResizableWindowBackground(juce::Graphics& g,
 {
     g.fillAll(bg);
 
-    // Subtile Bio-Depth Gradient
-    juce::ColourGradient grad(bg.brighter(0.04f), w * 0.5f, 0,
-                               bg.darker(0.24f), w * 0.5f, (float)h, false);
+    juce::ColourGradient grad(bg.brighter(0.02f), w * 0.5f, 0,
+                               bg.darker(0.18f), w * 0.5f, (float)h, false);
     g.setGradientFill(grad);
     g.fillRect(0, 0, w, h);
 }
@@ -692,6 +691,7 @@ void RootFlowLookAndFeel::drawButtonBackground(juce::Graphics& g,
 {
     auto r = b.getLocalBounds().toFloat().reduced(2.0f);
     const bool hoverVisual = RootFlow::areHoverEffectsEnabled() && isHovered;
+    const auto style = b.getProperties()["rootflowStyle"].toString();
     
     // Check if it's an organic "spore" button (buttons without text/icons usually)
     if (b.getButtonText().isEmpty())
@@ -699,7 +699,7 @@ void RootFlowLookAndFeel::drawButtonBackground(juce::Graphics& g,
         juce::Path p;
         p.addEllipse(r);
 
-        float alpha = isPressed ? 0.95f : (hoverVisual ? 0.7f : 0.45f);
+        float alpha = isPressed ? 0.80f : (hoverVisual ? 0.55f : 0.32f);
         
         // Biological Spore Glow
         juce::ColourGradient grad(accent.withAlpha(alpha), r.getCentreX(), r.getCentreY(),
@@ -708,39 +708,83 @@ void RootFlowLookAndFeel::drawButtonBackground(juce::Graphics& g,
         g.fillPath(p);
 
         // Vibrant Core Outline
-        g.setColour(accent.withAlpha(alpha + 0.05f));
+        g.setColour(accent.withAlpha(alpha * 0.58f));
         g.strokePath(p, juce::PathStrokeType(1.6f));
         
         // Internal Spark
         if (hoverVisual || isPressed)
         {
-            g.setColour(juce::Colours::white.withAlpha(isPressed ? 0.8f : 0.4f));
+            g.setColour(juce::Colours::white.withAlpha(isPressed ? 0.46f : 0.24f));
             g.fillEllipse(r.getCentreX() - 2.0f, r.getCentreY() - 2.0f, 4.0f, 4.0f);
         }
     }
     else
     {
         const bool toggled = b.getToggleState();
-        auto base = juce::Colour(0xff0d1815).withAlpha(toggled ? 0.94f : 0.86f);
-        if (hoverVisual) base = base.brighter(0.18f);
-        if (isPressed) base = accent.withAlpha(0.22f);
+        if (style == "header-flat")
+        {
+            auto base = RootFlow::panelSoft.interpolatedWith(RootFlow::panel, 0.42f).withAlpha(toggled ? 0.86f : 0.76f);
+            if (hoverVisual) base = base.brighter(0.08f);
+            if (isPressed) base = accent.withAlpha(0.12f);
+
+            g.setColour(juce::Colours::black.withAlpha(0.14f));
+            g.fillRoundedRectangle(r.translated(0.0f, 1.6f), 8.5f);
+
+            juce::ColourGradient btnGrad(base.brighter(toggled ? 0.16f : 0.08f), r.getCentreX(), r.getY(),
+                                         base.darker(0.16f), r.getCentreX(), r.getBottom(), false);
+            g.setGradientFill(btnGrad);
+            g.fillRoundedRectangle(r, 8.0f);
+
+            g.setColour((toggled ? accent : accentSoft).withAlpha(toggled ? 0.18f : (hoverVisual ? 0.12f : 0.07f)));
+            g.drawRoundedRectangle(r, 8.0f, toggled ? 1.1f : 0.9f);
+
+            g.setColour(juce::Colours::white.withAlpha(hoverVisual ? 0.05f : 0.03f));
+            g.fillRoundedRectangle(r.withHeight(r.getHeight() * 0.42f).reduced(1.0f, 0.0f), 7.0f);
+            return;
+        }
+
+        if (style == "sequencer-flat")
+        {
+            auto base = juce::Colour(0xff10181b).withAlpha(toggled ? 0.80f : 0.70f);
+            if (hoverVisual) base = base.brighter(0.05f);
+            if (isPressed) base = base.brighter(0.08f);
+
+            g.setColour(juce::Colours::black.withAlpha(0.10f));
+            g.fillRoundedRectangle(r.translated(0.0f, 1.0f), 8.0f);
+
+            juce::ColourGradient btnGrad(base.brighter(toggled ? 0.10f : 0.04f), r.getCentreX(), r.getY(),
+                                         base.darker(0.12f), r.getCentreX(), r.getBottom(), false);
+            g.setGradientFill(btnGrad);
+            g.fillRoundedRectangle(r, 7.5f);
+
+            g.setColour((toggled ? accent : RootFlow::textMuted).withAlpha(toggled ? 0.10f : (hoverVisual ? 0.07f : 0.04f)));
+            g.drawRoundedRectangle(r, 7.5f, toggled ? 1.0f : 0.8f);
+
+            g.setColour((toggled ? accent : juce::Colours::white).withAlpha(toggled ? 0.03f : 0.02f));
+            g.fillRoundedRectangle(r.reduced(1.0f).withHeight(r.getHeight() * 0.40f), 6.5f);
+            return;
+        }
+
+        auto base = juce::Colour(0xff0d1815).withAlpha(toggled ? 0.88f : 0.80f);
+        if (hoverVisual) base = base.brighter(0.12f);
+        if (isPressed) base = accent.withAlpha(0.14f);
         auto bezel = r.expanded(2.8f, 2.4f).translated(0.0f, 1.2f);
 
         // Deep Bezel Shadow
-        g.setColour(juce::Colours::black.withAlpha(0.38f));
+        g.setColour(juce::Colours::black.withAlpha(0.28f));
         g.fillRoundedRectangle(bezel.translated(0.0f, 3.5f), 12.0f);
 
-        juce::ColourGradient bezelGrad(RootFlow::panelSoft.brighter(0.14f).withAlpha(0.48f), bezel.getCentreX(), bezel.getY(),
-                                       bg.darker(0.42f).withAlpha(0.68f), bezel.getCentreX(), bezel.getBottom(), false);
+        juce::ColourGradient bezelGrad(RootFlow::panelSoft.brighter(0.10f).withAlpha(0.38f), bezel.getCentreX(), bezel.getY(),
+                                       bg.darker(0.32f).withAlpha(0.56f), bezel.getCentreX(), bezel.getBottom(), false);
         g.setGradientFill(bezelGrad);
         g.fillRoundedRectangle(bezel, 12.0f);
-        g.setColour(juce::Colours::black.withAlpha(0.18f));
+        g.setColour(juce::Colours::black.withAlpha(0.12f));
         g.drawRoundedRectangle(bezel.reduced(0.8f), 11.2f, 1.0f);
 
         // Button Depression
-        g.setColour(juce::Colours::black.withAlpha(toggled ? 0.28f : 0.22f));
+        g.setColour(juce::Colours::black.withAlpha(toggled ? 0.20f : 0.16f));
         g.fillRoundedRectangle(r.translated(0.0f, 3.8f).expanded(2.0f, 0.8f), 11.0f);
-        g.setColour(juce::Colours::black.withAlpha(0.12f));
+        g.setColour(juce::Colours::black.withAlpha(0.08f));
         g.fillRoundedRectangle(r.translated(0.0f, 1.8f), 10.5f);
 
         juce::ColourGradient btnGrad(base.brighter(toggled ? 0.28f : 0.14f), r.getCentreX(), r.getY(),
@@ -748,7 +792,7 @@ void RootFlowLookAndFeel::drawButtonBackground(juce::Graphics& g,
         g.setGradientFill(btnGrad);
         g.fillRoundedRectangle(r, 10.0f);
 
-        juce::ColourGradient topBulge(juce::Colours::white.withAlpha(toggled ? 0.10f : 0.07f),
+        juce::ColourGradient topBulge(juce::Colours::white.withAlpha(toggled ? 0.08f : 0.05f),
                                       r.getCentreX(), r.getY(),
                                       juce::Colours::transparentBlack,
                                       r.getCentreX(), r.getY() + r.getHeight() * 0.48f, false);
@@ -757,20 +801,20 @@ void RootFlowLookAndFeel::drawButtonBackground(juce::Graphics& g,
 
         juce::ColourGradient lowerOcclusion(juce::Colours::transparentBlack,
                                             r.getCentreX(), r.getY() + r.getHeight() * 0.44f,
-                                            juce::Colours::black.withAlpha(0.16f),
+                                            juce::Colours::black.withAlpha(0.12f),
                                             r.getCentreX(), r.getBottom(), false);
         g.setGradientFill(lowerOcclusion);
         g.fillRoundedRectangle(r.reduced(1.2f), 8.6f);
 
-        g.setColour((toggled ? accent : accentSoft).withAlpha(toggled ? 0.34f : (hoverVisual ? 0.28f : 0.14f)));
+        g.setColour((toggled ? accent : accentSoft).withAlpha(toggled ? 0.22f : (hoverVisual ? 0.18f : 0.10f)));
         g.drawRoundedRectangle(r, 9.5f, toggled ? 1.3f : 1.0f);
 
-        g.setColour(juce::Colours::white.withAlpha(toggled ? 0.12f : 0.07f));
+        g.setColour(juce::Colours::white.withAlpha(toggled ? 0.08f : 0.05f));
         g.drawRoundedRectangle(r.reduced(1.0f), 8.4f, 0.8f);
 
         if (toggled)
         {
-            g.setColour(accent.withAlpha(0.14f));
+            g.setColour(accent.withAlpha(0.08f));
             g.fillRoundedRectangle(r.expanded(1.8f), 11.0f);
         }
     }
@@ -781,12 +825,83 @@ void RootFlowLookAndFeel::drawButtonText(juce::Graphics& g,
                                          bool,
                                          bool)
 {
-    const float fontHeight = button.getHeight() < 34 || button.getWidth() < 68 ? 11.0f : 12.0f;
-    const float kerning = button.getWidth() < 72 ? 0.12f : 0.18f;
+    const auto style = button.getProperties()["rootflowStyle"].toString();
+    const bool flatHeaderButton = style == "header-flat";
+    const bool flatSequencerButton = style == "sequencer-flat";
+    const float fontHeight = flatHeaderButton ? 10.2f
+                           : (flatSequencerButton ? 9.2f
+                              : (button.getHeight() < 34 || button.getWidth() < 68 ? 11.0f : 12.0f));
+    const float kerning = flatHeaderButton ? 0.10f
+                         : (flatSequencerButton ? 0.08f
+                            : (button.getWidth() < 72 ? 0.12f : 0.18f));
     g.setFont(juce::Font(juce::FontOptions(fontHeight).withStyle("SemiBold")).withExtraKerningFactor(kerning));
     g.setColour(button.findColour(button.getToggleState() ? juce::TextButton::textColourOnId
                                                           : juce::TextButton::textColourOffId));
     g.drawFittedText(button.getButtonText(), button.getLocalBounds().reduced(4, 0), juce::Justification::centred, 1);
+}
+
+void RootFlowLookAndFeel::fillTextEditorBackground(juce::Graphics& g,
+                                                   int width, int height,
+                                                   juce::TextEditor& editor)
+{
+    auto bounds = juce::Rectangle<float>(0.0f, 0.0f, (float) width, (float) height).reduced(0.5f);
+    const bool focused = editor.hasKeyboardFocus(true);
+    const bool hovered = RootFlow::areHoverEffectsEnabled() && editor.isMouseOverOrDragging();
+    const auto frameTint = editor.findColour(focused ? juce::TextEditor::focusedOutlineColourId
+                                                     : juce::TextEditor::outlineColourId,
+                                             true);
+    auto fillBase = editor.findColour(juce::TextEditor::backgroundColourId, true);
+
+    if (fillBase.getAlpha() == 0)
+        fillBase = RootFlow::panelSoft.withAlpha(0.44f);
+
+    g.setColour(juce::Colours::black.withAlpha(0.20f));
+    g.fillRoundedRectangle(bounds.translated(0.0f, 2.8f), 10.0f);
+
+    juce::ColourGradient body(fillBase.brighter(focused ? 0.12f : 0.05f).withAlpha(focused ? 0.86f : 0.78f),
+                              bounds.getCentreX(), bounds.getY(),
+                              fillBase.darker(0.18f).withAlpha(0.90f),
+                              bounds.getCentreX(), bounds.getBottom(), false);
+    g.setGradientFill(body);
+    g.fillRoundedRectangle(bounds, 9.0f);
+
+    g.setColour(frameTint.withAlpha(focused ? 0.06f : (hovered ? 0.04f : 0.03f)));
+    g.fillRoundedRectangle(bounds.reduced(1.2f), 7.6f);
+
+    juce::ColourGradient sheen(juce::Colours::white.withAlpha(focused ? 0.10f : 0.05f),
+                               bounds.getCentreX(), bounds.getY(),
+                               juce::Colours::transparentBlack,
+                               bounds.getCentreX(), bounds.getY() + bounds.getHeight() * 0.55f, false);
+    g.setGradientFill(sheen);
+    g.fillRoundedRectangle(bounds.reduced(1.0f), 7.8f);
+}
+
+void RootFlowLookAndFeel::drawTextEditorOutline(juce::Graphics& g,
+                                                int width, int height,
+                                                juce::TextEditor& editor)
+{
+    auto bounds = juce::Rectangle<float>(0.0f, 0.0f, (float) width, (float) height).reduced(0.5f);
+    const bool focused = editor.hasKeyboardFocus(true);
+    const bool hovered = RootFlow::areHoverEffectsEnabled() && editor.isMouseOverOrDragging();
+    auto rim = editor.findColour(focused ? juce::TextEditor::focusedOutlineColourId
+                                         : juce::TextEditor::outlineColourId,
+                                 true);
+
+    if (! editor.isEnabled())
+        rim = rim.withMultipliedAlpha(0.45f);
+
+    g.setColour(juce::Colours::white.withAlpha(focused ? 0.10f : 0.04f));
+    g.drawRoundedRectangle(bounds.reduced(1.0f), 8.2f, 0.8f);
+
+    g.setColour(rim.withAlpha(focused ? 0.42f : (hovered ? 0.24f : 0.16f)));
+    g.drawRoundedRectangle(bounds, 9.0f, focused ? 1.4f : 1.0f);
+
+    g.setColour(rim.withAlpha(focused ? 0.10f : 0.05f));
+    g.drawLine(bounds.getX() + 10.0f,
+               bounds.getBottom() - 1.2f,
+               bounds.getRight() - 10.0f,
+               bounds.getBottom() - 1.2f,
+               focused ? 1.2f : 0.8f);
 }
 
 void RootFlowLookAndFeel::drawLabel(juce::Graphics& g, juce::Label& l)
@@ -834,30 +949,27 @@ void RootFlowLookAndFeel::drawComboBox(juce::Graphics& g, int width, int height,
     auto bezel = r.expanded(3.0f, 2.4f).translated(0.0f, 1.2f);
     const bool hovered = RootFlow::areHoverEffectsEnabled() && box.isMouseOver();
 
-    // Deep Bezel Shadow
-    g.setColour(juce::Colours::black.withAlpha(0.42f));
+    g.setColour(juce::Colours::black.withAlpha(0.32f));
     g.fillRoundedRectangle(bezel.translated(0.0f, 4.0f), 12.5f);
 
-    juce::ColourGradient bezelGrad(RootFlow::panelSoft.brighter(0.14f).withAlpha(0.46f), bezel.getCentreX(), bezel.getY(),
-                                   bg.darker(0.45f).withAlpha(0.66f), bezel.getCentreX(), bezel.getBottom(), false);
+    juce::ColourGradient bezelGrad(RootFlow::panelSoft.brighter(0.10f).withAlpha(0.38f), bezel.getCentreX(), bezel.getY(),
+                                   bg.darker(0.28f).withAlpha(0.56f), bezel.getCentreX(), bezel.getBottom(), false);
     g.setGradientFill(bezelGrad);
     g.fillRoundedRectangle(bezel, 12.5f);
-    g.setColour(juce::Colours::black.withAlpha(0.16f));
+    g.setColour(juce::Colours::black.withAlpha(0.10f));
     g.drawRoundedRectangle(bezel.reduced(0.8f), 11.5f, 1.0f);
 
-    // Box Depression
-    g.setColour(juce::Colours::black.withAlpha(0.24f));
+    g.setColour(juce::Colours::black.withAlpha(0.16f));
     g.fillRoundedRectangle(r.translated(0.0f, 4.0f).expanded(1.8f, 0.8f), 11.5f);
-    g.setColour(juce::Colours::black.withAlpha(0.12f));
+    g.setColour(juce::Colours::black.withAlpha(0.08f));
     g.fillRoundedRectangle(r.translated(0.0f, 1.8f), 10.8f);
 
-    juce::ColourGradient boxGrad(juce::Colour(0xff0f1d18).withAlpha(0.96f), r.getCentreX(), r.getY(),
-                                 juce::Colour(0xff08120d).withAlpha(0.92f), r.getCentreX(), r.getBottom(), false);
+    juce::ColourGradient boxGrad(RootFlow::panelSoft.brighter(0.04f).withAlpha(0.86f), r.getCentreX(), r.getY(),
+                                 RootFlow::panel.darker(0.16f).withAlpha(0.82f), r.getCentreX(), r.getBottom(), false);
     g.setGradientFill(boxGrad);
     g.fillRoundedRectangle(r, 10.5f);
 
-    // Dynamic Top Rim Highlight
-    juce::ColourGradient topBulge(juce::Colours::white.withAlpha(hovered ? 0.16f : 0.10f),
+    juce::ColourGradient topBulge(juce::Colours::white.withAlpha(hovered ? 0.10f : 0.06f),
                                   r.getCentreX(), r.getY(),
                                   juce::Colours::transparentBlack,
                                   r.getCentreX(), r.getY() + r.getHeight() * 0.52f, false);
@@ -866,45 +978,45 @@ void RootFlowLookAndFeel::drawComboBox(juce::Graphics& g, int width, int height,
 
     juce::ColourGradient lowerOcclusion(juce::Colours::transparentBlack,
                                         r.getCentreX(), r.getY() + r.getHeight() * 0.44f,
-                                        juce::Colours::black.withAlpha(0.24f),
+                                        juce::Colours::black.withAlpha(0.16f),
                                         r.getCentreX(), r.getBottom(), false);
     g.setGradientFill(lowerOcclusion);
     g.fillRoundedRectangle(r.reduced(1.4f), 9.4f);
 
-    g.setColour((box.hasKeyboardFocus(true) ? accent : accentSoft).withAlpha(hovered ? 0.38f : 0.22f));
+    g.setColour((box.hasKeyboardFocus(true) ? accent : accentSoft).withAlpha(hovered ? 0.24f : 0.14f));
     g.drawRoundedRectangle(r, 10.5f, 1.2f);
     
-    g.setColour(juce::Colours::white.withAlpha(0.12f));
+    g.setColour(juce::Colours::white.withAlpha(0.09f));
     g.drawRoundedRectangle(r.reduced(1.2f), 9.2f, 0.9f);
 
     auto sheen = r.withHeight(r.getHeight() * 0.46f);
-    g.setColour(juce::Colours::white.withAlpha(0.06f));
+    g.setColour(juce::Colours::white.withAlpha(0.04f));
     g.fillRoundedRectangle(sheen, 10.0f);
 
     auto arrowChamber = juce::Rectangle<float>(18.0f, r.getHeight() - 8.0f)
                             .withCentre({ r.getRight() - 14.0f, r.getCentreY() });
-    g.setColour(juce::Colours::black.withAlpha(0.18f));
+    g.setColour(juce::Colours::black.withAlpha(0.12f));
     g.fillRoundedRectangle(arrowChamber.translated(0.0f, 1.8f), 7.0f);
-    juce::ColourGradient arrowChamberGrad(panel.brighter(0.08f), arrowChamber.getCentreX(), arrowChamber.getY(),
-                                          bg.darker(0.18f), arrowChamber.getCentreX(), arrowChamber.getBottom(), false);
+    juce::ColourGradient arrowChamberGrad(panel.brighter(0.05f), arrowChamber.getCentreX(), arrowChamber.getY(),
+                                          bg.darker(0.12f), arrowChamber.getCentreX(), arrowChamber.getBottom(), false);
     g.setGradientFill(arrowChamberGrad);
     g.fillRoundedRectangle(arrowChamber, 6.8f);
-    g.setColour(juce::Colours::white.withAlpha(0.10f));
+    g.setColour(juce::Colours::white.withAlpha(0.08f));
     g.drawRoundedRectangle(arrowChamber.reduced(0.8f), 6.0f, 0.7f);
 
     auto arrowArea = r.withTrimmedLeft(r.getWidth() - 18.0f).withSize(8.0f, 6.0f).withCentre(r.getCentre().withX(r.getRight() - 11.0f));
     juce::Path p;
     p.addTriangle(arrowArea.getX(), arrowArea.getY(), arrowArea.getRight(), arrowArea.getY(), arrowArea.getCentreX(), arrowArea.getBottom());
-    g.setColour(accent.withAlpha(0.78f));
+    g.setColour(accent.withAlpha(0.62f));
     g.fillPath(p);
 }
 
 void RootFlowLookAndFeel::drawPopupMenuBackground(juce::Graphics& g, int width, int height)
 {
-    g.setColour(bg.brighter(0.04f));
+    g.setColour(bg.brighter(0.02f));
     g.fillAll();
     
-    g.setColour(accent.withAlpha(0.12f));
+    g.setColour(accent.withAlpha(0.08f));
     g.drawRect(0, 0, width, height, 1);
 }
 
@@ -915,7 +1027,7 @@ void RootFlowLookAndFeel::drawPopupMenuItem(juce::Graphics& g, const juce::Recta
 {
     if (isHighlighted && isActive)
     {
-        g.setColour(accent.withAlpha(0.15f));
+        g.setColour(accent.withAlpha(0.10f));
         g.fillRect(area.reduced(1));
     }
 

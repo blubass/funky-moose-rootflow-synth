@@ -1,6 +1,8 @@
 
 #pragma once
 
+#include <array>
+
 #include "JuceHeader.h"
 #include "RootFlowLookAndFeel.h"
 #include "UI/MainLayoutComponent.h"
@@ -23,6 +25,18 @@ public:
     void parentHierarchyChanged() override;
 
 private:
+    void applyPromptSeed();
+    void showPatchMenu();
+    void showUtilityMenu();
+    void setMidiLearnEnabled(bool enabled);
+    void setHoverEffectsEnabled(bool enabled);
+    void setIdleEffectsEnabled(bool enabled);
+    void setPopupOverlaysEnabled(bool enabled);
+    void setToneProbeEnabled(bool enabled);
+    void setGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup group, bool enabled);
+    void applyStylePromptRecipe(int recipeIndex);
+    void recallSeedMemoryPrompt(int slotIndex);
+    void deleteSeedMemoryPrompt(int slotIndex);
     void refreshHeaderControlState();
     void updateAnimationTimerState();
     void registerHeaderControl(juce::Component&);
@@ -36,14 +50,29 @@ private:
     RootFlowAudioProcessor& audioProcessor;
 
     juce::ComboBox presetBox;
+    juce::TextButton patchMenuButton;
     juce::TextButton presetSaveButton;
     juce::TextButton presetDeleteButton;
     juce::TextButton midiLearnButton;
+    juce::TextButton utilityMenuButton;
     juce::TextButton testToneButton;
     juce::TextButton hoverToggleButton;
     juce::TextButton idleToggleButton;
     juce::TextButton popupToggleButton;
+    juce::TextButton mutateModeButton;
     juce::TextButton mutateButton;
+    juce::TextButton growLockRootButton;
+    juce::TextButton growLockMotionButton;
+    juce::TextButton growLockAirButton;
+    juce::TextButton growLockFxButton;
+    juce::TextButton growLockSeqButton;
+    juce::TextEditor promptEditor;
+    juce::TextEditor morphPromptEditor;
+    juce::Slider promptMorphSlider;
+    juce::TextButton promptApplyButton;
+    std::array<juce::TextButton, 3> seedMemoryButtons;
+    std::array<juce::String, 3> seedMemoryPrompts;
+    std::array<juce::String, 3> seedMemorySummaries;
     juce::ComboBox waveSelector;
     juce::MidiKeyboardComponent keyboardDrawer;
     std::unique_ptr<MainLayoutComponent> mainLayout;

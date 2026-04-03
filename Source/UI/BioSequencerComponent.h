@@ -29,6 +29,9 @@ public:
             refreshPowerButtonText();
             repaint();
         };
+        powerButton.getProperties().set("rootflowStyle", "sequencer-flat");
+        powerButton.setColour(juce::TextButton::textColourOffId, RootFlow::textMuted.withAlpha(0.72f));
+        powerButton.setColour(juce::TextButton::textColourOnId, RootFlow::text.withAlpha(0.92f));
         addAndMakeVisible(powerButton);
 
         // Rate Box
@@ -60,12 +63,18 @@ public:
 
         probButton.setButtonText("EVO");
         probButton.setClickingTogglesState(true);
+        probButton.getProperties().set("rootflowStyle", "sequencer-flat");
+        probButton.setColour(juce::TextButton::textColourOffId, RootFlow::textMuted.withAlpha(0.72f));
+        probButton.setColour(juce::TextButton::textColourOnId, RootFlow::text.withAlpha(0.90f));
         probAtt = std::make_unique<juce::ButtonParameterAttachment>(
             *p.tree.getParameter("sequencerProbOn"), probButton);
         addAndMakeVisible(probButton);
 
         jitButton.setButtonText("JIT");
         jitButton.setClickingTogglesState(true);
+        jitButton.getProperties().set("rootflowStyle", "sequencer-flat");
+        jitButton.setColour(juce::TextButton::textColourOffId, RootFlow::textMuted.withAlpha(0.72f));
+        jitButton.setColour(juce::TextButton::textColourOnId, RootFlow::text.withAlpha(0.90f));
         jitAtt = std::make_unique<juce::ButtonParameterAttachment>(
             *p.tree.getParameter("sequencerJitterOn"), jitButton);
         addAndMakeVisible(jitButton);
@@ -87,11 +96,11 @@ public:
         rateBox.setBounds(controlBand.removeFromLeft(74));
         controlBand.removeFromLeft(8);
         stepBox.setBounds(controlBand.removeFromLeft(64));
-        powerButton.setBounds(controlBand.removeFromRight(56));
-        controlBand.removeFromRight(8);
-        jitButton.setBounds(controlBand.removeFromRight(44));
-        controlBand.removeFromRight(4);
-        probButton.setBounds(controlBand.removeFromRight(44));
+        powerButton.setBounds(controlBand.removeFromRight(52));
+        controlBand.removeFromRight(6);
+        jitButton.setBounds(controlBand.removeFromRight(40));
+        controlBand.removeFromRight(3);
+        probButton.setBounds(controlBand.removeFromRight(40));
 
         gateSlider.setBounds(getGateSliderBounds().toNearestInt());
     }
@@ -210,11 +219,11 @@ public:
             g.fillRoundedRectangle(bounds, 28.0f);
         }
 
-        drawControlCapsule(g, rateBox.getBounds().toFloat().expanded(4.0f, 4.0f), RootFlow::accentSoft);
-        drawControlCapsule(g, stepBox.getBounds().toFloat().expanded(4.0f, 4.0f), RootFlow::accent);
-        drawControlCapsule(g, powerButton.getBounds().toFloat().expanded(4.0f, 4.0f), RootFlow::amber);
-        drawControlCapsule(g, probButton.getBounds().toFloat().expanded(4.0f, 4.0f), RootFlow::accentSoft);
-        drawControlCapsule(g, jitButton.getBounds().toFloat().expanded(4.0f, 4.0f), RootFlow::violet);
+        drawControlCapsule(g, rateBox.getBounds().toFloat().expanded(4.0f, 4.0f), RootFlow::accentSoft, 0.58f);
+        drawControlCapsule(g, stepBox.getBounds().toFloat().expanded(4.0f, 4.0f), RootFlow::accent, 0.58f);
+        drawControlCapsule(g, powerButton.getBounds().toFloat().expanded(2.0f, 2.0f), RootFlow::amber, 0.22f);
+        drawControlCapsule(g, probButton.getBounds().toFloat().expanded(2.0f, 2.0f), RootFlow::accentSoft, 0.20f);
+        drawControlCapsule(g, jitButton.getBounds().toFloat().expanded(2.0f, 2.0f), RootFlow::violet, 0.20f);
 
         auto statusArea = juce::Rectangle<float>((float) stepBox.getRight() + 12.0f,
                                                  (float) rateBox.getY() + 1.0f,
@@ -222,11 +231,12 @@ public:
                                                  22.0f);
         if (statusArea.getWidth() > 92.0f)
         {
-            drawControlCapsule(g, statusArea, isOn ? RootFlow::accent : RootFlow::textMuted);
+            drawControlCapsule(g, statusArea, isOn ? RootFlow::accent : RootFlow::textMuted, 0.18f);
 
             auto statusInner = statusArea.reduced(10.0f, 3.0f);
-            g.setFont(RootFlow::getFont(10.4f).boldened());
-            g.setColour((isOn ? RootFlow::text : RootFlow::textMuted).withAlpha(0.92f));
+            g.setFont(RootFlow::getFont(9.4f).boldened());
+            g.setColour((isOn ? RootFlow::textMuted.interpolatedWith(RootFlow::text, 0.48f) : RootFlow::textMuted)
+                            .withAlpha(0.78f));
             g.drawFittedText(statusText + " / " + juce::String(activeCount) + " ACTIVE",
                              statusInner.toNearestInt(),
                              juce::Justification::centred,
@@ -443,11 +453,11 @@ public:
                            focusStep == hoveredStep || focusStep == curStep);
         }
 
-        drawControlCapsule(g, legendArea, isOn ? RootFlow::accentSoft : RootFlow::textMuted);
+        drawControlCapsule(g, legendArea, isOn ? RootFlow::accentSoft : RootFlow::textMuted, 0.24f);
         auto legendInner = legendArea.toNearestInt().reduced(12, 2);
 
         auto gateFieldArea = getGateFieldArea();
-        drawControlCapsule(g, gateFieldArea, isOn ? RootFlow::amber : RootFlow::textMuted);
+        drawControlCapsule(g, gateFieldArea, isOn ? RootFlow::amber : RootFlow::textMuted, 0.28f);
 
         auto gateLabelArea = juce::Rectangle<float>(gateFieldArea.getX() + 12.0f, gateFieldArea.getY(), 44.0f, gateFieldArea.getHeight());
         auto gateValueArea = juce::Rectangle<float>(gateFieldArea.getRight() - 52.0f, gateFieldArea.getY(), 40.0f, gateFieldArea.getHeight());
@@ -470,9 +480,9 @@ public:
                               RootFlow::amber,
                               isOn ? (0.28f + gateValue * 0.24f) : 0.12f);
 
-        g.setFont(RootFlow::getFont(8.8f).boldened());
-        g.setColour((isOn ? RootFlow::textMuted : RootFlow::textMuted.darker(0.12f)).withAlpha(0.90f));
-        g.drawFittedText("CLICK TOGGLE / RIGHT CYCLE / WHEEL VEL / CMD+WHEEL PROB / SHIFT+RAND VEL / CMD+SHIFT+RAND PROB / ALT CLEAR",
+        g.setFont(RootFlow::getFont(7.6f).boldened());
+        g.setColour((isOn ? RootFlow::textMuted : RootFlow::textMuted.darker(0.12f)).withAlpha(0.64f));
+        g.drawFittedText("CLICK ON / RIGHT MODE / WHEEL VEL / CMD PROB / ALT CLEAR",
                          legendInner,
                          juce::Justification::centred,
                          1);
@@ -581,18 +591,21 @@ private:
     std::unique_ptr<juce::ComboBoxParameterAttachment> stepAtt;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> gateAtt;
 
-    void drawControlCapsule(juce::Graphics& g, juce::Rectangle<float> area, juce::Colour tint) const
+    void drawControlCapsule(juce::Graphics& g, juce::Rectangle<float> area, juce::Colour tint, float emphasis = 1.0f) const
     {
-        g.setColour(juce::Colours::black.withAlpha(0.18f));
+        const float clampedEmphasis = juce::jlimit(0.0f, 1.0f, emphasis);
+        g.setColour(juce::Colours::black.withAlpha(0.08f + clampedEmphasis * 0.10f));
         g.fillRoundedRectangle(area, area.getHeight() * 0.52f);
 
-        juce::ColourGradient fill(RootFlow::panel.brighter(0.14f), area.getCentreX(), area.getY(),
-                                  RootFlow::panel.darker(0.04f), area.getCentreX(), area.getBottom(), false);
+        juce::ColourGradient fill(RootFlow::panel.brighter(0.05f + clampedEmphasis * 0.09f),
+                                  area.getCentreX(), area.getY(),
+                                  RootFlow::panel.darker(0.08f - clampedEmphasis * 0.04f),
+                                  area.getCentreX(), area.getBottom(), false);
         g.setGradientFill(fill);
         g.fillRoundedRectangle(area.reduced(1.0f), area.getHeight() * 0.48f);
 
-        g.setColour(tint.withAlpha(0.16f));
-        g.drawRoundedRectangle(area.reduced(1.0f), area.getHeight() * 0.48f, 1.0f);
+        g.setColour(tint.withAlpha(0.04f + clampedEmphasis * 0.12f));
+        g.drawRoundedRectangle(area.reduced(1.0f), area.getHeight() * 0.48f, 0.7f + clampedEmphasis * 0.3f);
     }
 
     void drawStepBubble(juce::Graphics& g,

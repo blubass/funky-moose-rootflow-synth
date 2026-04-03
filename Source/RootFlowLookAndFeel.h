@@ -1,5 +1,6 @@
 #pragma once
 #include <JuceHeader.h>
+#include "UI/Utils/DesignTokens.h"
 
 class RootFlowLookAndFeel : public juce::LookAndFeel_V4
 {
@@ -26,6 +27,8 @@ public:
     void drawButtonBackground(juce::Graphics&, juce::Button&,
                               const juce::Colour&, bool isHovered, bool isPressed) override;
     void drawButtonText(juce::Graphics&, juce::TextButton&, bool isHovered, bool isPressed) override;
+    void fillTextEditorBackground(juce::Graphics&, int width, int height, juce::TextEditor&) override;
+    void drawTextEditorOutline(juce::Graphics&, int width, int height, juce::TextEditor&) override;
 
     // PANEL HELPER (Global Static)
     static void drawPanel(juce::Graphics&, juce::Rectangle<float>);
@@ -45,11 +48,11 @@ public:
                            const juce::Drawable* icon, const juce::Colour* textColourToUse) override;
 
     // Global Accessor for Design Tokens (Colors)
-    static juce::Colour getBgColor()         { return juce::Colour(0xff081521); }
-    static juce::Colour getPanelColor()      { return juce::Colour(0xff15314a); }
-    static juce::Colour getAccentColor()     { return juce::Colour(0xff74f7ff); }
-    static juce::Colour getAccentSoftColor() { return juce::Colour(0xff93ff8b); }
-    static juce::Colour getTextColor()       { return juce::Colour(0xffd7f3ff); }
+    static juce::Colour getBgColor()         { return RootFlow::bg; }
+    static juce::Colour getPanelColor()      { return RootFlow::panel; }
+    static juce::Colour getAccentColor()     { return RootFlow::accent; }
+    static juce::Colour getAccentSoftColor() { return RootFlow::accentSoft; }
+    static juce::Colour getTextColor()       { return RootFlow::text; }
 
 private:
     juce::Colour bg, panel, accent, accentSoft, text;

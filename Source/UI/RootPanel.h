@@ -230,22 +230,22 @@ private:
                               .withCentre({ (float) slider.getBounds().getCentreX(), (float) slider.getBottom() + 16.0f });
 
         auto chip = infoBounds.reduced(horizontalSlider ? 10.0f : 4.0f, 0.0f);
-        RootFlow::drawGlassPanel(g, chip, chip.getHeight() * 0.5f, 0.48f);
-        g.setColour(tint.withAlpha(0.08f));
+        RootFlow::drawGlassPanel(g, chip, chip.getHeight() * 0.5f, 0.34f);
+        g.setColour(tint.withAlpha(0.05f));
         g.fillRoundedRectangle(chip.reduced(2.0f), chip.getHeight() * 0.44f);
 
-        g.setFont(RootFlow::getFont(9.5f).boldened());
-        g.setColour(RootFlow::text.withAlpha(0.98f));
+        g.setFont(RootFlow::getFont(8.8f).boldened());
+        g.setColour(RootFlow::textMuted.interpolatedWith(RootFlow::text, 0.42f).withAlpha(0.84f));
         g.drawText(combinedText, infoBounds.toNearestInt(), juce::Justification::centred, false);
     }
 
     void drawChamberBadge(juce::Graphics& g, juce::Rectangle<float> area, const juce::String& text, juce::Colour tint) const
     {
-        RootFlow::drawGlassPanel(g, area, area.getHeight() * 0.5f, 0.54f);
-        g.setColour(tint.withAlpha(0.08f));
+        RootFlow::drawGlassPanel(g, area, area.getHeight() * 0.5f, 0.36f);
+        g.setColour(tint.withAlpha(0.05f));
         g.fillRoundedRectangle(area.reduced(2.0f), area.getHeight() * 0.42f);
-        g.setFont(RootFlow::getFont(9.0f).boldened());
-        g.setColour(RootFlow::text.interpolatedWith(tint, 0.10f).withAlpha(0.92f));
+        g.setFont(RootFlow::getFont(8.2f).boldened());
+        g.setColour(RootFlow::textMuted.interpolatedWith(RootFlow::text.interpolatedWith(tint, 0.08f), 0.46f).withAlpha(0.78f));
         g.drawText(text, area, juce::Justification::centred, false);
     }
 

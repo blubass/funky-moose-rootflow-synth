@@ -16,6 +16,23 @@ class RootFlowAudioProcessor : public juce::AudioProcessor,
                                private juce::AudioProcessorValueTreeState::Listener
 {
 public:
+    enum class MutationMode : int
+    {
+        gentle = 0,
+        balanced,
+        wild,
+        sequencer
+    };
+
+    enum class GrowLockGroup : int
+    {
+        root = 0,
+        motion,
+        air,
+        fx,
+        sequencer
+    };
+
     RootFlowAudioProcessor();
     ~RootFlowAudioProcessor() override;
 
@@ -73,6 +90,14 @@ public:
         int count = 0;
     };
 
+    struct PromptMemoryPreview
+    {
+        juce::String prompt;
+        juce::String summary;
+        float strength = 0.0f;
+        int uses = 0;
+    };
+
     float getPlantEnergy() const;
     float getPlantEnergyValue() const noexcept { return getPlantEnergy(); }
     float getOutputPeak() const noexcept { return currentOutputPeak.load(std::memory_order_relaxed); }
@@ -109,6 +134,20 @@ public:
 
     // Evolutionary Plant Mutation
     void mutatePlant();
+    void cycleMutationMode();
+    void setMutationMode(MutationMode mode) noexcept;
+    MutationMode getMutationMode() const noexcept;
+    juce::String getMutationModeShortLabel() const;
+    juce::String getMutationModeDisplayName() const;
+    void applyPromptPatch(const juce::String& prompt);
+    void applyPromptMorph(const juce::String& promptA, const juce::String& promptB, float morphAmount);
+    juce::String getLastPromptSummary() const;
+    juce::String getLastPromptSeed() const;
+    std::vector<PromptMemoryPreview> getPromptMemoryPreviews(int maxItems) const;
+    bool removePromptMemoryEntry(const juce::String& prompt);
+    void setGrowLockEnabled(GrowLockGroup group, bool shouldEnable) noexcept;
+    void toggleGrowLock(GrowLockGroup group) noexcept;
+    bool isGrowLockEnabled(GrowLockGroup group) const noexcept;
 
     // Spectrum Analysis for Visualizer
     static constexpr int fftOrder = 10;
@@ -182,6 +221,11 @@ private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     void handleIncomingMidiMessages(juce::MidiBuffer& midiMessages);
     void addOrReplaceMidiBinding(int channel, int controllerNumber, const juce::String& paramID);
+    void appendSequencerState(juce::ValueTree& state) const;
+    void restoreSequencerState(const juce::ValueTree& state);
+    void appendPromptMemoryState(juce::ValueTree& state) const;
+    void restorePromptMemoryState(const juce::ValueTree& state);
+    void rememberPromptMemoryEntry(juce::ValueTree entry, float reinforcement);
     void appendCustomState(juce::ValueTree& state) const;
     void restoreCustomState(const juce::ValueTree& state);
     juce::ValueTree captureStateForUserPreset();
@@ -205,6 +249,10 @@ private:
     void parameterChanged(const juce::String& parameterID, float newValue) override;
     void requestProcessingStateReset() noexcept;
     void performPendingProcessingStateReset() noexcept;
+    MutationMode getCurrentMutationMode() const noexcept;
+    void generateSmartSequencerPattern(MutationMode mode);
+    void markSequencerStateDirty() noexcept;
+    void resetPromptRhythmState() noexcept;
 
     // --- Modular Helpers for prepareToPlay & processBlock ---
     void prepareOversampling(int bs);
@@ -222,6 +270,8 @@ private:
     std::atomic<int> currentPresetDirty { 0 };
     std::atomic<int> presetLoadInProgress { 0 };
     std::atomic<int> processingStateResetPending { 0 };
+    std::atomic<int> mutationMode { (int) MutationMode::balanced };
+    std::atomic<int> growLockMask { 0 };
     std::atomic<float> lastPlantEnergy { 0.0f };
     std::atomic<float> rmsLevel { 0.0f };
     std::atomic<float> currentOutputPeak { 0.0f };
@@ -241,6 +291,20 @@ private:
     ProcessingBlockState currentProcessingBlockState;
     std::atomic<int> currentFactoryPresetIndex { 0 };
     std::atomic<int> currentUserPresetIndex { -1 };
+    mutable juce::CriticalSection promptStateLock;
+    juce::String lastPromptSummary { "Awaiting Seed" };
+    juce::String lastPromptSeed;
+    bool lastPromptSeedCanReinforce = false;
+    mutable juce::CriticalSection promptMemoryLock;
+    std::vector<juce::ValueTree> promptMemoryEntries;
+    int currentPromptPatternArchetype = 0;
+    float currentPromptPatternDensityBias = 0.0f;
+    float currentPromptPatternAnchorBias = 0.0f;
+    float currentPromptPatternOffbeatBias = 0.0f;
+    float currentPromptPatternTripletBias = 0.0f;
+    float currentPromptPatternSwingAmount = 0.0f;
+    float currentPromptPatternHumanize = 0.0f;
+    float currentPromptPatternTightness = 0.58f;
 
     std::array<int, 16> midiRpnMsb {};
     std::array<int, 16> midiRpnLsb {};
@@ -326,6 +390,7 @@ public:
     {
         float velocity = 0.8f;
         float probability = 1.0f;
+        float timingOffset = 0.0f;
         bool active = true;
     };
 
