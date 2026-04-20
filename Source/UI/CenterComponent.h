@@ -93,11 +93,11 @@ public:
         const auto streamTint = getStreamTint();
         const auto groveTint = getGroveTint();
         const auto bloomTint = getBloomTint();
-        const auto leftShape = RootFlow::makeOrganicPod(leftShapeArea, false);
-        const auto rightShape = RootFlow::makeOrganicPod(rightShapeArea, true);
+        const auto leftShape = RootFlow::makeSystemCore(leftShapeArea, false);
+        const auto rightShape = RootFlow::makeSystemCore(rightShapeArea, true);
 
-        RootFlow::drawOrganicPanel(g, leftShapeArea, false);
-        RootFlow::drawOrganicPanel(g, rightShapeArea, true);
+        RootFlow::drawSystemPanel(g, leftShapeArea, groveTint, false);
+        RootFlow::drawSystemPanel(g, rightShapeArea, bloomTint, true);
         RootFlow::drawGlassPanel(g, coreArea, 36.0f, 0.80f);
 
         if (focusOnEvo)
@@ -209,12 +209,12 @@ public:
         const auto topLeftHub = juce::Point<float>(coreArea.getCentreX() - coreArea.getWidth() * 0.18f, coreArea.getY() + coreArea.getHeight() * 0.10f);
         const auto topRightHub = juce::Point<float>(coreArea.getCentreX() + coreArea.getWidth() * 0.18f, coreArea.getY() + coreArea.getHeight() * 0.10f);
         const auto bottomHub = juce::Point<float>(coreArea.getCentreX(), coreArea.getBottom() - coreArea.getHeight() * 0.12f);
-        RootFlow::drawOrbSocket(g, topLeftHub, 6.6f, streamTint, 0.34f);
-        RootFlow::drawOrbSocket(g, topRightHub, 6.6f, bloomTint, 0.34f);
-        RootFlow::drawOrbSocket(g, bottomHub, 8.2f, groveTint, 0.40f);
-        RootFlow::drawBioThread(g, topLeftHub, energyDisplay.getBounds().toFloat().getCentre().translated(-46.0f, -56.0f), streamTint, 0.08f, 1.15f);
-        RootFlow::drawBioThread(g, topRightHub, energyDisplay.getBounds().toFloat().getCentre().translated(46.0f, -56.0f), bloomTint, 0.08f, 1.15f);
-        RootFlow::drawBioThread(g, bottomHub, energyDisplay.getBounds().toFloat().getCentre().translated(0.0f, 82.0f), groveTint, 0.08f, 1.30f);
+        RootFlow::drawCoreNode(g, topLeftHub, 6.6f, streamTint, 0.34f);
+        RootFlow::drawCoreNode(g, topRightHub, 6.6f, bloomTint, 0.34f);
+        RootFlow::drawCoreNode(g, bottomHub, 8.2f, groveTint, 0.40f);
+        RootFlow::drawDataStream(g, topLeftHub, energyDisplay.getBounds().toFloat().getCentre().translated(-46.0f, -56.0f), streamTint, 0.08f, 1.15f);
+        RootFlow::drawDataStream(g, topRightHub, energyDisplay.getBounds().toFloat().getCentre().translated(46.0f, -56.0f), bloomTint, 0.08f, 1.15f);
+        RootFlow::drawDataStream(g, bottomHub, energyDisplay.getBounds().toFloat().getCentre().translated(0.0f, 82.0f), groveTint, 0.08f, 1.30f);
 
         drawConnectionFibres(g, focusedSlider);
         drawSliderLabels(g, focusedSlider);
@@ -386,7 +386,7 @@ private:
             juce::Path fibre;
             fibre.startNewSubPath(start);
             
-            // Curved path that feels organic
+            // Curved path that reflects the grid geometry
             float ctrl1X = start.x + (leftSide ? 40.0f : -40.0f);
             float ctrl2X = end.x + (leftSide ? -30.0f : 30.0f);
             fibre.cubicTo(ctrl1X, start.y, ctrl2X, end.y, end.x, end.y);
@@ -442,13 +442,13 @@ private:
 
     juce::String getSliderParamID(const juce::Slider& slider) const
     {
-        if (&slider == &flow)        return "sapFlow";
-        if (&slider == &vitality)    return "sapVitality";
-        if (&slider == &texture)     return "sapTexture";
-        if (&slider == &canopy)      return "canopy";
+        if (&slider == &flow)        return "flowRate";
+        if (&slider == &vitality)    return "flowEnergy";
+        if (&slider == &texture)     return "flowTexture";
+        if (&slider == &canopy)      return "fieldComplexity";
         if (&slider == &instability) return "instability";
-        if (&slider == &atmos)       return "atmosphere";
-        if (&slider == &seasons)     return "ecoSystem";
+        if (&slider == &atmos)       return "fieldDepth";
+        if (&slider == &seasons)     return "systemMatrix";
         if (&slider == &evolution)   return "evolution";
         return {};
     }
@@ -478,19 +478,19 @@ private:
         if (&slider == &evolution)
             return "EVOLUTION CORE";
         if (&slider == &flow)
-            return "NEURAL FLOW";
+            return "MATRIX FLOW";
         if (&slider == &vitality)
-            return "VITALITY";
+            return "ENERGY";
         if (&slider == &texture)
-            return "TEXTURE FIELD";
+            return "FLUX MATRIX";
         if (&slider == &canopy)
-            return "CANOPY";
+            return "FIELD COMPLEXITY";
         if (&slider == &instability)
             return "INSTABILITY";
         if (&slider == &atmos)
-            return "ATMOS";
+            return "FIELD RADIANCE";
 
-        return "SEASONS";
+        return "SYSTEM MATRIX";
     }
 
     void drawFocusBubble(juce::Graphics& g, juce::Slider& slider) const

@@ -9,6 +9,8 @@
 #include "RootFlowModulators.h"
 #include "RootFlowDSP.h"
 #include "RootFlowVoice.h"
+#include "RootFlowPresets.h"
+#include "RootFlowMutation.h"
 #include "UI/NodeSystem.h"
 
 class RootFlowAudioProcessor : public juce::AudioProcessor,
@@ -16,22 +18,9 @@ class RootFlowAudioProcessor : public juce::AudioProcessor,
                                private juce::AudioProcessorValueTreeState::Listener
 {
 public:
-    enum class MutationMode : int
-    {
-        gentle = 0,
-        balanced,
-        wild,
-        sequencer
-    };
-
-    enum class GrowLockGroup : int
-    {
-        root = 0,
-        motion,
-        air,
-        fx,
-        sequencer
-    };
+    using MutationMode = RootFlow::MutationMode;
+    using GrowLockGroup = RootFlow::GrowLockGroup;
+    using SequencerStep = RootFlow::SequencerStep;
 
     RootFlowAudioProcessor();
     ~RootFlowAudioProcessor() override;
@@ -98,14 +87,19 @@ public:
         int uses = 0;
     };
 
-    float getPlantEnergy() const;
-    float getPlantEnergyValue() const noexcept { return getPlantEnergy(); }
+    using PromptRhythmProfile = RootFlow::PromptRhythmProfile;
+
+    float getSystemEnergy() const;
+    float getSystemEnergyValue() const noexcept { return getSystemEnergy(); }
     float getOutputPeak() const noexcept { return currentOutputPeak.load(std::memory_order_relaxed); }
     juce::MidiKeyboardState& getKeyboardState() noexcept { return keyboardState; }
     juce::StringArray getFactoryPresetNames() const;
     std::vector<PresetMenuSection> getFactoryPresetMenuSections() const;
     int getFactoryPresetCount() const noexcept;
+    juce::StringArray getFactoryPresetSections() const;
+    int getNumFactoryPresets() const;
     juce::StringArray getCombinedPresetNames() const;
+    int getNumPresets() const;
     int getCombinedPresetCount() const noexcept;
     int getCurrentFactoryPresetIndex() const noexcept { return currentFactoryPresetIndex.load(std::memory_order_relaxed); }
     int getCurrentUserPresetIndex() const noexcept { return currentUserPresetIndex.load(std::memory_order_relaxed); }
@@ -132,8 +126,8 @@ public:
     float getModulatedValue(const juce::String& paramID) const;
     NodeSystem& getNodeSystem() { return nodeSystem; }
 
-    // Evolutionary Plant Mutation
-    void mutatePlant();
+    // Cybernetic System Reconfiguration
+    void mutateSystem();
     void cycleMutationMode();
     void setMutationMode(MutationMode mode) noexcept;
     MutationMode getMutationMode() const noexcept;
@@ -148,6 +142,7 @@ public:
     void setGrowLockEnabled(GrowLockGroup group, bool shouldEnable) noexcept;
     void toggleGrowLock(GrowLockGroup group) noexcept;
     bool isGrowLockEnabled(GrowLockGroup group) const noexcept;
+    void markNodeSystemStateDirty() noexcept;
 
     // Spectrum Analysis for Visualizer
     static constexpr int fftOrder = 10;
@@ -206,16 +201,16 @@ private:
     struct ProcessingBlockState
     {
         float seasonMacro = 0.34f;
-        float rootDepth = 0.5f;
-        float rootAnchor = 0.5f;
-        float sapFlow = 0.5f;
-        float sapVitality = 0.5f;
-        float sapTexture = 0.5f;
-        float pulseBreath = 0.5f;
-        float canopy = 0.65f;
-        float bloomAmount = 0.0f;
-        float rainAmount = 0.0f;
-        float sunAmount = 0.0f;
+        float sourceDepth = 0.5f;
+        float sourceAnchor = 0.5f;
+        float flowRate = 0.5f;
+        float flowEnergy = 0.5f;
+        float flowTexture = 0.5f;
+        float pulseWidth = 0.5f;
+        float fieldComplexity = 0.65f;
+        float radianceAmount = 0.0f;
+        float chargeAmount = 0.0f;
+        float dischargeAmount = 0.0f;
     };
 
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -225,6 +220,8 @@ private:
     void restoreSequencerState(const juce::ValueTree& state);
     void appendPromptMemoryState(juce::ValueTree& state) const;
     void restorePromptMemoryState(const juce::ValueTree& state);
+    void appendNodeSystemState(juce::ValueTree& state) const;
+    void restoreNodeSystemState(const juce::ValueTree& state);
     void rememberPromptMemoryEntry(juce::ValueTree entry, float reinforcement);
     void appendCustomState(juce::ValueTree& state) const;
     void restoreCustomState(const juce::ValueTree& state);
@@ -272,22 +269,18 @@ private:
     std::atomic<int> processingStateResetPending { 0 };
     std::atomic<int> mutationMode { (int) MutationMode::balanced };
     std::atomic<int> growLockMask { 0 };
-    std::atomic<float> lastPlantEnergy { 0.0f };
+    std::atomic<float> lastSystemEnergy { 0.0f };
     std::atomic<float> rmsLevel { 0.0f };
     std::atomic<float> currentOutputPeak { 0.0f };
+    juce::Random systemRng;
 
-    // --- Organic Dynamics Logic ---
-    bool isRealBotanicsPreset() const noexcept;
+    bool isRealRootFlowPreset() const noexcept;
 
-    std::array<float, 2> soilCrackleState {0.0f, 0.0f};
-    juce::Random botanicsRng;
-
-    // --- Core Systems ---
-    juce::MidiKeyboardState keyboardState;
-    juce::Synthesiser synth;
-    juce::AudioBuffer<float> drySafetyBuffer;
-    RootFlowVoice::MidiExpressionState midiExpressionState;
-    RootFlowBioFeedbackSnapshot currentBioFeedback;
+    // --- Cybernetic Dynamics Logic ---
+    void updateSystemMetrics();
+    RootFlowSystemFeedbackSnapshot currentSystemFeedback;
+    
+    // --- Pulse Matrix Sequencer ---
     ProcessingBlockState currentProcessingBlockState;
     std::atomic<int> currentFactoryPresetIndex { 0 };
     std::atomic<int> currentUserPresetIndex { -1 };
@@ -297,14 +290,7 @@ private:
     bool lastPromptSeedCanReinforce = false;
     mutable juce::CriticalSection promptMemoryLock;
     std::vector<juce::ValueTree> promptMemoryEntries;
-    int currentPromptPatternArchetype = 0;
-    float currentPromptPatternDensityBias = 0.0f;
-    float currentPromptPatternAnchorBias = 0.0f;
-    float currentPromptPatternOffbeatBias = 0.0f;
-    float currentPromptPatternTripletBias = 0.0f;
-    float currentPromptPatternSwingAmount = 0.0f;
-    float currentPromptPatternHumanize = 0.0f;
-    float currentPromptPatternTightness = 0.58f;
+    RootFlow::PromptRhythmProfile promptRhythmProfile;
 
     std::array<int, 16> midiRpnMsb {};
     std::array<int, 16> midiRpnLsb {};
@@ -337,9 +323,9 @@ private:
     std::array<bool, mappedParameterSlotCount> mappedParameterGestureActive {};
     std::array<uint32_t, mappedParameterSlotCount> mappedParameterLastUpdateMs {};
     RootFlowModulationEngine modulation;
-    RootFlowDSP::BloomProcessor bloom;
-    RootFlowDSP::RainProcessor rain;
-    RootFlowDSP::SunProcessor sun;
+    RootFlowDSP::CoreResonator resonance;
+    RootFlowDSP::FieldDelay field;
+    RootFlowDSP::RadianceFinisher radiance;
     std::array<juce::dsp::StateVariableTPTFilter<float>, 2> masterToneFilters;
     std::array<juce::dsp::StateVariableTPTFilter<float>, 2> monoMakerFilters;
     juce::SmoothedValue<float> masterDriveSmoothed;
@@ -384,16 +370,8 @@ private:
     std::atomic<bool> fftReady { false };
     std::array<std::array<float, fftSize / 2>, fftQueueCapacity> fftBlockQueue {};
     juce::AbstractFifo fftBlockFifo { fftQueueCapacity };
-    // --- Bio-Sequencer ---
+    // --- Pulse Matrix Sequencer ---
 public:
-    struct SequencerStep
-    {
-        float velocity = 0.8f;
-        float probability = 1.0f;
-        float timingOffset = 0.0f;
-        bool active = true;
-    };
-
     std::array<SequencerStep, 16> getSequencerStepSnapshot() const;
     int getCurrentSequencerStep() const noexcept { return currentSequencerStep.load(std::memory_order_relaxed); }
     void clearSequencerSteps();
@@ -418,6 +396,7 @@ private:
     bool sequencerWasEnabled = false;
     double sequencerGateSamples = 0.0;
 
+    juce::MidiKeyboardState keyboardState;
     std::vector<int> heldMidiNotes;
     juce::CriticalSection noteLock;
     int currentArpIndex = 0;
@@ -425,6 +404,19 @@ private:
     int fifoIndex = 0;
 
     NodeSystem nodeSystem;
+
+    juce::Synthesiser synth;
+    RootFlowDSP::MidiExpressionState midiExpressionState;
+    juce::AudioBuffer<float> drySafetyBuffer;
+    
+    int currentPromptPatternArchetype = 0;
+    float currentPromptPatternDensityBias = 0.0f;
+    float currentPromptPatternAnchorBias = 0.0f;
+    float currentPromptPatternOffbeatBias = 0.0f;
+    float currentPromptPatternTripletBias = 0.0f;
+    float currentPromptPatternSwingAmount = 0.0f;
+    float currentPromptPatternHumanize = 0.0f;
+    float currentPromptPatternTightness = 0.6f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (RootFlowAudioProcessor)
 };

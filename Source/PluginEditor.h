@@ -61,9 +61,9 @@ private:
     juce::TextButton popupToggleButton;
     juce::TextButton mutateModeButton;
     juce::TextButton mutateButton;
-    juce::TextButton growLockRootButton;
+    juce::TextButton growLockCoreButton;
     juce::TextButton growLockMotionButton;
-    juce::TextButton growLockAirButton;
+    juce::TextButton growLockSpectralButton;
     juce::TextButton growLockFxButton;
     juce::TextButton growLockSeqButton;
     juce::TextEditor promptEditor;
@@ -82,22 +82,22 @@ private:
     using Attachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ComboAttachment = juce::AudioProcessorValueTreeState::ComboBoxAttachment;
 
-    std::unique_ptr<Attachment> rootDepthAtt;
-    std::unique_ptr<Attachment> rootSoilAtt;
-    std::unique_ptr<Attachment> rootAnchorAtt;
-    std::unique_ptr<Attachment> sapFlowAtt;
-    std::unique_ptr<Attachment> sapVitalityAtt;
-    std::unique_ptr<Attachment> sapTextureAtt;
-    std::unique_ptr<Attachment> pulseRateAtt;
-    std::unique_ptr<Attachment> pulseBreathAtt;
-    std::unique_ptr<Attachment> pulseGrowthAtt;
-    std::unique_ptr<Attachment> canopyAtt;
+    std::unique_ptr<Attachment> sourceDepthAtt;
+    std::unique_ptr<Attachment> sourceCoreAtt;
+    std::unique_ptr<Attachment> sourceAnchorAtt;
+    std::unique_ptr<Attachment> flowRateAtt;
+    std::unique_ptr<Attachment> flowEnergyAtt;
+    std::unique_ptr<Attachment> flowTextureAtt;
+    std::unique_ptr<Attachment> pulseFrequencyAtt;
+    std::unique_ptr<Attachment> pulseWidthAtt;
+    std::unique_ptr<Attachment> pulseEnergyAtt;
+    std::unique_ptr<Attachment> fieldComplexityAtt;
     std::unique_ptr<Attachment> instabilityAtt;
-    std::unique_ptr<Attachment> atmosAtt;
-    std::unique_ptr<Attachment> seasonsAtt;
-    std::unique_ptr<Attachment> bloomAtt;
-    std::unique_ptr<Attachment> rainAtt;
-    std::unique_ptr<Attachment> sunAtt;
+    std::unique_ptr<Attachment> fieldDepthAtt;
+    std::unique_ptr<Attachment> systemMatrixAtt;
+    std::unique_ptr<Attachment> radianceAtt;
+    std::unique_ptr<Attachment> chargeAtt;
+    std::unique_ptr<Attachment> dischargeAtt;
     std::unique_ptr<Attachment> evolutionAtt;
     std::unique_ptr<ComboAttachment> waveAttachment;
 
@@ -107,7 +107,7 @@ private:
     bool headerControlStateInitialised = false;
     int cachedPresetItemCount = -1;
     juce::Component* headerFocusedControl = nullptr;
-    float smoothedMidiVelocity = 0.0f; // for MIDI-reactive bio-dust decay
+    float smoothedMidiVelocity = 0.0f; // for MIDI-reactive data-vapor decay
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RootFlowAudioProcessorEditor)
 };

@@ -7,11 +7,45 @@ namespace RootFlowDSP
 {
 inline float clamp01(float x) noexcept { return juce::jlimit(0.0f, 1.0f, x); }
 
+struct MidiExpressionState
+{
+    std::array<float, 16> pitchBendNormalized {};
+    std::array<float, 16> pitchBendRangeSemitones {};
+    std::array<float, 16> modWheelNormalized {};
+    std::array<float, 16> pressureNormalized {};
+    std::array<float, 16> timbreNormalized {};
+};
+
+struct SeasonMorph
+{
+    float spring = 0.0f;
+    float summer = 0.0f;
+    float autumn = 0.0f;
+    float winter = 0.0f;
+};
+
+inline SeasonMorph getSeasonMorph(float seasonMacro)
+{
+    SeasonMorph m;
+    const float s = seasonMacro;
+    
+    // Spring: Peaks at 0.25 (range 0.0 to 0.5)
+    m.spring = std::max(0.0f, 1.0f - std::abs(s - 0.25f) * 4.0f);
+    // Summer: Peaks at 0.5 (range 0.25 to 0.75)
+    m.summer = std::max(0.0f, 1.0f - std::abs(s - 0.5f) * 4.0f);
+    // Autumn: Peaks at 0.75 (range 0.5 to 1.0)
+    m.autumn = std::max(0.0f, 1.0f - std::abs(s - 0.75f) * 4.0f);
+    // Winter: Peaks at 0.0 and 1.0 (Cyclic)
+    m.winter = std::max(0.0f, 1.0f - std::abs(s - (s > 0.5f ? 1.0f : 0.0f)) * 4.0f);
+    
+    return m;
+}
+
 /**
- * SOIL (Earthy Resonator)
- * Dark, resonant environment based on plant energy.
+ * CORE (Matrix Resonator)
+ * Dark, resonant environment based on system energy.
  */
-class BloomProcessor
+class CoreResonator
 {
 public:
     void prepare(const juce::dsp::ProcessSpec& spec)
@@ -39,17 +73,17 @@ public:
         prevR = 0.0f;
     }
 
-    void setParams(float blossomAmount,
-                   float plantEnergy,
-                   float sapVitality,
-                   float pulseBreath,
-                   float canopyOpen,
-                   float rootAnchor)
+    void setParams(float resonanceAmount,
+                   float systemEnergy,
+                   float flowEnergy,
+                   float pulseWidth,
+                   float fieldComplexity,
+                   float sourceAnchor)
     {
-        smoothedMix.setTargetValue(clamp01(blossomAmount));
+        smoothedMix.setTargetValue(clamp01(resonanceAmount));
 
-        // Size linked to Bio-Energy
-        smoothedSize.setTargetValue(0.45f + plantEnergy * 0.45f);
+        // Size linked to System Energy
+        smoothedSize.setTargetValue(0.45f + systemEnergy * 0.45f);
 
         juce::dsp::Reverb::Parameters params;
         params.roomSize = smoothedSize.getTargetValue();
@@ -59,8 +93,8 @@ public:
         params.dryLevel = 0.0f;
         reverb.setParameters(params);
 
-        // Lowpass damping factor based on vitality
-        targetDamp = 0.82f - (sapVitality * 0.28f); // More damping (softer)
+        // Lowpass damping factor based on flow energy
+        targetDamp = 0.82f - (flowEnergy * 0.28f); // More damping (softer)
     }
 
     void process(juce::AudioBuffer<float>& buffer)
@@ -92,8 +126,7 @@ public:
 
             for (int i = 0; i < numSamples; ++i)
             {
-                // Simple Low-Pass on the Reverb Tail (Soil effect)
-                // Heavier darkening for RootFlow organic feel
+                // Simple Low-Pass on the Reverb Tail (Matrix effect)
                 float s = wetPtr[i];
                 s = s * (1.0f - targetDamp) + last * targetDamp;
                 last = s;
@@ -110,14 +143,14 @@ private:
     juce::LinearSmoothedValue<float> smoothedMix;
     juce::LinearSmoothedValue<float> smoothedSize;
     float prevL = 0.0f, prevR = 0.0f;
-    float targetDamp = 0.94f; // Deep analog darkening of reverb tail
+    float targetDamp = 0.94f;
 };
 
 /**
- * AIR (Modulated Wind-Delay)
- * Moving air feeling rather than static echoes.
+ * FIELD (Modulated Aether-Delay)
+ * Moving energy field rather than static echoes.
  */
-class RainProcessor
+class FieldDelay
 {
 public:
     void prepare(const juce::dsp::ProcessSpec& spec)
@@ -141,22 +174,22 @@ public:
         smoothedMix.setCurrentAndTargetValue(0.0f);
     }
 
-    void setParams(float rainAmount,
-                   float plantEnergy,
-                   float sapFlow,
-                   float sapTexture,
-                   float pulseBreath,
-                   float canopy)
+    void setParams(float fieldAmount,
+                   float systemEnergy,
+                   float flowRate,
+                   float flowTexture,
+                   float pulseWidth,
+                   float fieldComplexity)
     {
-        smoothedMix.setTargetValue(clamp01(rainAmount));
+        smoothedMix.setTargetValue(clamp01(fieldAmount));
 
-        // Speed of air movement linked to Pulse & Energy
-        modSpeed = 0.0001f + (pulseBreath * 0.0008f) + (plantEnergy * 0.0004f);
+        // Speed of field movement linked to Pulse & Energy
+        modSpeed = 0.0001f + (pulseWidth * 0.0008f) + (systemEnergy * 0.0004f);
 
         // Base delay time
-        baseDelayMs = 220.0f + (sapFlow * 380.0f);
-        feedback = 0.18f + (sapTexture * 0.32f); // Max 0.50, softer feedback loop
-        modDepth = 35.0f + (canopy * 65.0f);
+        baseDelayMs = 220.0f + (flowRate * 380.0f);
+        feedback = 0.18f + (flowTexture * 0.32f); 
+        modDepth = 35.0f + (fieldComplexity * 65.0f);
     }
 
     void process(juce::AudioBuffer<float>& buffer)
@@ -183,10 +216,10 @@ public:
                 float dry = samples[i];
                 float delayed = delay[ch % 2].popSample(0, delaySamples, true);
 
-                // Feedback loop with organic tape saturation & frequency damping
+                // Feedback loop with quantum saturation & frequency damping
                 float fbRaw = dry + delayed * feedback;
-                tapeLp[ch % 2] = tapeLp[ch % 2] * 0.65f + fbRaw * 0.35f; // Softer one-pole lowpass
-                float fbSignal = std::tanh(tapeLp[ch % 2] * 1.15f); // Slightly saturated for warmth
+                tapeLp[ch % 2] = tapeLp[ch % 2] * 0.65f + fbRaw * 0.35f; 
+                float fbSignal = std::tanh(tapeLp[ch % 2] * 1.15f); 
                 delay[ch % 2].pushSample(0, fbSignal);
 
                 samples[i] = dry * (1.0f - mix) + delayed * mix;
@@ -209,10 +242,10 @@ private:
 };
 
 /**
- * SPACE (Cosmic Bloom)
+ * RADIANCE (Quantum Finisher)
  * Combining depth and shimmer for a wide finish.
  */
-class SunProcessor
+class RadianceFinisher
 {
 public:
     void prepare(const juce::dsp::ProcessSpec& spec)
@@ -233,19 +266,19 @@ public:
         smoothedMix.setCurrentAndTargetValue(0.0f);
     }
 
-    void setParams(float sunAmount,
-                   float plantEnergy,
-                   float rootDepth,
-                   float sapVitality,
-                   float pulseBreath,
-                   float canopy)
+    void setParams(float radianceAmount,
+                   float systemEnergy,
+                   float sourceDepth,
+                   float flowEnergy,
+                   float pulseWidth,
+                   float fieldComplexity)
     {
-        smoothedMix.setTargetValue(clamp01(sunAmount));
+        smoothedMix.setTargetValue(clamp01(radianceAmount));
 
         auto params = reverb.getParameters();
-        params.roomSize = 0.75f + canopy * 0.22f;
-        params.damping  = 0.92f - (plantEnergy * 0.35f); // Deeply damped (dark, warm analog tail)
-        params.width    = 0.85f + (rootDepth * 0.14f);
+        params.roomSize = 0.75f + fieldComplexity * 0.22f;
+        params.damping  = 0.92f - (systemEnergy * 0.35f); 
+        params.width    = 0.85f + (sourceDepth * 0.14f);
         params.wetLevel = 1.0f;
         params.dryLevel = 0.0f;
         reverb.setParameters(params);

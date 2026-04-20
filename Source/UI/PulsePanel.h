@@ -7,20 +7,20 @@ class PulsePanel : public juce::Component
 public:
     PulsePanel()
     {
-        rate.setName("RATE");
-        breath.setName("BREATH");
-        growth.setName("GROWTH");
+        frequency.setName("FREQ");
+        width.setName("WIDTH");
+        energy.setName("ENERGY");
 
-        setupVerticalSlider(rate);
-        setupVerticalSlider(breath);
-        setupHorizontalSlider(growth);
-        wireSlider(rate);
-        wireSlider(breath);
-        wireSlider(growth);
+        setupVerticalSlider(frequency);
+        setupVerticalSlider(width);
+        setupHorizontalSlider(energy);
+        wireSlider(frequency);
+        wireSlider(width);
+        wireSlider(energy);
 
-        addAndMakeVisible(rate);
-        addAndMakeVisible(breath);
-        addAndMakeVisible(growth);
+        addAndMakeVisible(frequency);
+        addAndMakeVisible(width);
+        addAndMakeVisible(energy);
 
         setOpaque(false);
     }
@@ -33,20 +33,20 @@ public:
         auto topInner = topChamber.reduced(14, 14);
         const int laneWidth = juce::jlimit(52, 64, juce::roundToInt((float) topInner.getWidth() * 0.34f));
 
-        auto rateLane = juce::Rectangle<int>(topInner.getX() + 4,
-                                             topInner.getY() + 2,
-                                             laneWidth,
-                                             topInner.getHeight() - 8);
-        auto breathLane = juce::Rectangle<int>(topInner.getRight() - laneWidth - 4,
+        auto frequencyLane = juce::Rectangle<int>(topInner.getX() + 4,
+                                                 topInner.getY() + 2,
+                                                 laneWidth,
+                                                 topInner.getHeight() - 8);
+        auto widthLane = juce::Rectangle<int>(topInner.getRight() - laneWidth - 4,
                                                topInner.getY() + 14,
                                                laneWidth,
                                                topInner.getHeight() - 20);
 
-        rate.setBounds(rateLane);
-        breath.setBounds(breathLane);
+        frequency.setBounds(frequencyLane);
+        width.setBounds(widthLane);
 
-        auto growthLane = bottomChamber.reduced(10, 12);
-        growth.setBounds(growthLane.withTrimmedTop(20).withTrimmedBottom(18));
+        auto energyLane = bottomChamber.reduced(10, 12);
+        energy.setBounds(energyLane.withTrimmedTop(20).withTrimmedBottom(18));
     }
 
     void paint(juce::Graphics& g) override
@@ -54,58 +54,58 @@ public:
         auto shell = getShellBounds().toFloat();
         auto topChamber = getTopChamberBounds().toFloat().translated(6.0f, 0.0f);
         auto bottomChamber = getBottomChamberBounds().toFloat().translated(-8.0f, 0.0f);
-        const auto rateTint = getRateTint();
-        const auto breathTint = getBreathTint();
-        const auto growthTint = getGrowthTint();
-        const auto bridgeTint = rateTint.interpolatedWith(growthTint, 0.34f);
+        const auto frequencyTint = getFrequencyTint();
+        const auto widthTint = getWidthTint();
+        const auto energyTint = getEnergyTint();
+        const auto bridgeTint = frequencyTint.interpolatedWith(energyTint, 0.34f);
         const auto shellPath = RootFlow::makeSideColumnShell(shell, true);
 
         {
             juce::Graphics::ScopedSaveState state(g);
             g.reduceClipRegion(shellPath);
 
-            juce::ColourGradient upperWash(breathTint.withAlpha(0.09f), shell.getRight() - shell.getWidth() * 0.26f, shell.getY() + shell.getHeight() * 0.10f,
+            juce::ColourGradient upperWash(widthTint.withAlpha(0.09f), shell.getRight() - shell.getWidth() * 0.26f, shell.getY() + shell.getHeight() * 0.10f,
                                            juce::Colours::transparentBlack, shell.getCentreX(), shell.getY() + shell.getHeight() * 0.54f, true);
             g.setGradientFill(upperWash);
             g.fillEllipse(shell.getRight() - shell.getWidth() * 0.78f, shell.getY() + shell.getHeight() * 0.02f,
                           shell.getWidth() * 0.82f, shell.getHeight() * 0.42f);
 
-            juce::ColourGradient lowerWash(growthTint.withAlpha(0.08f), shell.getRight() - shell.getWidth() * 0.32f, shell.getBottom() - shell.getHeight() * 0.16f,
+            juce::ColourGradient lowerWash(energyTint.withAlpha(0.08f), shell.getRight() - shell.getWidth() * 0.32f, shell.getBottom() - shell.getHeight() * 0.16f,
                                            juce::Colours::transparentBlack, shell.getCentreX(), shell.getY() + shell.getHeight() * 0.56f, true);
             g.setGradientFill(lowerWash);
             g.fillEllipse(shell.getRight() - shell.getWidth() * 0.76f, shell.getBottom() - shell.getHeight() * 0.40f,
                           shell.getWidth() * 0.74f, shell.getHeight() * 0.34f);
         }
 
-        RootFlow::drawSideColumnShell(g, shell, true, rateTint.interpolatedWith(growthTint, 0.18f));
-        RootFlow::drawMembraneChamber(g, topChamber, breathTint, true, 0.86f);
-        RootFlow::drawMembraneChamber(g, bottomChamber, growthTint, true, 0.78f);
+        RootFlow::drawSideColumnShell(g, shell, true, frequencyTint.interpolatedWith(energyTint, 0.18f));
+        RootFlow::drawSystemPanel(g, topChamber, widthTint, true, 0.86f);
+        RootFlow::drawSystemPanel(g, bottomChamber, energyTint, true, 0.78f);
 
         drawChamberBadge(g,
                          juce::Rectangle<float>(topChamber.getX() + 18.0f, topChamber.getY() + 10.0f, topChamber.getWidth() - 44.0f, 18.0f),
-                         "BREATH ARC",
-                         breathTint);
+                         "WINDOW WIDTH",
+                         widthTint);
         drawChamberBadge(g,
                          juce::Rectangle<float>(bottomChamber.getX() + 16.0f, bottomChamber.getY() + 10.0f, bottomChamber.getWidth() - 38.0f, 18.0f),
-                         "GROWTH BURST",
-                         growthTint);
+                         "MATRIX ENERGY",
+                         energyTint);
 
         const auto topCore = topChamber.getCentre().translated(12.0f, -topChamber.getHeight() * 0.24f);
         const auto bottomCore = bottomChamber.getCentre().translated(6.0f, bottomChamber.getHeight() * 0.18f);
-        RootFlow::drawGlowOrb(g, topCore, 10.0f, breathTint, 0.52f);
-        RootFlow::drawGlowOrb(g, bottomCore, 8.8f, growthTint, 0.48f);
+        RootFlow::drawGlowOrb(g, topCore, 10.0f, widthTint, 0.52f);
+        RootFlow::drawGlowOrb(g, bottomCore, 8.8f, energyTint, 0.48f);
 
-        RootFlow::drawBioThread(g, { rate.getBounds().getCentreX() - 10.0f, rate.getBounds().getBottom() - 18.0f }, topCore, rateTint, 0.12f, 0.90f);
-        RootFlow::drawBioThread(g, { breath.getBounds().getCentreX() - 10.0f, breath.getBounds().getBottom() - 18.0f }, topCore.translated(-18.0f, 20.0f), breathTint, 0.12f, 0.90f);
-        RootFlow::drawBioThread(g, { growth.getBounds().getCentreX() - 10.0f, growth.getBounds().getBottom() - 18.0f }, bottomCore, growthTint, 0.14f, 0.90f);
-        RootFlow::drawBioThread(g, { topChamber.getX() + 26.0f, topChamber.getBottom() - 34.0f }, { bottomChamber.getRight() - 24.0f, bottomChamber.getY() + 24.0f }, bridgeTint, 0.09f, 0.95f);
+        RootFlow::drawDataStream(g, { frequency.getBounds().getCentreX() - 10.0f, frequency.getBounds().getBottom() - 18.0f }, topCore, frequencyTint, 0.12f, 0.90f);
+        RootFlow::drawDataStream(g, { width.getBounds().getCentreX() - 10.0f, width.getBounds().getBottom() - 18.0f }, topCore.translated(-18.0f, 20.0f), widthTint, 0.12f, 0.90f);
+        RootFlow::drawDataStream(g, { energy.getBounds().getCentreX() - 10.0f, energy.getBounds().getBottom() - 18.0f }, bottomCore, energyTint, 0.14f, 0.90f);
+        RootFlow::drawDataStream(g, { topChamber.getX() + 26.0f, topChamber.getBottom() - 34.0f }, { bottomChamber.getRight() - 24.0f, bottomChamber.getY() + 24.0f }, bridgeTint, 0.09f, 0.95f);
 
-        RootFlow::drawOrbSocket(g, { bottomChamber.getX() + 28.0f, bottomChamber.getBottom() - 20.0f }, 7.2f, growthTint, 0.44f);
-        RootFlow::drawOrbSocket(g, { bottomChamber.getRight() - 34.0f, bottomChamber.getBottom() - 22.0f }, 8.0f, rateTint, 0.48f);
+        RootFlow::drawCoreNode(g, { bottomChamber.getX() + 28.0f, bottomChamber.getBottom() - 20.0f }, 7.2f, energyTint, 0.44f);
+        RootFlow::drawCoreNode(g, { bottomChamber.getRight() - 34.0f, bottomChamber.getBottom() - 22.0f }, 8.0f, frequencyTint, 0.48f);
 
-        drawSliderLabel(g, rate, "RATE");
-        drawSliderLabel(g, breath, "BREATH");
-        drawSliderLabel(g, growth, "GROWTH");
+        drawSliderLabel(g, frequency, "FREQ");
+        drawSliderLabel(g, width, "WIDTH");
+        drawSliderLabel(g, energy, "ENERGY");
     }
 
     void paintOverChildren(juce::Graphics& g) override
@@ -117,16 +117,16 @@ public:
             drawFocusBubble(g, *slider);
     }
 
-    juce::Slider& getRateSlider() { return rate; }
-    juce::Slider& getBreathSlider() { return breath; }
-    juce::Slider& getGrowthSlider() { return growth; }
+    juce::Slider& getFrequencySlider() { return frequency; }
+    juce::Slider& getWidthSlider() { return width; }
+    juce::Slider& getEnergySlider() { return energy; }
     juce::Slider* getFocusedSlider() const { return findFocusedSlider(); }
     juce::Colour getFocusTint() const
     {
         if (auto* slider = findFocusedSlider())
             return getSliderTint(*slider);
 
-        return getRateTint();
+        return getFrequencyTint();
     }
 
     juce::String getFocusTitle() const
@@ -159,17 +159,17 @@ private:
         return juce::String(juce::roundToInt(juce::jlimit(0.0, 1.0, value) * 100.0)) + "%";
     }
 
-    static juce::Colour getRateTint()
+    static juce::Colour getFrequencyTint()
     {
         return RootFlow::accent.interpolatedWith(RootFlow::accentSoft, 0.24f);
     }
 
-    static juce::Colour getBreathTint()
+    static juce::Colour getWidthTint()
     {
         return RootFlow::accentSoft.interpolatedWith(RootFlow::amber, 0.16f);
     }
 
-    static juce::Colour getGrowthTint()
+    static juce::Colour getEnergyTint()
     {
         return RootFlow::amber.interpolatedWith(RootFlow::accentSoft, 0.24f);
     }
@@ -187,7 +187,7 @@ private:
         s.setSliderStyle(juce::Slider::LinearHorizontal);
         s.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
         s.setMouseDragSensitivity(320);
-        s.getProperties().set("rootflowStyle", "pod-horizontal");
+        s.getProperties().set("rootflowStyle", "core-horizontal");
     }
 
     void wireSlider(RootFlow::InteractiveSlider& s)
@@ -251,11 +251,11 @@ private:
 
     juce::Slider* findFocusedSlider() const
     {
-        for (auto* slider : { static_cast<const juce::Slider*>(&rate), static_cast<const juce::Slider*>(&breath), static_cast<const juce::Slider*>(&growth) })
+        for (auto* slider : { static_cast<const juce::Slider*>(&frequency), static_cast<const juce::Slider*>(&width), static_cast<const juce::Slider*>(&energy) })
             if (slider->isMouseButtonDown())
                 return const_cast<juce::Slider*>(slider);
 
-        for (auto* slider : { static_cast<const juce::Slider*>(&rate), static_cast<const juce::Slider*>(&breath), static_cast<const juce::Slider*>(&growth) })
+        for (auto* slider : { static_cast<const juce::Slider*>(&frequency), static_cast<const juce::Slider*>(&width), static_cast<const juce::Slider*>(&energy) })
             if (RootFlow::isInteractiveHoverActive(*slider) && ! slider->isMouseButtonDown())
                 return const_cast<juce::Slider*>(slider);
 
@@ -264,20 +264,20 @@ private:
 
     juce::Colour getSliderTint(const juce::Slider& slider) const
     {
-        if (&slider == &rate)
-            return getRateTint();
-        if (&slider == &breath)
-            return getBreathTint();
-        return getGrowthTint();
+        if (&slider == &frequency)
+            return getFrequencyTint();
+        if (&slider == &width)
+            return getWidthTint();
+        return getEnergyTint();
     }
 
     juce::String getSliderTitle(const juce::Slider& slider) const
     {
-        if (&slider == &rate)
-            return "PULSE RATE";
-        if (&slider == &breath)
-            return "BREATH ARC";
-        return "GROWTH BURST";
+        if (&slider == &frequency)
+            return "PULSE FREQUENCY";
+        if (&slider == &width)
+            return "WINDOW WIDTH";
+        return "MATRIX ENERGY";
     }
 
     void drawFocusBubble(juce::Graphics& g, juce::Slider& slider) const
@@ -320,5 +320,5 @@ private:
                               slider.isMouseButtonDown() ? 0.88f : 0.56f);
     }
 
-    RootFlow::InteractiveSlider rate, breath, growth;
+    RootFlow::InteractiveSlider frequency, width, energy;
 };

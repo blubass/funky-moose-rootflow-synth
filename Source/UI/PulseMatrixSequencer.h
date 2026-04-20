@@ -5,15 +5,15 @@
 class RootFlowAudioProcessor;
 
 // ============================================================
-//  BioSequencerComponent
-//  A 16-step bio-tech sequencer that visually matches the
-//  node network: circular bio-nodes, energy glow, HSV pulsing.
+//  PulseMatrixSequencer
+//  A 16-step cybernetic sequencer that visually matches the
+//  system matrix: hexagonal core nodes, data-stream glow.
 // ============================================================
-class BioSequencerComponent : public juce::Component,
+class PulseMatrixSequencer : public juce::Component,
                                private juce::Timer
 {
 public:
-    BioSequencerComponent(RootFlowAudioProcessor& p) : proc(p)
+    PulseMatrixSequencer(RootFlowAudioProcessor& p) : proc(p)
     {
         // Power button
         powerButton.setButtonText("OFF");
@@ -84,7 +84,7 @@ public:
         startTimerHz(60);
     }
 
-    ~BioSequencerComponent() override { stopTimer(); }
+    ~PulseMatrixSequencer() override { stopTimer(); }
 
     void timerCallback() override { repaint(); }
 
@@ -253,6 +253,7 @@ public:
         const auto hub = juce::Point<float>(padArea.getCentreX(), padArea.getBottom() + 4.0f);
         const auto crownHub = juce::Point<float>(bounds.getCentreX(), padArea.getY() + padArea.getHeight() * 0.08f);
         juce::Point<float> focusStepCentre;
+        float smoothedMidiVelocity = 0.0f; // for MIDI-reactive data-vapor decay
         float focusStepRadius = 0.0f;
         juce::Colour focusStepColour = RootFlow::accent;
         juce::String focusStateText;
@@ -296,12 +297,12 @@ public:
         drawClusterBed(8, RootFlow::amber);
         drawClusterBed(12, RootFlow::violet);
 
-        RootFlow::drawOrbSocket(g, crownHub.translated(-56.0f, -2.0f), 5.5f, RootFlow::accentSoft, 0.30f);
-        RootFlow::drawOrbSocket(g, crownHub.translated(56.0f, -2.0f), 5.5f, RootFlow::amber, 0.30f);
-        RootFlow::drawOrbSocket(g, hub, 7.2f, RootFlow::accent, 0.36f);
-        RootFlow::drawBioThread(g, crownHub.translated(-56.0f, -2.0f), crownHub.translated(-8.0f, 12.0f), RootFlow::accentSoft, 0.075f, 1.0f);
-        RootFlow::drawBioThread(g, crownHub.translated(56.0f, -2.0f), crownHub.translated(8.0f, 12.0f), RootFlow::amber, 0.075f, 1.0f);
-        RootFlow::drawBioThread(g, crownHub, hub.translated(0.0f, -16.0f), RootFlow::accent, 0.075f, 1.0f);
+        RootFlow::drawCoreNode(g, crownHub.translated(-56.0f, -2.0f), 5.5f, RootFlow::accentSoft, 0.30f);
+        RootFlow::drawCoreNode(g, crownHub.translated(56.0f, -2.0f), 5.5f, RootFlow::amber, 0.30f);
+        RootFlow::drawCoreNode(g, hub, 7.2f, RootFlow::accent, 0.36f);
+        RootFlow::drawDataStream(g, crownHub.translated(-56.0f, -2.0f), crownHub.translated(-8.0f, 12.0f), RootFlow::accentSoft, 0.075f, 1.0f);
+        RootFlow::drawDataStream(g, crownHub.translated(56.0f, -2.0f), crownHub.translated(8.0f, 12.0f), RootFlow::amber, 0.075f, 1.0f);
+        RootFlow::drawDataStream(g, crownHub, hub.translated(0.0f, -16.0f), RootFlow::accent, 0.075f, 1.0f);
 
         for (int i = 0; i < 15; ++i)
         {
@@ -319,7 +320,7 @@ public:
         {
             auto a = cellCentre(i, padArea);
             auto b = cellCentre(i + 8, padArea);
-            RootFlow::drawBioThread(g, a, b, RootFlow::accent.withAlpha(0.72f), 0.05f, 0.8f);
+            RootFlow::drawDataStream(g, a, b, RootFlow::accent.withAlpha(0.72f), 0.05f, 0.8f);
         }
 
         for (int i = 0; i < 16; ++i)
@@ -373,6 +374,7 @@ public:
                 g.fillPath(getHexPath(x, y, radius * 0.3f));
 
                 juce::Path rootlet;
+                // Curved path that reflects the grid geometry
                 rootlet.startNewSubPath(x, y + radius * 0.2f);
                 rootlet.quadraticTo(x + std::sin((float) i * 0.6f) * 12.0f, y + radius * 1.6f, hub.x + (x - hub.x) * 0.15f, hub.y);
                 g.setColour(baseColor.withAlpha(0.22f));
@@ -380,7 +382,7 @@ public:
                 g.setColour(juce::Colours::white.withAlpha(0.14f));
                 g.strokePath(rootlet, juce::PathStrokeType(0.7f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
-                RootFlow::drawBioThread(g, crownHub, { x, y - radius * 0.3f }, baseColor, 0.08f + step.velocity * 0.06f, 0.9f);
+                RootFlow::drawDataStream(g, crownHub, { x, y - radius * 0.3f }, baseColor, 0.08f + step.velocity * 0.06f, 0.9f);
             }
 
             g.setColour(juce::Colours::white.withAlpha(active ? 0.22f : 0.04f));
@@ -393,7 +395,7 @@ public:
             {
                 g.setColour(juce::Colours::white.withAlpha(0.5f + bPulse * 0.5f));
                 g.strokePath(getHexPath(x, y, radius * 1.3f), juce::PathStrokeType(1.2f));
-                RootFlow::drawBioThread(g, { x, y + radius * 0.15f }, hub, baseColor.brighter(0.2f), 0.18f, 1.3f);
+                RootFlow::drawDataStream(g, { x, y + radius * 0.15f }, hub, baseColor.brighter(0.2f), 0.18f, 1.3f);
             }
 
             // Draw Probability Seed (Internal Core)
@@ -767,5 +769,5 @@ private:
         return { x, y };
     }
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BioSequencerComponent)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PulseMatrixSequencer)
 };

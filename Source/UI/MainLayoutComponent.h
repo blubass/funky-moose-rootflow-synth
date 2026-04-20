@@ -1,33 +1,35 @@
 #pragma once
 #include <JuceHeader.h>
-#include "RootPanel.h"
+#include "SourcePanel.h"
 #include "PulsePanel.h"
 #include "CenterComponent.h"
 #include "BottomPanel.h"
-#include "BioSequencerComponent.h"
+#include "PulseMatrixSequencer.h"
 #include "Utils/DesignTokens.h"
 
 class RootFlowAudioProcessor;
+
+class PulseMatrixSequencer;
 
 class MainLayoutComponent : public juce::Component, private juce::Timer
 {
 public:
     MainLayoutComponent(RootFlowAudioProcessor& p)
-        : rootPanel(), pulsePanel(), centerComponent(), bottomPanel(), bioSeq(p)
+        : sourcePanel(), pulsePanel(), centerComponent(), bottomPanel(), pulseMatrix(p)
     {
         titleLabel.setText("FUNKY MOOSE", juce::dontSendNotification);
         titleLabel.setFont(juce::Font(juce::FontOptions(26.0f).withStyle("Light")).withExtraKerningFactor(0.18f));
         titleLabel.setJustificationType(juce::Justification::centredRight);
         titleLabel.setColour(juce::Label::textColourId, RootFlow::text);
 
-        // Bioluminescent Glow Effect for Title
+        // Cybernetic Neon Glow Effect for Title
         auto* glow = new juce::GlowEffect();
         glow->setGlowProperties(3.2f, RootFlow::accent.withAlpha(0.08f));
         titleLabel.setComponentEffect(glow);
 
         addAndMakeVisible(titleLabel);
 
-        rootflowLabel.setText("ROOTFLOW SYNTH", juce::dontSendNotification);
+        rootflowLabel.setText("TRON CORE TERMINAL", juce::dontSendNotification);
         rootflowLabel.setFont(juce::Font(juce::FontOptions(18.0f).withStyle("SemiBold")).withExtraKerningFactor(0.24f));
         rootflowLabel.setJustificationType(juce::Justification::centredLeft);
         rootflowLabel.setColour(juce::Label::textColourId,
@@ -41,10 +43,10 @@ public:
 
         // --- EVOLUTIONARY MUTATE BUTTON ---
         mutateButton.setButtonText("");
-        mutateButton.setTooltip("Mutate the Plant's Essence");
-        mutateButton.onClick = [&p] { p.mutatePlant(); };
+        mutateButton.setTooltip("RECONFIGURE SYSTEM MATRIX");
+        mutateButton.onClick = [&p] { p.mutateSystem(); };
 
-        // Spore-like styling
+        // Core Node styling
         mutateButton.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
         mutateButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::transparentBlack);
         addAndMakeVisible(mutateButton);
@@ -119,10 +121,10 @@ public:
         monoToggleAttach = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(p.tree, "monoMakerToggle", monoMakerToggle);
         compAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(p.tree, "masterCompressor", masterCompressorSlider);
 
-        addAndMakeVisible(rootPanel);
+        addAndMakeVisible(sourcePanel);
         addAndMakeVisible(pulsePanel);
         addAndMakeVisible(bottomPanel);
-        addAndMakeVisible(bioSeq);
+        addAndMakeVisible(pulseMatrix);
         addAndMakeVisible(centerComponent); // Added last to ensure Evolution Master is visible on top
 
         setOpaque(false);
@@ -133,12 +135,9 @@ public:
     {
         auto bounds = getLocalBounds().toFloat();
         
-        // The backdrop is now drawn globally by the Editor to ensure full window coverage.
-        // We only draw the organic overlays here.
-
-        // Add the Mycelium Network for that deep organic "Bio-Web" look
-        RootFlow::drawMyceliumNetwork(g, bounds, RootFlow::accentSoft, 0.045f, 1337);
-        RootFlow::drawMyceliumNetwork(g, bounds, RootFlow::accent, 0.026f, 999);
+        // Add the Synaptic Matrix for that deep cybernetic system look
+        RootFlow::drawSynapticMatrix(g, bounds, RootFlow::accentSoft, 0.045f, 1337);
+        RootFlow::drawSynapticMatrix(g, bounds, RootFlow::accent, 0.026f, 999);
 
         auto shell = bounds.reduced(14.0f, 8.0f).withTrimmedTop(10.0f);
         auto cabinetBody = shell.expanded(10.0f, 12.0f).translated(0.0f, 6.0f);
@@ -340,28 +339,28 @@ public:
         g.setColour(RootFlow::accent.withAlpha(0.024f));
         g.strokePath(bridge, juce::PathStrokeType(7.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
-        if (! rootPanel.getBounds().isEmpty() && ! pulsePanel.getBounds().isEmpty())
+        if (! sourcePanel.getBounds().isEmpty() && ! pulsePanel.getBounds().isEmpty())
         {
                 if (idleEffectsEnabled)
                 {
-                    RootFlow::drawBioThread(g,
+                    RootFlow::drawDataStream(g,
                                             titleCanopy.getBottomLeft().translated(42.0f, -4.0f),
-                                            rootPanel.getBounds().toFloat().getTopRight().translated(-28.0f, 34.0f),
+                                            sourcePanel.getBounds().toFloat().getTopRight().translated(-28.0f, 34.0f),
                                             RootFlow::accentSoft, 0.022f + idleBreath * 0.012f, 0.85f);
-                    RootFlow::drawBioThread(g,
+                    RootFlow::drawDataStream(g,
                                             titleCanopy.getBottomRight().translated(-42.0f, -4.0f),
                                             pulsePanel.getBounds().toFloat().getTopLeft().translated(28.0f, 34.0f),
                                             RootFlow::amber, 0.020f + idleBreath * 0.010f, 0.85f);
                 }
-                RootFlow::drawBioThread(g,
-                                        rootPanel.getBounds().toFloat().getTopRight().translated(-22.0f, 78.0f),
+                RootFlow::drawDataStream(g,
+                                        sourcePanel.getBounds().toFloat().getTopRight().translated(-22.0f, 78.0f),
                                         centerComponent.getBounds().toFloat().getTopLeft().translated(44.0f, 140.0f),
                                         RootFlow::accentSoft, 0.036f, 0.95f);
-            RootFlow::drawBioThread(g,
+            RootFlow::drawDataStream(g,
                                     pulsePanel.getBounds().toFloat().getTopLeft().translated(22.0f, 78.0f),
                                     centerComponent.getBounds().toFloat().getTopRight().translated(-44.0f, 140.0f),
                                     RootFlow::accent, 0.036f, 0.95f);
-            RootFlow::drawBioThread(g,
+            RootFlow::drawDataStream(g,
                                     bottomPanel.getBounds().toFloat().getCentre().translated(0.0f, -12.0f),
                                     centerComponent.getBounds().toFloat().getCentre().translated(0.0f, 160.0f),
                                     RootFlow::accent.withAlpha(0.70f), 0.032f, 1.0f);
@@ -409,11 +408,11 @@ public:
         constexpr float sideTabLift = -10.0f;
         constexpr float seqTabLift = -18.0f;
 
-        auto seqTab = bioSeq.getBounds().toFloat().withTrimmedBottom((float) bioSeq.getHeight() - 28.0f)
+        auto seqTab = pulseMatrix.getBounds().toFloat().withTrimmedBottom((float) pulseMatrix.getHeight() - 28.0f)
                                            .translated(0.0f, seqTabLift)
                                            .withTrimmedLeft(24.0f)
                                            .withTrimmedRight(24.0f);
-        auto rootTab = rootPanel.getBounds().toFloat().withHeight(30.0f).translated(18.0f, sideTabLift);
+        auto rootTab = sourcePanel.getBounds().toFloat().withHeight(30.0f).translated(18.0f, sideTabLift);
         auto pulseTab = pulsePanel.getBounds().toFloat().withHeight(30.0f).translated(-18.0f, sideTabLift);
         auto energyBounds = centerComponent.getEnergyDisplay().getBounds().toFloat()
                                               .translated((float) centerComponent.getX(),
@@ -425,10 +424,10 @@ public:
         auto pulseTabArea = juce::Rectangle<float>(pulseTab.getRight() - 168.0f, pulseTab.getY(), 168.0f, pulseTab.getHeight());
         auto ambientBand = bottomPanel.getBounds().toFloat().reduced(52.0f, 10.0f).withHeight(24.0f);
 
-        RootFlow::drawTabLabel(g, rootTabArea, "ROOT FIELD");
-        RootFlow::drawTabLabel(g, seqTabArea, "BIO-SEQUENCER", RootFlow::TabLabelStyle::prominent);
-        RootFlow::drawTabLabel(g, coreTabArea, "CENTER PANEL");
-        RootFlow::drawTabLabel(g, pulseTabArea, "PULSE FIELD");
+        RootFlow::drawTabLabel(g, rootTabArea, "SOURCE MATRIX");
+        RootFlow::drawTabLabel(g, seqTabArea, "SYSTEM SEQUENCER", RootFlow::TabLabelStyle::prominent);
+        RootFlow::drawTabLabel(g, coreTabArea, "CORE RESONATOR");
+        RootFlow::drawTabLabel(g, pulseTabArea, "FLOW FREQUENCY");
 
         // --- EVOLUTION MASTER LABEL (DRAWN ON TOP OF EVERYTHING) ---
         auto evolutionBox = centerComponent.getEvolution().getBounds().toFloat()
@@ -481,14 +480,14 @@ public:
             focus.section = "CENTER CURRENT";
             focus.value = centerComponent.getFocusTitle() + " / " + centerComponent.getFocusValueText();
         }
-        else if (rootPanel.getFocusedSlider() != nullptr)
+        else if (sourcePanel.getFocusedSlider() != nullptr)
         {
             focus.active = true;
             focus.zone = FocusSnapshot::Zone::root;
-            focus.anchor = rootPanel.getFocusAnchor();
-            focus.tint = rootPanel.getFocusTint();
-            focus.section = "ROOT CURRENT";
-            focus.value = rootPanel.getFocusTitle() + " / " + rootPanel.getFocusValueText();
+            focus.anchor = sourcePanel.getFocusAnchor();
+            focus.tint = sourcePanel.getFocusTint();
+            focus.section = "SOURCE PARAMETERS";
+            focus.value = sourcePanel.getFocusTitle() + " / " + sourcePanel.getFocusValueText();
         }
         else if (pulsePanel.getFocusedSlider() != nullptr)
         {
@@ -508,21 +507,21 @@ public:
             focus.section = "AMBIENT CURRENT";
             focus.value = bottomPanel.getFocusTitle() + " / " + bottomPanel.getFocusValueText();
         }
-        else if (bioSeq.hasActivityFocus())
+        else if (pulseMatrix.hasActivityFocus())
         {
             focus.active = true;
             focus.zone = FocusSnapshot::Zone::sequencer;
-            focus.anchor = bioSeq.getFocusAnchor();
-            focus.tint = bioSeq.getFocusTint();
+            focus.anchor = pulseMatrix.getFocusAnchor();
+            focus.tint = pulseMatrix.getFocusTint();
             focus.section = "SEQUENCER CURRENT";
-            focus.value = bioSeq.getFocusTitle() + " / " + bioSeq.getFocusValueText();
+            focus.value = pulseMatrix.getFocusTitle() + " / " + pulseMatrix.getFocusValueText();
         }
 
-        auto rootAnchor = rootPanel.getFocusAnchor();
+        auto sourceAnchor = sourcePanel.getFocusAnchor();
         auto centerAnchor = centerComponent.getFocusAnchor();
         auto pulseAnchor = pulsePanel.getFocusAnchor();
         auto ambientAnchor = bottomPanel.getFocusAnchor();
-        auto seqAnchor = bioSeq.getFocusAnchor();
+        auto seqAnchor = pulseMatrix.getFocusAnchor();
         const bool popupOverlaysEnabled = RootFlow::arePopupOverlaysEnabled();
 
         if (! focus.active)
@@ -530,6 +529,7 @@ public:
             if (! RootFlow::areIdleEffectsEnabled())
                 return;
 
+            // Cybernetic Drift & Parameter Sync
             const float idleBreath = 0.5f + 0.5f * std::sin((pulsePhase + 0.12f) * juce::MathConstants<float>::twoPi);
             auto drawIdleMarker = [&g, idleBreath] (juce::Rectangle<float> area, juce::Colour tint)
             {
@@ -546,7 +546,7 @@ public:
             drawIdleMarker(pulseTabArea, RootFlow::accent);
             drawIdleMarker(ambientBand, RootFlow::accent.interpolatedWith(RootFlow::amber, 0.22f));
 
-            drawActivityThread(g, rootAnchor, centerAnchor, RootFlow::accentSoft, 0.16f + idleBreath * 0.05f, 0.00f);
+            drawActivityThread(g, sourceAnchor, centerAnchor, RootFlow::accentSoft, 0.16f + idleBreath * 0.05f, 0.00f);
             drawActivityThread(g, pulseAnchor, centerAnchor, RootFlow::accent, 0.16f + idleBreath * 0.05f, 0.32f);
             drawActivityThread(g, ambientAnchor, centerAnchor, RootFlow::accent.interpolatedWith(RootFlow::amber, 0.18f), 0.14f + idleBreath * 0.04f, 0.56f);
             drawActivityThread(g, seqAnchor, centerAnchor, RootFlow::amber.interpolatedWith(RootFlow::accentSoft, 0.22f), 0.15f + idleBreath * 0.05f, 0.82f);
@@ -591,24 +591,24 @@ public:
         else if (focus.zone == FocusSnapshot::Zone::pulse)
         {
             drawActivityThread(g, focus.anchor, centerAnchor, focus.tint, 0.82f, 0.00f);
-            drawActivityThread(g, centerAnchor, rootAnchor, focus.tint.interpolatedWith(RootFlow::accentSoft, 0.28f), 0.46f, 0.34f);
+            drawActivityThread(g, centerAnchor, sourceAnchor, focus.tint.interpolatedWith(RootFlow::accentSoft, 0.28f), 0.46f, 0.34f);
         }
         else if (focus.zone == FocusSnapshot::Zone::sequencer)
         {
             drawActivityThread(g, focus.anchor, centerAnchor, focus.tint, 0.82f, 0.00f);
-            drawActivityThread(g, centerAnchor, rootAnchor, focus.tint.interpolatedWith(RootFlow::accentSoft, 0.24f), 0.36f, 0.22f);
+            drawActivityThread(g, centerAnchor, sourceAnchor, focus.tint.interpolatedWith(RootFlow::accentSoft, 0.24f), 0.36f, 0.22f);
             drawActivityThread(g, centerAnchor, pulseAnchor, focus.tint.interpolatedWith(RootFlow::amber, 0.20f), 0.36f, 0.54f);
         }
         else if (focus.zone == FocusSnapshot::Zone::ambient)
         {
             drawActivityThread(g, focus.anchor, centerAnchor, focus.tint, 0.78f, 0.00f);
-            drawActivityThread(g, centerAnchor, rootAnchor, focus.tint.interpolatedWith(RootFlow::accentSoft, 0.18f), 0.30f, 0.28f);
+            drawActivityThread(g, centerAnchor, sourceAnchor, focus.tint.interpolatedWith(RootFlow::accentSoft, 0.18f), 0.30f, 0.28f);
             drawActivityThread(g, centerAnchor, pulseAnchor, focus.tint.interpolatedWith(RootFlow::amber, 0.18f), 0.30f, 0.56f);
             RootFlow::drawGlowOrb(g, ambientAnchor, 3.4f, focus.tint, 0.24f);
         }
         else
         {
-            drawActivityThread(g, focus.anchor, rootAnchor, focus.tint.interpolatedWith(RootFlow::accentSoft, 0.18f), 0.70f, 0.00f);
+            drawActivityThread(g, focus.anchor, sourceAnchor, focus.tint.interpolatedWith(RootFlow::accentSoft, 0.18f), 0.70f, 0.00f);
             drawActivityThread(g, focus.anchor, pulseAnchor, focus.tint.interpolatedWith(RootFlow::amber, 0.18f), 0.70f, 0.42f);
         }
     }
@@ -661,7 +661,7 @@ public:
                              .translated(0, compactLayout ? 2 : 4);
         auto seqRect = topRow.removeFromLeft(seqWidth);
         topRow.removeFromLeft(masterGap);
-        bioSeq.setBounds(seqRect);
+        pulseMatrix.setBounds(seqRect);
 
         auto masterArea = topRow;
         masterArea.removeFromTop(compactLayout ? 14 : 18);
@@ -707,17 +707,17 @@ public:
         auto left  = bounds.removeFromLeft(sideWidth).reduced(2, 0);
         auto right = bounds.removeFromRight(sideWidth).reduced(2, 0);
 
-        rootPanel.setBounds(left.translated(-2, 0));
+        sourcePanel.setBounds(left.translated(-2, 0));
         pulsePanel.setBounds(right.translated(2, 0));
         centerComponent.setBounds(bounds.reduced(centerInset, 4));
         bottomPanel.setBounds(bottom.reduced(bottomInset, 0));
     }
 
-    RootPanel&             getRootPanel()       { return rootPanel; }
+    SourcePanel&             getSourcePanel()     { return sourcePanel; }
     PulsePanel&            getPulsePanel()       { return pulsePanel; }
     CenterComponent&       getCenterComponent()  { return centerComponent; }
     BottomPanel&           getBottomPanel()      { return bottomPanel; }
-    BioSequencerComponent& getBioSeq()           { return bioSeq; }
+    PulseMatrixSequencer& getPulseMatrix()     { return pulseMatrix; }
 
     float getPulsePhase() const noexcept { return (float) pulsePhase; }
     juce::Rectangle<int> getTitleSeedDockBounds() const
@@ -755,14 +755,14 @@ private:
     {
         if (centerComponent.getFocusedSlider() != nullptr)
             return centerComponent.getFocusTint();
-        if (rootPanel.getFocusedSlider() != nullptr)
-            return rootPanel.getFocusTint();
+        if (sourcePanel.getFocusedSlider() != nullptr)
+            return sourcePanel.getFocusTint();
         if (pulsePanel.getFocusedSlider() != nullptr)
             return pulsePanel.getFocusTint();
         if (bottomPanel.getFocusedSlider() != nullptr)
             return bottomPanel.getFocusTint();
-        if (bioSeq.hasActivityFocus())
-            return bioSeq.getFocusTint();
+        if (pulseMatrix.hasActivityFocus())
+            return pulseMatrix.getFocusTint();
 
         return RootFlow::accent.interpolatedWith(RootFlow::accentSoft, 0.42f);
     }
@@ -826,18 +826,18 @@ private:
 
     void drawAllPanelTethers(juce::Graphics& g)
     {
-        auto& root = getRootPanel();
+        auto& source = getSourcePanel();
         auto& pulse = getPulsePanel();
         
-        // Root Panel Tethers
-        drawParameterTether(g, root.getDepthSlider(), "rootDepth");
-        drawParameterTether(g, root.getSoilSlider(), "rootSoil");
-        drawParameterTether(g, root.getAnchorSlider(), "rootAnchor");
+        // Source Panel Tethers
+        drawParameterTether(g, source.getDepthSlider(), "sourceDepth");
+        drawParameterTether(g, source.getCoreSlider(), "sourceCore");
+        drawParameterTether(g, source.getAnchorSlider(), "sourceAnchor");
         
         // Pulse Panel Tethers
-        drawParameterTether(g, pulse.getRateSlider(), "pulseRate");
-        drawParameterTether(g, pulse.getBreathSlider(), "pulseBreath");
-        drawParameterTether(g, pulse.getGrowthSlider(), "pulseGrowth");
+        drawParameterTether(g, pulse.getFrequencySlider(), "pulseFrequency");
+        drawParameterTether(g, pulse.getWidthSlider(), "pulseWidth");
+        drawParameterTether(g, pulse.getEnergySlider(), "pulseEnergy");
 
         // Master Sliders
         drawParameterTether(g, masterVolumeSlider, "masterVolume");
@@ -925,12 +925,15 @@ private:
 
     juce::Label           titleLabel;
     juce::Label           rootflowLabel;
+    PulseMatrixSequencer& getSequencer() { return pulseMatrix; }
+
+private:
     juce::TextButton      mutateButton;
-    RootPanel             rootPanel;
+    SourcePanel           sourcePanel;
     PulsePanel            pulsePanel;
     CenterComponent       centerComponent;
     BottomPanel           bottomPanel;
-    BioSequencerComponent bioSeq;
+    PulseMatrixSequencer  pulseMatrix;
     juce::Slider masterVolumeSlider { juce::Slider::LinearVertical, juce::Slider::NoTextBox };
     juce::Slider masterMixSlider { juce::Slider::LinearVertical, juce::Slider::NoTextBox };
     juce::Slider monoMakerFreqSlider { juce::Slider::LinearVertical, juce::Slider::NoTextBox };

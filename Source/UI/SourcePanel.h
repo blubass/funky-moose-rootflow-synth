@@ -2,24 +2,24 @@
 #include <JuceHeader.h>
 #include "Utils/DesignTokens.h"
 
-class RootPanel : public juce::Component
+class SourcePanel : public juce::Component
 {
 public:
-    RootPanel()
+    SourcePanel()
     {
         depth.setName("DEPTH");
-        soil.setName("SOIL");
+        core.setName("CORE");
         anchor.setName("ANCHOR");
 
         setupVerticalSlider(depth);
-        setupVerticalSlider(soil);
+        setupVerticalSlider(core);
         setupHorizontalSlider(anchor);
         wireSlider(depth);
-        wireSlider(soil);
+        wireSlider(core);
         wireSlider(anchor);
 
         addAndMakeVisible(depth);
-        addAndMakeVisible(soil);
+        addAndMakeVisible(core);
         addAndMakeVisible(anchor);
 
         setOpaque(false);
@@ -37,13 +37,13 @@ public:
                                               topInner.getY() + 2,
                                               laneWidth,
                                               topInner.getHeight() - 8);
-        auto soilLane = juce::Rectangle<int>(topInner.getRight() - laneWidth - 4,
+        auto coreLane = juce::Rectangle<int>(topInner.getRight() - laneWidth - 4,
                                              topInner.getY() + 14,
                                              laneWidth,
                                              topInner.getHeight() - 20);
 
         depth.setBounds(depthLane);
-        soil.setBounds(soilLane);
+        core.setBounds(coreLane);
 
         auto anchorLane = bottomChamber.reduced(10, 12);
         anchor.setBounds(anchorLane.withTrimmedTop(20).withTrimmedBottom(18));
@@ -54,17 +54,17 @@ public:
         auto shell = getShellBounds().toFloat();
         auto topChamber = getTopChamberBounds().toFloat().translated(-6.0f, 0.0f);
         auto bottomChamber = getBottomChamberBounds().toFloat().translated(8.0f, 0.0f);
-        const auto strataTint = getDepthTint();
-        const auto soilTint = getSoilTint();
-        const auto anchorTint = getAnchorTint();
-        const auto bridgeTint = soilTint.interpolatedWith(anchorTint, 0.34f);
+        const auto depthTint = getSourceDepthTint();
+        const auto coreTint = getSourceCoreTint();
+        const auto anchorTint = getSourceAnchorTint();
+        const auto bridgeTint = coreTint.interpolatedWith(anchorTint, 0.34f);
         const auto shellPath = RootFlow::makeSideColumnShell(shell, false);
 
         {
             juce::Graphics::ScopedSaveState state(g);
             g.reduceClipRegion(shellPath);
 
-            juce::ColourGradient upperWash(strataTint.withAlpha(0.09f), shell.getX() + shell.getWidth() * 0.26f, shell.getY() + shell.getHeight() * 0.12f,
+            juce::ColourGradient upperWash(depthTint.withAlpha(0.09f), shell.getX() + shell.getWidth() * 0.26f, shell.getY() + shell.getHeight() * 0.12f,
                                            juce::Colours::transparentBlack, shell.getCentreX(), shell.getY() + shell.getHeight() * 0.54f, true);
             g.setGradientFill(upperWash);
             g.fillEllipse(shell.getX() - shell.getWidth() * 0.04f, shell.getY() + shell.getHeight() * 0.02f,
@@ -77,34 +77,31 @@ public:
                           shell.getWidth() * 0.74f, shell.getHeight() * 0.34f);
         }
 
-        RootFlow::drawSideColumnShell(g, shell, false, strataTint.interpolatedWith(soilTint, 0.22f));
-        RootFlow::drawMembraneChamber(g, topChamber, strataTint, false, 0.86f);
-        RootFlow::drawMembraneChamber(g, bottomChamber, anchorTint, false, 0.76f);
+        RootFlow::drawSideColumnShell(g, shell, false, depthTint.interpolatedWith(coreTint, 0.22f));
+        RootFlow::drawSystemPanel(g, topChamber, depthTint, false, 0.86f);
+        RootFlow::drawSystemPanel(g, bottomChamber, anchorTint, false, 0.76f);
 
         drawChamberBadge(g,
                          juce::Rectangle<float>(topChamber.getX() + 18.0f, topChamber.getY() + 10.0f, topChamber.getWidth() - 44.0f, 18.0f),
-                         "STRATA CORE",
-                         strataTint);
+                         "SOURCE CORE",
+                         depthTint);
         drawChamberBadge(g,
                          juce::Rectangle<float>(bottomChamber.getX() + 16.0f, bottomChamber.getY() + 10.0f, bottomChamber.getWidth() - 38.0f, 18.0f),
-                         "ANCHOR WELL",
+                         "SYSTEM ANCHOR",
                          anchorTint);
 
         const auto topCore = topChamber.getCentre().translated(-12.0f, -topChamber.getHeight() * 0.24f);
         const auto bottomCore = bottomChamber.getCentre().translated(-6.0f, bottomChamber.getHeight() * 0.18f);
-        RootFlow::drawGlowOrb(g, topCore, 10.0f, strataTint, 0.52f);
-        RootFlow::drawGlowOrb(g, bottomCore, 8.8f, anchorTint, 0.48f);
 
-        RootFlow::drawBioThread(g, { depth.getBounds().getCentreX() + 10.0f, depth.getBounds().getBottom() - 18.0f }, topCore, strataTint, 0.12f, 0.90f);
-        RootFlow::drawBioThread(g, { soil.getBounds().getCentreX() + 10.0f, soil.getBounds().getBottom() - 18.0f }, topCore.translated(18.0f, 20.0f), soilTint, 0.12f, 0.90f);
-        RootFlow::drawBioThread(g, { anchor.getBounds().getCentreX() + 10.0f, anchor.getBounds().getBottom() - 18.0f }, bottomCore, anchorTint, 0.14f, 0.90f);
-        RootFlow::drawBioThread(g, { topChamber.getRight() - 26.0f, topChamber.getBottom() - 34.0f }, { bottomChamber.getX() + 24.0f, bottomChamber.getY() + 24.0f }, bridgeTint, 0.09f, 0.95f);
+        RootFlow::drawDataStream(g, { depth.getBounds().getCentreX() + 10.0f, depth.getBounds().getBottom() - 18.0f }, topCore, depthTint, 0.12f, 0.90f);
+        RootFlow::drawDataStream(g, { core.getBounds().getCentreX() + 10.0f, core.getBounds().getBottom() - 18.0f }, topCore.translated(18.0f, 20.0f), coreTint, 0.12f, 0.90f);
+        RootFlow::drawDataStream(g, { anchor.getBounds().getCentreX() + 10.0f, anchor.getBounds().getBottom() - 18.0f }, bottomCore, anchorTint, 0.14f, 0.90f);
+        RootFlow::drawDataStream(g, { topChamber.getRight() - 26.0f, topChamber.getBottom() - 34.0f }, { bottomChamber.getX() + 24.0f, bottomChamber.getY() + 24.0f }, bridgeTint, 0.09f, 0.95f);
 
-        RootFlow::drawOrbSocket(g, { bottomChamber.getX() + 34.0f, bottomChamber.getBottom() - 22.0f }, 8.0f, soilTint, 0.48f);
-        RootFlow::drawOrbSocket(g, { bottomChamber.getRight() - 28.0f, bottomChamber.getBottom() - 20.0f }, 7.2f, anchorTint, 0.44f);
-
-        drawSliderLabel(g, depth, "DEPTH");
-        drawSliderLabel(g, soil, "SOIL");
+        RootFlow::drawCoreNode(g, topCore, 7.5f, coreTint, 0.42f);
+        RootFlow::drawCoreNode(g, bottomCore, 8.2f, anchorTint, 0.46f);
+        RootFlow::drawCoreNode(g, { bottomChamber.getRight() - 28.0f, bottomChamber.getBottom() - 20.0f }, 7.2f, anchorTint, 0.44f);
+        RootFlow::drawCoreNode(g, { bottomChamber.getX() + 34.0f, bottomChamber.getBottom() - 22.0f }, 8.0f, coreTint, 0.48f);
         drawSliderLabel(g, anchor, "ANCHOR");
     }
 
@@ -118,7 +115,7 @@ public:
     }
 
     juce::Slider& getDepthSlider() { return depth; }
-    juce::Slider& getSoilSlider() { return soil; }
+    juce::Slider& getCoreSlider() { return core; }
     juce::Slider& getAnchorSlider() { return anchor; }
     juce::Slider* getFocusedSlider() const { return findFocusedSlider(); }
     juce::Colour getFocusTint() const
@@ -126,7 +123,7 @@ public:
         if (auto* slider = findFocusedSlider())
             return getSliderTint(*slider);
 
-        return getDepthTint();
+        return getSourceDepthTint();
     }
 
     juce::String getFocusTitle() const
@@ -159,20 +156,9 @@ private:
         return juce::String(juce::roundToInt(juce::jlimit(0.0, 1.0, value) * 100.0)) + "%";
     }
 
-    static juce::Colour getDepthTint()
-    {
-        return RootFlow::violet.interpolatedWith(RootFlow::accentSoft, 0.36f);
-    }
-
-    static juce::Colour getSoilTint()
-    {
-        return RootFlow::accent.interpolatedWith(RootFlow::violet, 0.18f);
-    }
-
-    static juce::Colour getAnchorTint()
-    {
-        return RootFlow::violet.interpolatedWith(RootFlow::accent, 0.14f);
-    }
+    static juce::Colour getSourceDepthTint() { return RootFlow::violet.interpolatedWith(RootFlow::accentSoft, 0.36f); }
+    static juce::Colour getSourceCoreTint()  { return RootFlow::accent.interpolatedWith(RootFlow::violet, 0.18f); }
+    static juce::Colour getSourceAnchorTint() { return RootFlow::violet.interpolatedWith(RootFlow::accent, 0.14f); }
 
     void setupVerticalSlider(juce::Slider& s)
     {
@@ -187,7 +173,7 @@ private:
         s.setSliderStyle(juce::Slider::LinearHorizontal);
         s.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
         s.setMouseDragSensitivity(320);
-        s.getProperties().set("rootflowStyle", "pod-horizontal");
+        s.getProperties().set("rootflowStyle", "core-horizontal");
     }
 
     void wireSlider(RootFlow::InteractiveSlider& s)
@@ -251,11 +237,11 @@ private:
 
     juce::Slider* findFocusedSlider() const
     {
-        for (auto* slider : { static_cast<const juce::Slider*>(&depth), static_cast<const juce::Slider*>(&soil), static_cast<const juce::Slider*>(&anchor) })
+        for (auto* slider : { static_cast<const juce::Slider*>(&depth), static_cast<const juce::Slider*>(&core), static_cast<const juce::Slider*>(&anchor) })
             if (slider->isMouseButtonDown())
                 return const_cast<juce::Slider*>(slider);
 
-        for (auto* slider : { static_cast<const juce::Slider*>(&depth), static_cast<const juce::Slider*>(&soil), static_cast<const juce::Slider*>(&anchor) })
+        for (auto* slider : { static_cast<const juce::Slider*>(&depth), static_cast<const juce::Slider*>(&core), static_cast<const juce::Slider*>(&anchor) })
             if (RootFlow::isInteractiveHoverActive(*slider) && ! slider->isMouseButtonDown())
                 return const_cast<juce::Slider*>(slider);
 
@@ -264,20 +250,16 @@ private:
 
     juce::Colour getSliderTint(const juce::Slider& slider) const
     {
-        if (&slider == &depth)
-            return getDepthTint();
-        if (&slider == &soil)
-            return getSoilTint();
-        return getAnchorTint();
+        if (&slider == &depth)  return getSourceDepthTint();
+        if (&slider == &core)   return getSourceCoreTint();
+        return getSourceAnchorTint();
     }
 
     juce::String getSliderTitle(const juce::Slider& slider) const
     {
-        if (&slider == &depth)
-            return "ROOT DEPTH";
-        if (&slider == &soil)
-            return "SOIL DENSITY";
-        return "ANCHOR FORCE";
+        if (&slider == &depth)  return "SOURCE DEPTH";
+        if (&slider == &core)   return "SOURCE CORE";
+        return "SYSTEM ANCHOR";
     }
 
     void drawFocusBubble(juce::Graphics& g, juce::Slider& slider) const
@@ -317,8 +299,8 @@ private:
         g.setColour(tint.withAlpha(0.96f));
         g.drawFittedText(formatPercent(slider.getValue()), valueArea.toNearestInt(), juce::Justification::centredRight, 1);
         RootFlow::drawGlowOrb(g, { bubble.getRight() - 10.0f, bubble.getY() + 9.5f }, 2.8f, tint,
-                              slider.isMouseButtonDown() ? 0.88f : 0.56f);
+                               slider.isMouseButtonDown() ? 0.88f : 0.56f);
     }
 
-    RootFlow::InteractiveSlider depth, soil, anchor;
+    RootFlow::InteractiveSlider depth, core, anchor;
 };

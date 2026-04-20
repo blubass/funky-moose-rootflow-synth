@@ -6,7 +6,7 @@ if(APPLE)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" CACHE STRING "Minimum macOS deployment target" FORCE)
 endif()
 
-project(RootFlow VERSION 1.3.0)
+project(RootFlow VERSION 1.3.1)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -90,6 +90,8 @@ target_sources(RootFlow PRIVATE
     Source/RootFlowVoice.cpp
     Source/RootFlowLookAndFeel.cpp
     Source/UI/EnergyDisplay.cpp
+    Source/RootFlowMutation.cpp
+    Source/RootFlowPresets.cpp
     # NodeSystem and BioSequencerComponent are header-only
 )
 

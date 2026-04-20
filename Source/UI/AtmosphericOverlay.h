@@ -3,11 +3,11 @@
 #include "Utils/DesignTokens.h"
 
 // ============================================================
-//  AtmosphericOverlay  v4 — Bioluminescent Panel Response
+//  AtmosphericOverlay  v4 — Cybernetic Matrix Response
 //
-//  God Rays: GONE. Replaced by soft panel-edge glow that
+//  Neon Glow: GONE. Replaced by soft panel-edge glow that
 //            emanates FROM the panels on MIDI input.
-//  Bio-Dust: Always faintly visible, surges on MIDI.
+//  Data Vapor: Always faintly visible, surges on MIDI.
 //
 //  Both driven by:  intensity = "atmosphere" param (0..1)
 //                   midiVelocity = smoothed MIDI velocity (0..1)
@@ -56,7 +56,7 @@ public:
         const float fast  = 0.5f + 0.5f * std::sin(phase * 3.0f);   // faster flicker
 
         // -------------------------------------------------------
-        //  BIO-DUST  — always faintly visible, surges with MIDI
+        //  DATA VAPOR — always faintly visible, surges with MIDI
         //  Fixed: minimum alpha is large enough to always draw
         // -------------------------------------------------------
         {
@@ -95,7 +95,7 @@ public:
         // -------------------------------------------------------
         //  PANEL GLOW  — only on MIDI input
         //  Soft radial blooms that appear to emanate FROM inside
-        //  the panels — like bioluminescence, not searchlights.
+        //  the panels — like neon fluorescence, not searchlights.
         //  Positions: approximate panel centres in a 1240x820 layout.
         // -------------------------------------------------------
         if (midi > 0.02f)
@@ -150,7 +150,7 @@ public:
         }
         // -------------------------------------------------------
         //  SEQUENCER GLOW — dynamic step-based blooms
-        //  Triggers on step change, decays for "organic trail"
+        //  Triggers on step change, decays for "cybernetic trail"
         // -------------------------------------------------------
         for (int i = 0; i < 16; ++i)
         {
@@ -191,11 +191,11 @@ public:
 
 private:
     // Manual mapping of sequencer steps to screen coordinates (1240x820 layout)
-    // This replicates BioSequencerComponent::cellCentre but in global overlay space
+    // This replicates PulseMatrixSequencer::cellCentre but in global overlay space
     juce::Point<float> getStepScreenPos(int index, juce::Rectangle<float> r) const
     {
-        // 1. Calculate relative to BioSequencer bounds first
-        // MainLayout positions BioSequencer at roughly:
+        // 1. Calculate relative to PulseMatrixSequencer bounds first
+        // MainLayout positions PulseMatrixSequencer at roughly:
         // x: 0.17 * width (ish, depends on master section)
         // y: 0.10 * height + header
         
@@ -206,7 +206,7 @@ private:
         const float seqX = (r.getWidth() - (seqW + 22.0f + 320.0f)) * 0.5f; // Approximated
         const float seqY = headerH + 10.0f;
         
-        // Pad Area inside BioSequencer (replicated from BioSequencerComponent::getPadArea)
+        // Pad Area inside PulseMatrixSequencer (replicated from PulseMatrixSequencer::getPadArea)
         const float padTop = 52.0f + 16.0f;
         const float padBot = 58.0f + 6.0f;
         const float padH = seqH - padTop - padBot;

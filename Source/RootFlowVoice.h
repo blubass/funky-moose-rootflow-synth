@@ -1,6 +1,7 @@
 #include <JuceHeader.h>
 #include <array>
 #include "RootFlowOscillators.h"
+#include "RootFlowDSP.h"
 
 class RootFlowModulationEngine;
 
@@ -23,12 +24,6 @@ public:
 class RootFlowVoice : public juce::SynthesiserVoice
 {
 public:
-    struct MidiExpressionState
-    {
-        std::array<float, 16> pitchBendRangeSemitones {};
-        std::array<float, 16> modWheelNormalized {};
-    };
-
     RootFlowVoice();
 
     bool canPlaySound(juce::SynthesiserSound* sound) override;
@@ -51,18 +46,18 @@ public:
     void recoverFromSilentState();
 
     // --- Parameter Mapping ---
-    void setFlow(float v);    // Filter Cutoff
-    void setVitality(float v); // Resonance / Drive
-    void setTexture(float v);  // Waveshaping / Char
-    void setDepth(float v);    // Detune / Sub
-    void setPulseRate(float v);
-    void setPulseAmount(float v);
-    void setGrowth(float v);
-    void setCanopy(float v);
+    void setFlow(float v);          // Filter Cutoff (Flow Rate)
+    void setEnergy(float v);        // Resonance / Drive (Flow Energy)
+    void setTexture(float v);       // Waveshaping / Char (Flow Texture)
+    void setDepth(float v);         // Detune / Sub (Source Depth)
+    void setPulseFrequency(float v);
+    void setPulseWidth(float v);
+    void setPulseEnergy(float v);
+    void setFieldComplexity(float v);
     void setInstability(float v);
     void setUnison(int numVoices) { unisonVoices = juce::jlimit(1, 8, numVoices); }
     void setWaveform(int typeIndex);
-    void setMidiExpressionState(const MidiExpressionState* state) { midiExpressionState = state; }
+    void setMidiExpressionState(const RootFlowDSP::MidiExpressionState* state) { midiExpressionState = state; }
     void setEngine(const RootFlowModulationEngine* e) { engine = e; }
 
 private:
@@ -87,7 +82,7 @@ private:
     juce::dsp::Oscillator<float> driftLfo; // Slow Analog Drift
     juce::dsp::Oscillator<float> vibratoLfo;
     
-    // NOISE (Organic Roots Texture)
+    // NOISE (Spectral Core Texture)
     juce::Random noiseGen;
     juce::dsp::IIR::Filter<float> noiseFilter;
 
@@ -103,22 +98,22 @@ private:
     float voicePan = 0.0f;
     float voiceDetuneRatio = 0.0f;
     int lastPitchWheelValue = 8192;
-    const MidiExpressionState* midiExpressionState = nullptr;
+    const RootFlowDSP::MidiExpressionState* midiExpressionState = nullptr;
     juce::LinearSmoothedValue<float> smoothedPitchBendSemitones { 0.0f };
     juce::LinearSmoothedValue<float> smoothedModWheel { 0.0f };
 
     // --- Smoothed Parameters ---
-    juce::LinearSmoothedValue<float> smoothedFlow { 0.5f };
-    juce::LinearSmoothedValue<float> smoothedVitality { 0.5f };
-    juce::LinearSmoothedValue<float> smoothedTexture { 0.5f };
-    juce::LinearSmoothedValue<float> smoothedDepth { 0.5f };
-    juce::LinearSmoothedValue<float> smoothedPulseRate { 0.5f };
-    juce::LinearSmoothedValue<float> smoothedPulseAmount { 0.5f };
-    juce::LinearSmoothedValue<float> smoothedGrowth { 0.5f };
-    juce::LinearSmoothedValue<float> smoothedCanopy { 0.5f };
+    juce::LinearSmoothedValue<float> smoothedFlowRate { 0.5f };
+    juce::LinearSmoothedValue<float> smoothedFlowEnergy { 0.5f };
+    juce::LinearSmoothedValue<float> smoothedFlowTexture { 0.5f };
+    juce::LinearSmoothedValue<float> smoothedSourceDepth { 0.5f };
+    juce::LinearSmoothedValue<float> smoothedPulseFrequency { 0.5f };
+    juce::LinearSmoothedValue<float> smoothedPulseWidth { 0.5f };
+    juce::LinearSmoothedValue<float> smoothedPulseEnergy { 0.5f };
+    juce::LinearSmoothedValue<float> smoothedFieldComplexity { 0.5f };
     juce::LinearSmoothedValue<float> smoothedInstability { 0.0f };
     
-    // Bio-Feedback Energy & Filter
+    // System-Feedback Energy & Filter
     const RootFlowModulationEngine* engine = nullptr;
     juce::LinearSmoothedValue<float> smoothedEnergy { 0.05f };
     float lastLeftFilterOut = 0.0f;

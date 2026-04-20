@@ -8,7 +8,7 @@
 ![AudioUnit](https://img.shields.io/badge/AudioUnit-supported-3A4E6A?style=for-the-badge)
 ![Standalone](https://img.shields.io/badge/Standalone-supported-3A4E6A?style=for-the-badge)
 ![Status](https://img.shields.io/badge/Status-Evolving-5FD1C7?style=for-the-badge)
-![Version](https://img.shields.io/badge/Version-1.3.0-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-1.3.1-blue?style=for-the-badge)
 
 **Funky Moose Rootflow Synth** ist ein organisch reagierendes Software-Instrument, gebaut mit **JUCE** und **C++17**.
 
@@ -42,11 +42,11 @@ Diese Bereiche formen den Klangkoerper des Instruments:
 - **Pulse Field**: Rate, Atem, Wachstum und Bewegung
 - **Ambient Field**: Luft, Boden und Raumanteil
 
-### Version 1.3.0 (Aktuell)
-- **AU-Build wieder aktiv**: Audio Unit wird auf macOS wieder standardmaessig in den CMake-Presets gebaut.
-- **Mac-Kompatibilitaet**: Release-Builds laufen als Universal Binary auf `arm64` und `x86_64` mit Deployment-Target macOS 12 Monterey.
-- **Audio-Refactor stabilisiert**: Keyboard-Injection, Bio-Feedback, Master-Mix, Mono-Maker und oversampling-sicheres Beat-Timing sind wieder sauber verdrahtet.
-- **Besser auf kleinen Displays**: Das Editor-Fenster waehlt auf kleineren Screens wie einem 13-Zoll-MacBook eine entspanntere Startgroesse.
+### Version 1.3.1 (Aktuell)
+- **Preset-Wechsel stabilisiert**: `masterVolume` bleibt beim Umschalten von Factory- und User-Presets erhalten und springt nicht mehr auf stumm.
+- **Standalone-Start abgesichert**: Der Editor-Timer verwendet keine veraltete Parameter-ID mehr und laeuft ohne den Null-Deref aus dem alten Overlay-Pfad.
+- **Legacy-State-Migration**: Aeltere Sessions und User-Presets werden auf die neuen Parameter-IDs gemappt, statt still auf Defaults zurueckzufallen.
+- **Node- und Prompt-System repariert**: Die Modulations-Slots stimmen wieder mit den UI-Knoten ueberein, und Prompt-Memory aktualisiert gespeicherte Zielwerte sauber.
 
 ## Screenshot
 
@@ -101,11 +101,25 @@ Falls JUCE bei dir woanders liegt, gib beim Konfigurieren `-DJUCE_DIR=/path/to/J
 
 ## Changelog
 
+### [1.3.1] - 2026-04-20
+- **Preset-Lautstaerke**: `masterVolume` bleibt beim Preset-Wechsel erhalten, statt auf `-48 dB` zu kippen.
+- **Standalone-Crashfix**: Overlay-Update im Editor-Timer gegen veraltete Parameterzugriffe abgesichert.
+- **Kompatibilitaet**: Legacy-Parameter-IDs fuer Sessions und User-Presets werden in das neue Layout migriert.
+- **Modulations- und Prompt-Fixes**: Node-Slot-Mapping sowie Prompt-Memory-Read/Write-Pfad konsistent gemacht.
+
 ### [1.3.0] - 2026-04-01
 - **Audio Unit Build**: AU in den Standard-Presets wieder aktiviert und lokal per `auval` validiert.
 - **macOS Packaging**: Universal-Build fuer Apple Silicon und Intel mit Monterey als Mindestziel.
 - **Audio-Pfad-Fixes**: Keyboard-MIDI, Modulations-Feedback, Master-Sektion und Oversampling-Timing nach dem Refactor repariert.
 - **UI-Skalierung**: Sicherere Startgroesse fuer kleinere MacBook-Displays.
+
+### [1.2.0] - 2026-03-30
+- **32-fache Polyphonie**: Erhöhung der Stimmenanzahl von 16 auf 32 für massivere Akkord-Texturen.
+- **Sequencer-Stabilität**: Komplett überarbeitete Gate-Logik und Note-Off-Handling für absolut präzises Timing.
+- **MUTATE-System**: Neue organische Mutations-Engine, um das Patch-"Erbgut" mit einem Klick zu verändern.
+- **Mutations-Visuals**: Integration von "Spore Burst" visuellem Feedback bei Parameter-Mutationen.
+- **Performance**: Zwischenspeicherung der Modulations-Indizes zur Reduzierung der CPU-Last im Audio-Thread.
+- **Meta**: Release-CMake-Presets hinzugefügt und Versions-Badges aktualisiert.
 
 ## Autor
 

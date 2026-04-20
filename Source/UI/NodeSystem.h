@@ -33,7 +33,7 @@ struct NodeConnection
     int   target = -1;
     int   targetSlot = -1; // Cached Parameter Slot Index
     float amount = 0.5f;   // User-defined base amount
-    float health = 1.0f;   // Mycelium health (0.0 -> 1.0)
+    float health = 1.0f;   // Link integrity (0.0 -> 1.0)
     bool  isPersistent = false; // If true, won't decay (future use)
 
     std::vector<FlowParticle> particles;
@@ -66,22 +66,31 @@ public:
         nodes.clear();
         connections.clear();
 
-        const char* params[] = {
-            "rootDepth", "rootSoil", "rootAnchor",
-            "sapFlow", "sapVitality", "sapTexture",
-            "pulseRate", "pulseBreath", "pulseGrowth",
-            "canopy", "atmosphere", "instability", "ecoSystem",
-            "bloom", "rain", "sun"
-        };
-        const int numParams = 16;
+        static constexpr std::array<const char*, 16> params {{
+            "sourceDepth", "sourceCore", "sourceAnchor",
+            "flowRate", "flowEnergy", "flowTexture",
+            "pulseFrequency", "pulseWidth", "pulseEnergy",
+            "fieldComplexity", "fieldDepth", "instability", "systemMatrix",
+            "radiance", "charge", "discharge"
+        }};
+        static constexpr std::array<int, 16> modulationSlotIndices {{
+            0, 1, 2,
+            3, 4, 5,
+            6, 7, 8,
+            9, 10, 11, 15,
+            12, 13, 14
+        }};
 
-        for (int i = 0; i < numParams; ++i)
+        for (size_t i = 0; i < params.size(); ++i)
         {
             FlowNode n;
             n.paramID = params[i];
             n.param   = tree.getRawParameterValue(params[i]);
+            // The visual node order keeps the legacy season/system node ahead of the FX trio,
+            // while slot indices still target the processor's modulation array order.
+            n.slotIndex = modulationSlotIndices[i];
             if (n.param) n.value = n.param->load();
-            n.position  = getDefaultNodePosition(i);
+            n.position  = getDefaultNodePosition((int) i);
 
             nodes.push_back(n);
         }
@@ -100,11 +109,11 @@ public:
             float bPulse = std::pow(std::sin(beatPhase * juce::MathConstants<float>::pi) * 0.5f + 0.5f, 2.0f);
             n.energy   = 0.85f * n.energy + 0.15f * (rms * 1.5f + n.value * 0.4f + bPulse * 0.3f);
             
-            // Slowed down breathing pulse
+            // cybernetic metabolic pulse
             float speed = 0.4f + n.value * 1.2f; 
             n.activity  = 0.5f + 0.5f * std::sin(time * speed + float(i));
-
-            // Organic Drift & Parameter Sync
+            
+            // Cybernetic Drift & Parameter Sync
             if (!n.isDragging)
             {
                 // 1. Sync Y-position to the parameter value (1.0 at top, 0.0 at bottom)
@@ -114,17 +123,17 @@ public:
                 // Springy interpolation to make the movement feel 'solid' and 'plastisch'
                 n.position.y += (targetY - n.position.y) * 0.08f;
 
-                // 2. Slow organic drift for X
+                // 2. Slow cybernetic drift for X
                 n.position.x = juce::jlimit(0.05f, 0.95f,
                     n.position.x + std::sin(time * 0.22f + (float)i * 1.3f) * 0.0003f);
                 
-                // 3. Add 'Energy' jitter to make them look alive when active
+                // 3. Add 'Energy' jitter to make them look active when processed
                 n.position.x += std::cos(time * 1.5f + (float)i) * n.energy * 0.0008f;
                 n.position.y += std::sin(time * 1.8f + (float)i * 0.5f) * n.energy * 0.0005f;
             }
         }
 
-        // Decay and Growth for connections (Mycelium)
+        // Decay and Growth for connections (Matrix Links)
         for (auto& c : connections)
         {
             const auto& src = nodes[(size_t)c.source];
@@ -139,7 +148,7 @@ public:
                 c.health = juce::jmax(0.0f, c.health - 0.0003f);
         }
 
-        // Prune dead mycelium
+        // Prune dead matrix links
         connections.erase(std::remove_if(connections.begin(), connections.end(),
             [](const NodeConnection& c) { return !c.isPersistent && c.health < 0.04f; }),
             connections.end());
@@ -205,6 +214,8 @@ public:
         {
             if (c.source == source && c.target == target)
             {
+                if (juce::isPositiveAndBelow(target, (int) nodes.size()))
+                    c.targetSlot = nodes[(size_t) target].slotIndex;
                 c.amount *= -1.0f; // Toggle inversion
                 return;
             }
@@ -213,6 +224,9 @@ public:
         NodeConnection c;
         c.source = source;
         c.target = target;
+        c.targetSlot = juce::isPositiveAndBelow(target, (int) nodes.size())
+            ? nodes[(size_t) target].slotIndex
+            : -1;
         c.amount = 0.5f;
 
         for (int i = 0; i < 4; ++i)
@@ -269,9 +283,12 @@ public:
             NodeConnection c;
             c.source = cv.getProperty("src");
             c.target = cv.getProperty("dst");
-            c.amount = cv.getProperty("amt");
-            c.health = cv.getProperty("h");
-            c.isPersistent = cv.getProperty("p");
+            c.targetSlot = juce::isPositiveAndBelow(c.target, (int) nodes.size())
+                ? nodes[(size_t) c.target].slotIndex
+                : -1;
+            c.amount = cv.getProperty("amt", 0.5f);
+            c.health = cv.getProperty("h", 1.0f);
+            c.isPersistent = cv.getProperty("p", false);
             
             // Re-initialise particles
             for (int pIdx = 0; pIdx < 4; ++pIdx)

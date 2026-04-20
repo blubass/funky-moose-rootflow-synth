@@ -8,242 +8,124 @@
 
 namespace
 {
-using MutationMode = RootFlowAudioProcessor::MutationMode;
+    using MutationMode = RootFlow::MutationMode;
+    using GrowLockGroup = RootFlow::GrowLockGroup;
+    using SequencerStep = RootFlow::SequencerStep;
 
-struct FactoryPreset
-{
-    const char* name;
-    std::array<float, 16> values;
-};
+    constexpr std::array<const char*, 27> managedParameterIDs {
+        "sourceDepth", "sourceCore", "sourceAnchor",
+        "flowRate", "flowEnergy", "flowTexture",
+        "pulseFrequency", "pulseWidth", "pulseEnergy",
+        "fieldComplexity", "fieldDepth",
+        "instability",
+        "radiance", "charge", "discharge",
+        "systemMatrix",
+        "sequencerOn", "sequencerRate", "sequencerSteps", "sequencerGate",
+        "oscWave",
+        "masterVolume", "masterCompressor", "masterMix", "monoMakerToggle", "monoMakerFreq",
+        "evolution"
+    };
 
-struct FactoryPresetMasterSettings
-{
-    float compressor = 0.0f;
-    float mix = 1.0f;
-    bool mono = false;
-    float monoFreqHz = 80.0f;
-};
-
-struct FactoryPresetSectionDefinition
-{
-    const char* title;
-    int startIndex = 0;
-    int count = 0;
-};
-
-struct SeasonMorph
-{
-    float spring = 0.0f;
-    float summer = 0.0f;
-    float autumn = 0.0f;
-    float winter = 0.0f;
-};
-
-float smoothSeasonBlend(float t) noexcept
-{
-    const float x = juce::jlimit(0.0f, 1.0f, t);
-    return x * x * (3.0f - 2.0f * x);
-}
-
-SeasonMorph getSeasonMorph(float value) noexcept
-{
-    SeasonMorph morph;
-    const float x = juce::jlimit(0.0f, 1.0f, value);
-    constexpr float segment = 1.0f / 3.0f;
-
-    if (x <= segment)
+    struct LegacyParameterMapping
     {
-        const float t = smoothSeasonBlend(x / segment);
-        morph.spring = 1.0f - t;
-        morph.summer = t;
-        return morph;
+        const char* oldID;
+        const char* newID;
+    };
+
+    constexpr std::array<LegacyParameterMapping, 15> legacyParameterMappings {{
+        { "rootDepth", "sourceDepth" },
+        { "rootSoil", "sourceCore" },
+        { "rootAnchor", "sourceAnchor" },
+        { "sapFlow", "flowRate" },
+        { "sapVitality", "flowEnergy" },
+        { "sapTexture", "flowTexture" },
+        { "pulseRate", "pulseFrequency" },
+        { "pulseBreath", "pulseWidth" },
+        { "pulseGrowth", "pulseEnergy" },
+        { "canopy", "fieldComplexity" },
+        { "atmosphere", "fieldDepth" },
+        { "ecoSystem", "systemMatrix" },
+        { "bloom", "radiance" },
+        { "rain", "charge" },
+        { "sun", "discharge" }
+    }};
+
+    juce::String mapLegacyParameterID(const juce::String& paramID)
+    {
+        for (const auto& mapping : legacyParameterMappings)
+            if (paramID == mapping.oldID)
+                return mapping.newID;
+
+        return paramID;
     }
 
-    if (x <= segment * 2.0f)
+    juce::ValueTree findParameterStateChild(const juce::ValueTree& state, const juce::String& paramID)
     {
-        const float t = smoothSeasonBlend((x - segment) / segment);
-        morph.summer = 1.0f - t;
-        morph.autumn = t;
-        return morph;
+        for (const auto& child : state)
+            if (child.hasType("PARAM") && child.getProperty("id").toString() == paramID)
+                return child;
+
+        return {};
     }
 
-    const float t = smoothSeasonBlend((x - segment * 2.0f) / segment);
-    morph.autumn = 1.0f - t;
-    morph.winter = t;
-    return morph;
-}
+    inline float getParameterValue(const juce::AudioProcessorValueTreeState& vts, const juce::String& paramID, float defaultVal = 0.5f)
+    {
+        if (auto* p = vts.getRawParameterValue(paramID))
+            return p->load();
+        return defaultVal;
+    }
 
-constexpr std::array<const char*, 16> factoryPresetValueParameterIDs {
-    "rootDepth", "rootSoil", "rootAnchor",
-    "sapFlow", "sapVitality", "sapTexture",
-    "pulseRate", "pulseBreath", "pulseGrowth",
-    "canopy", "atmosphere",
-    "instability",
-    "bloom", "rain", "sun",
-    "ecoSystem"
-};
+    inline float getStateParameterValue(const juce::ValueTree& state, const juce::String& paramID, float defaultVal)
+    {
+        if (auto child = findParameterStateChild(state, paramID); child.isValid())
+            return (float) child.getProperty("value", defaultVal);
 
-constexpr std::array<float, 16> factoryPresetDefaultValues {
-    0.5f, 0.5f, 0.5f,
-    0.5f, 0.5f, 0.5f,
-    0.5f, 0.5f, 0.5f,
-    0.65f, 0.18f,
-    0.28f,
-    0.0f, 0.0f, 0.0f,
-    0.34f
-};
+        return defaultVal;
+    }
 
-constexpr std::array<const char*, 5> factoryPresetUtilityParameterIDs {
-    "sequencerOn", "sequencerRate", "sequencerSteps", "sequencerGate",
-    "oscWave"
-};
+    struct FactoryPresetMasterSettings
+    {
+        float compressor = 0.2f;
+        float mix = 1.0f;
+        float monoFreqHz = 80.0f;
+        bool mono = false;
+    };
 
-constexpr std::array<const char*, 27> managedParameterIDs {
-    "rootDepth", "rootSoil", "rootAnchor",
-    "sapFlow", "sapVitality", "sapTexture",
-    "pulseRate", "pulseBreath", "pulseGrowth",
-    "canopy", "atmosphere",
-    "instability",
-    "bloom", "rain", "sun",
-    "ecoSystem",
-    "sequencerOn", "sequencerRate", "sequencerSteps", "sequencerGate",
-    "oscWave",
-    "masterVolume", "masterCompressor", "masterMix", "monoMakerToggle", "monoMakerFreq",
-    "evolution"
-};
+    struct MutationProfile
+    {
+        float wildness = 0.5f;
+        float timingTightness = 0.5f;
+    };
 
-constexpr std::array<const char*, 26> mutationParameterIDs {
-    "rootDepth", "rootSoil", "rootAnchor",
-    "sapFlow", "sapVitality", "sapTexture",
-    "pulseRate", "pulseBreath", "pulseGrowth",
-    "canopy", "atmosphere",
-    "instability",
-    "bloom", "rain", "sun",
-    "ecoSystem",
-    "sequencerOn", "sequencerRate", "sequencerSteps", "sequencerGate", "sequencerProbOn", "sequencerJitterOn",
-    "oscWave",
-    "masterCompressor", "masterMix", "monoMakerFreq"
-};
+    inline MutationProfile getMutationProfile(RootFlow::MutationMode mode, const RootFlow::MutationContext& context)
+    {
+        MutationProfile p;
+        if (mode == RootFlow::MutationMode::gentle) { p.wildness = 0.12f; p.timingTightness = 0.88f; }
+        else if (mode == RootFlow::MutationMode::wild) { p.wildness = 0.92f; p.timingTightness = 0.15f * (1.0f - context.instability); }
+        else { p.wildness = 0.44f; p.timingTightness = 0.62f; }
+        return p;
+    }
 
-const std::array<FactoryPreset, 86> factoryPresets {{
-    // --- BIO-SIGNATURE PRESETS ---
-    { "NEURAL MYCELIUM",      { 0.30f, 0.45f, 0.20f, 0.85f, 0.60f, 0.40f, 0.25f, 0.50f, 0.35f, 0.70f, 0.80f, 0.15f, 0.20f, 0.05f, 0.10f, 0.50f } },
-    { "SPORE BURST",         { 0.20f, 0.10f, 0.60f, 0.40f, 0.90f, 0.85f, 0.95f, 0.30f, 0.75f, 0.40f, 0.10f, 0.65f, 0.50f, 0.80f, 0.20f, 0.30f } },
-    { "BIO-LUMINESCENT LEAD",{ 0.25f, 0.30f, 0.15f, 0.55f, 0.88f, 0.20f, 0.35f, 0.60f, 0.45f, 0.75f, 0.35f, 0.10f, 0.70f, 0.08f, 0.15f, 0.18f } },
-    { "DEEP ROOT PULSE",     { 0.90f, 0.75f, 0.80f, 0.15f, 0.20f, 0.55f, 0.12f, 0.18f, 0.08f, 0.45f, 0.12f, 0.30f, 0.05f, 0.10f, 0.65f, 0.88f } },
-    { "MEMBRANE DRIFT",      { 0.48f, 0.55f, 0.35f, 0.65f, 0.42f, 0.30f, 0.28f, 0.72f, 0.38f, 0.88f, 0.42f, 0.08f, 0.15f, 0.55f, 0.30f, 0.72f } },
-    { "CELL DIVISION",       { 0.55f, 0.40f, 0.30f, 0.70f, 0.75f, 0.60f, 0.88f, 0.65f, 0.80f, 0.62f, 0.22f, 0.48f, 0.60f, 0.15f, 0.18f, 0.25f } },
-    { "FOSSIL RESONANCE",    { 0.85f, 0.78f, 0.82f, 0.25f, 0.30f, 0.70f, 0.10f, 0.15f, 0.12f, 0.38f, 0.14f, 0.22f, 0.08f, 0.12f, 0.72f, 0.42f } },
-    { "BIOLUMINESCENCE",     { 0.22f, 0.18f, 0.12f, 0.78f, 0.92f, 0.25f, 0.48f, 0.88f, 0.55f, 0.80f, 0.50f, 0.12f, 0.85f, 0.06f, 0.22f, 0.16f } },
+    inline RootFlowDSP::SeasonMorph getSeasonMorph(float seasonMacro)
+    {
+        RootFlowDSP::SeasonMorph m;
+        const float s = seasonMacro;
+        
+        // Spring: Peaks at 0.25 (range 0.0 to 0.5)
+        m.spring = std::max(0.0f, 1.0f - std::abs(s - 0.25f) * 4.0f);
+        // Summer: Peaks at 0.5 (range 0.25 to 0.75)
+        m.summer = std::max(0.0f, 1.0f - std::abs(s - 0.5f) * 4.0f);
+        // Autumn: Peaks at 0.75 (range 0.5 to 1.0)
+        m.autumn = std::max(0.0f, 1.0f - std::abs(s - 0.75f) * 4.0f);
+        // Winter: Peaks at 0.0 and 1.0 (Cyclic)
+        m.winter = std::max(0.0f, 1.0f - std::abs(s - (s > 0.5f ? 1.0f : 0.0f)) * 4.0f);
+        
+        return m;
+    }
 
-    // Organic Stasis
-    { "DEEP MYCELIUM",  { 0.36f, 0.28f, 0.16f, 0.62f, 0.78f, 0.40f, 0.30f, 0.34f, 0.28f, 0.68f, 0.26f, 0.14f, 0.42f, 0.20f, 0.10f, 0.08f } },
+    // Factory presets and sections are now accessed via RootFlow::factoryPresets
+    // and RootFlow::factoryPresetSections defined in RootFlowPresets.h
 
-    // Motion
-    { "FOREST DRIFT",  { 0.60f, 0.52f, 0.34f, 0.74f, 0.70f, 0.54f, 0.36f, 0.48f, 0.54f, 0.76f, 0.28f, 0.56f, 0.22f, 0.34f, 0.26f, 0.44f } },
-    { "BROOK CANOPY",  { 0.50f, 0.42f, 0.26f, 0.56f, 0.50f, 0.52f, 0.26f, 0.36f, 0.28f, 0.92f, 0.30f, 0.18f, 0.12f, 0.70f, 0.12f, 0.66f } },
-    { "CANOPY DRIP",   { 0.58f, 0.46f, 0.30f, 0.62f, 0.54f, 0.68f, 0.30f, 0.42f, 0.38f, 0.90f, 0.34f, 0.30f, 0.14f, 0.82f, 0.16f, 0.72f } },
-    { "PULSE BLOOM",   { 0.46f, 0.36f, 0.18f, 0.58f, 0.70f, 0.36f, 0.84f, 0.70f, 0.82f, 0.72f, 0.20f, 0.40f, 0.66f, 0.08f, 0.22f, 0.18f } },
-    { "AMBER RAIN",    { 0.78f, 0.72f, 0.62f, 0.42f, 0.46f, 0.56f, 0.22f, 0.40f, 0.34f, 0.68f, 0.30f, 0.44f, 0.10f, 0.72f, 0.34f, 0.78f } },
-    { "RIVER VINES",   { 0.48f, 0.40f, 0.24f, 0.60f, 0.58f, 0.42f, 0.64f, 0.52f, 0.46f, 0.74f, 0.24f, 0.18f, 0.18f, 0.44f, 0.10f, 0.58f } },
-    { "WIND LATTICE",  { 0.42f, 0.30f, 0.18f, 0.66f, 0.72f, 0.46f, 0.72f, 0.62f, 0.58f, 0.84f, 0.30f, 0.24f, 0.26f, 0.24f, 0.12f, 0.24f } },
-    { "TRAIL SPORES",  { 0.44f, 0.34f, 0.20f, 0.62f, 0.76f, 0.50f, 0.78f, 0.66f, 0.70f, 0.70f, 0.26f, 0.32f, 0.58f, 0.14f, 0.12f, 0.28f } },
-
-    // Deep
-    { "ROOT CHOIR",    { 0.82f, 0.78f, 0.74f, 0.34f, 0.40f, 0.20f, 0.18f, 0.30f, 0.20f, 0.48f, 0.16f, 0.12f, 0.08f, 0.18f, 0.56f, 0.18f } },
-    { "MYCEL DOME",    { 0.70f, 0.60f, 0.48f, 0.40f, 0.44f, 0.32f, 0.26f, 0.48f, 0.30f, 0.62f, 0.22f, 0.20f, 0.06f, 0.16f, 0.86f, 0.12f } },
-    { "NIGHT ROOTS",   { 0.88f, 0.84f, 0.80f, 0.26f, 0.30f, 0.24f, 0.14f, 0.28f, 0.18f, 0.40f, 0.18f, 0.16f, 0.00f, 0.12f, 0.74f, 0.10f } },
-    { "LOAM CATHEDRAL",{ 0.84f, 0.82f, 0.76f, 0.30f, 0.34f, 0.20f, 0.16f, 0.24f, 0.16f, 0.52f, 0.18f, 0.10f, 0.06f, 0.14f, 0.64f, 0.24f } },
-    { "HUMUS VEIL",    { 0.76f, 0.70f, 0.60f, 0.36f, 0.38f, 0.26f, 0.20f, 0.30f, 0.20f, 0.58f, 0.22f, 0.16f, 0.04f, 0.12f, 0.56f, 0.52f } },
-    { "CAVE BLOOM",    { 0.72f, 0.66f, 0.58f, 0.40f, 0.46f, 0.30f, 0.24f, 0.34f, 0.26f, 0.46f, 0.20f, 0.18f, 0.34f, 0.08f, 0.58f, 0.30f } },
-
-    // Wild
-    { "SPORE HALO",    { 0.42f, 0.34f, 0.18f, 0.70f, 0.84f, 0.66f, 0.44f, 0.38f, 0.46f, 0.74f, 0.40f, 0.34f, 0.78f, 0.10f, 0.18f, 0.16f } },
-    { "PETAL GLASS",   { 0.34f, 0.20f, 0.12f, 0.74f, 0.88f, 0.56f, 0.40f, 0.34f, 0.42f, 0.70f, 0.30f, 0.18f, 0.88f, 0.06f, 0.14f, 0.18f } },
-    { "EMBER SPORES",  { 0.62f, 0.52f, 0.36f, 0.50f, 0.62f, 0.46f, 0.36f, 0.42f, 0.40f, 0.68f, 0.22f, 0.24f, 0.54f, 0.22f, 0.44f, 0.74f } },
-    { "LUNAR DRIP",    { 0.66f, 0.54f, 0.44f, 0.42f, 0.40f, 0.34f, 0.22f, 0.38f, 0.24f, 0.84f, 0.28f, 0.18f, 0.10f, 0.78f, 0.58f, 0.96f } },
-    { "THORN STATIC",  { 0.52f, 0.44f, 0.28f, 0.68f, 0.80f, 0.62f, 0.56f, 0.46f, 0.52f, 0.72f, 0.34f, 0.74f, 0.82f, 0.08f, 0.08f, 0.20f } },
-    { "FERAL CANOPY",  { 0.60f, 0.48f, 0.30f, 0.54f, 0.58f, 0.48f, 0.38f, 0.44f, 0.30f, 0.94f, 0.28f, 0.52f, 0.18f, 0.62f, 0.18f, 0.84f } },
-    { "SOLAR SHED",    { 0.46f, 0.34f, 0.18f, 0.70f, 0.86f, 0.58f, 0.42f, 0.36f, 0.44f, 0.68f, 0.36f, 0.40f, 0.72f, 0.08f, 0.48f, 0.10f } },
-
-    // --- BIO-PROFILES (Newly Integrated) ---
-    { "Ancient Oak      ", { 0.94f, 0.28f, 0.88f, 0.12f, 0.10f, 0.18f, 0.08f, 0.14f, 0.06f, 0.65f, 0.18f, 0.28f, 0.22f, 0.12f, 0.76f, 0.68f } },
-    { "Mimosa Pudica    ", { 0.18f, 0.42f, 0.12f, 0.48f, 0.62f, 0.12f, 0.92f, 0.84f, 0.78f, 0.65f, 0.18f, 0.28f, 0.72f, 0.38f, 0.32f, 0.82f } },
-    { "Wild Ivy         ", { 0.38f, 0.82f, 0.44f, 0.82f, 0.72f, 0.94f, 0.42f, 0.34f, 0.52f, 0.65f, 0.18f, 0.28f, 0.32f, 0.88f, 0.42f, 0.72f } },
-    { "Redwood Titan    ", { 1.00f, 0.20f, 0.90f, 0.10f, 0.00f, 0.40f, 0.00f, 0.10f, 0.20f, 0.65f, 0.18f, 0.28f, 0.20f, 0.20f, 0.90f, 0.90f } },
-    { "Weeping Willow   ", { 0.60f, 0.40f, 0.70f, 0.70f, 0.20f, 0.50f, 0.30f, 0.40f, 0.30f, 0.65f, 0.18f, 0.28f, 0.50f, 0.60f, 0.60f, 0.80f } },
-    { "Baobab Core      ", { 0.80f, 0.10f, 0.90f, 0.00f, 0.10f, 0.70f, 0.10f, 0.00f, 0.10f, 0.65f, 0.18f, 0.28f, 0.10f, 0.00f, 0.40f, 0.50f } },
-    { "Banyan Network   ", { 0.90f, 0.70f, 0.80f, 0.40f, 0.30f, 0.60f, 0.20f, 0.30f, 0.20f, 0.65f, 0.18f, 0.28f, 0.40f, 0.50f, 0.70f, 0.80f } },
-    { "Ironwood Solid   ", { 1.00f, 0.00f, 1.00f, 0.10f, 0.00f, 0.90f, 0.00f, 0.00f, 0.00f, 0.65f, 0.18f, 0.28f, 0.00f, 0.10f, 0.20f, 0.30f } },
-    { "Petrified Log    ", { 0.90f, 0.00f, 1.00f, 0.00f, 0.00f, 1.00f, 0.00f, 0.00f, 0.00f, 0.65f, 0.18f, 0.28f, 0.10f, 0.10f, 0.80f, 0.40f } },
-    { "Poison Ivy       ", { 0.30f, 0.70f, 0.40f, 0.80f, 0.80f, 0.90f, 0.70f, 0.60f, 0.80f, 0.65f, 0.18f, 0.28f, 0.50f, 0.60f, 0.30f, 0.70f } },
-    { "Strangler Fig    ", { 0.70f, 0.90f, 0.80f, 0.60f, 0.70f, 0.80f, 0.40f, 0.50f, 0.60f, 0.65f, 0.18f, 0.28f, 0.30f, 0.70f, 0.40f, 0.80f } },
-    { "Morning Glory    ", { 0.20f, 0.40f, 0.20f, 0.90f, 0.60f, 0.30f, 0.60f, 0.50f, 0.70f, 0.65f, 0.18f, 0.28f, 0.80f, 0.20f, 0.70f, 0.90f } },
-    { "Kudzu Swarm      ", { 0.40f, 1.00f, 0.50f, 1.00f, 1.00f, 0.90f, 0.80f, 0.70f, 1.00f, 0.65f, 0.18f, 0.28f, 0.60f, 0.90f, 0.50f, 0.90f } },
-    { "Thorny Bramble   ", { 0.50f, 0.60f, 0.60f, 0.40f, 0.80f, 1.00f, 0.70f, 0.30f, 0.40f, 0.65f, 0.18f, 0.28f, 0.20f, 0.40f, 0.30f, 0.60f } },
-    { "Jungle Canopy    ", { 0.60f, 0.50f, 0.40f, 0.70f, 0.50f, 0.50f, 0.50f, 0.60f, 0.50f, 0.65f, 0.18f, 0.28f, 0.70f, 0.80f, 0.90f, 1.00f } },
-    { "Neon Fern        ", { 0.20f, 0.30f, 0.20f, 0.60f, 0.50f, 0.20f, 0.60f, 0.80f, 0.70f, 0.65f, 0.18f, 0.28f, 0.90f, 0.30f, 0.80f, 0.90f } },
-    { "Ghost Fungus     ", { 0.10f, 0.80f, 0.10f, 0.30f, 0.90f, 0.50f, 0.20f, 0.90f, 0.40f, 0.65f, 0.18f, 0.28f, 1.00f, 0.80f, 0.90f, 1.00f } },
-    { "Glimmer Moss     ", { 0.00f, 0.20f, 0.30f, 0.40f, 0.40f, 0.10f, 0.50f, 0.70f, 0.30f, 0.65f, 0.18f, 0.28f, 0.80f, 0.20f, 0.60f, 0.80f } },
-    { "Lunar Lotus      ", { 0.30f, 0.10f, 0.20f, 0.50f, 0.20f, 0.00f, 0.30f, 1.00f, 0.50f, 0.65f, 0.18f, 0.28f, 0.70f, 0.10f, 1.00f, 0.90f } },
-    { "Foxfire Wood     ", { 0.40f, 0.60f, 0.50f, 0.70f, 0.80f, 0.40f, 0.40f, 0.60f, 0.60f, 0.65f, 0.18f, 0.28f, 0.80f, 0.50f, 0.70f, 0.80f } },
-    { "Avatar Tree      ", { 0.80f, 0.30f, 0.70f, 0.80f, 0.50f, 0.30f, 0.50f, 0.80f, 0.80f, 0.65f, 0.18f, 0.28f, 0.90f, 0.60f, 1.00f, 1.00f } },
-    { "Mycelium Web     ", { 0.70f, 0.90f, 0.30f, 0.90f, 1.00f, 0.80f, 0.20f, 0.40f, 0.10f, 0.65f, 0.18f, 0.28f, 0.40f, 0.90f, 0.50f, 0.80f } },
-    { "Puffball Cloud   ", { 0.10f, 0.20f, 0.10f, 0.50f, 0.80f, 0.90f, 1.00f, 0.20f, 0.90f, 0.65f, 0.18f, 0.28f, 0.50f, 0.80f, 0.30f, 0.70f } },
-    { "Slime Mold       ", { 0.20f, 1.00f, 0.20f, 1.00f, 0.50f, 0.60f, 0.10f, 0.10f, 0.30f, 0.65f, 0.18f, 0.28f, 0.80f, 0.50f, 0.20f, 0.60f } },
-    { "Truffle Dark     ", { 0.90f, 0.80f, 0.90f, 0.20f, 0.30f, 0.80f, 0.10f, 0.20f, 0.00f, 0.65f, 0.18f, 0.28f, 0.10f, 0.30f, 0.10f, 0.40f } },
-    { "Cordyceps Hive   ", { 0.50f, 0.90f, 0.60f, 0.80f, 1.00f, 0.90f, 0.90f, 0.80f, 0.80f, 0.65f, 0.18f, 0.28f, 0.60f, 0.90f, 0.40f, 0.90f } },
-    { "Kelp Forest      ", { 0.60f, 0.80f, 0.40f, 0.90f, 0.60f, 0.20f, 0.40f, 0.70f, 0.50f, 0.65f, 0.18f, 0.28f, 0.70f, 0.40f, 0.90f, 0.90f } },
-    { "Water Lily       ", { 0.20f, 0.30f, 0.10f, 0.60f, 0.30f, 0.00f, 0.50f, 0.80f, 0.40f, 0.65f, 0.18f, 0.28f, 0.50f, 0.20f, 0.80f, 0.80f } },
-    { "Coral Polyps     ", { 0.40f, 0.50f, 0.80f, 0.70f, 0.90f, 0.50f, 0.80f, 0.60f, 0.70f, 0.65f, 0.18f, 0.28f, 0.80f, 0.70f, 0.60f, 0.90f } },
-    { "Seaweed Drift    ", { 0.30f, 0.70f, 0.20f, 1.00f, 0.40f, 0.10f, 0.20f, 0.90f, 0.30f, 0.65f, 0.18f, 0.28f, 0.90f, 0.10f, 0.70f, 0.80f } },
-    { "Abyssal Bloom    ", { 0.80f, 0.90f, 0.60f, 0.50f, 0.80f, 0.30f, 0.30f, 0.80f, 0.60f, 0.65f, 0.18f, 0.28f, 1.00f, 0.80f, 1.00f, 1.00f } },
-    { "Saguaro Cactus   ", { 0.80f, 0.10f, 0.90f, 0.00f, 0.00f, 0.80f, 0.10f, 0.10f, 0.10f, 0.65f, 0.18f, 0.28f, 0.00f, 0.00f, 0.50f, 0.30f } },
-    { "Tumbleweed       ", { 0.00f, 0.80f, 0.00f, 0.20f, 0.70f, 0.90f, 0.60f, 0.20f, 0.40f, 0.65f, 0.18f, 0.28f, 0.20f, 0.40f, 0.20f, 0.40f } },
-    { "Resurrection     ", { 0.40f, 0.60f, 0.50f, 0.10f, 0.90f, 0.80f, 0.90f, 0.50f, 1.00f, 0.65f, 0.18f, 0.28f, 0.40f, 0.20f, 0.60f, 0.60f } },
-    { "Aloe Vera        ", { 0.50f, 0.20f, 0.40f, 0.40f, 0.10f, 0.30f, 0.20f, 0.40f, 0.30f, 0.65f, 0.18f, 0.28f, 0.20f, 0.10f, 0.40f, 0.50f } },
-    { "Scorched Earth   ", { 0.90f, 0.90f, 0.90f, 0.00f, 0.00f, 1.00f, 0.00f, 0.00f, 0.00f, 0.65f, 0.18f, 0.28f, 0.00f, 0.00f, 0.10f, 0.20f } },
-    { "Venus Flytrap    ", { 0.30f, 0.40f, 0.50f, 0.20f, 0.80f, 0.40f, 1.00f, 0.10f, 1.00f, 0.65f, 0.18f, 0.28f, 0.20f, 0.10f, 0.30f, 0.60f } },
-    { "Pitcher Plant    ", { 0.40f, 0.30f, 0.60f, 0.60f, 0.50f, 0.70f, 0.80f, 0.40f, 0.60f, 0.65f, 0.18f, 0.28f, 0.40f, 0.50f, 0.60f, 0.70f } },
-    { "Sundew Drops     ", { 0.20f, 0.50f, 0.30f, 0.80f, 0.90f, 0.20f, 0.70f, 0.70f, 0.80f, 0.65f, 0.18f, 0.28f, 0.80f, 0.40f, 0.50f, 0.80f } },
-    { "Cobra Lily       ", { 0.50f, 0.60f, 0.70f, 0.50f, 0.70f, 0.60f, 0.90f, 0.50f, 0.90f, 0.65f, 0.18f, 0.28f, 0.30f, 0.30f, 0.40f, 0.70f } },
-    { "Xenoflora 1      ", { 0.80f, 1.00f, 0.20f, 1.00f, 1.00f, 1.00f, 1.00f, 0.10f, 0.80f, 0.65f, 0.18f, 0.28f, 0.90f, 1.00f, 0.20f, 1.00f } },
-    { "Glass Orchid     ", { 0.10f, 0.00f, 0.10f, 0.20f, 0.10f, 0.00f, 0.40f, 0.90f, 0.20f, 0.65f, 0.18f, 0.28f, 1.00f, 0.20f, 1.00f, 0.90f } },
-    { "Quantum Spore    ", { 0.50f, 0.50f, 0.50f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 0.65f, 0.18f, 0.28f, 1.00f, 1.00f, 1.00f, 1.00f } },
-    { "Crystalline      ", { 0.20f, 0.10f, 0.30f, 0.10f, 0.00f, 0.10f, 0.20f, 0.80f, 0.30f, 0.65f, 0.18f, 0.28f, 0.90f, 0.50f, 0.90f, 0.80f } },
-    { "Plasma Root      ", { 1.00f, 0.90f, 0.90f, 0.80f, 1.00f, 0.80f, 0.90f, 0.90f, 1.00f, 0.65f, 0.18f, 0.28f, 0.70f, 0.60f, 0.80f, 0.90f } },
-    { "Cyber Bonsai     ", { 0.50f, 0.00f, 0.60f, 0.30f, 0.20f, 0.10f, 0.80f, 0.40f, 0.50f, 0.65f, 0.18f, 0.28f, 0.40f, 0.20f, 0.50f, 0.60f } },
-    { "Fiber Optic      ", { 0.10f, 0.10f, 0.20f, 0.80f, 0.40f, 0.00f, 0.60f, 0.90f, 0.40f, 0.65f, 0.18f, 0.28f, 0.90f, 0.30f, 0.80f, 0.90f } },
-    { "Wire Weed        ", { 0.30f, 0.80f, 0.40f, 0.90f, 0.90f, 1.00f, 0.70f, 0.20f, 0.60f, 0.65f, 0.18f, 0.28f, 0.50f, 0.80f, 0.30f, 0.70f } },
-    { "Silicon Petal    ", { 0.20f, 0.00f, 0.30f, 0.40f, 0.10f, 0.00f, 0.40f, 0.70f, 0.30f, 0.65f, 0.18f, 0.28f, 0.70f, 0.20f, 0.70f, 0.80f } },
-    { "Robo Sprout      ", { 0.40f, 0.20f, 0.40f, 0.50f, 0.30f, 0.20f, 1.00f, 0.50f, 0.80f, 0.65f, 0.18f, 0.28f, 0.30f, 0.30f, 0.40f, 0.50f } },
-
-    // --- REAL BOTANICS (True Plant Acoustics) ---
-    { "Xylem Cavitation", { 0.10f, 0.20f, 0.80f, 0.10f, 0.40f, 0.90f, 0.80f, 0.90f, 0.50f, 0.80f, 0.40f, 0.90f, 0.20f, 0.90f, 0.10f, 0.80f } },
-    { "Stomata Breath",   { 0.20f, 0.30f, 0.10f, 0.40f, 0.20f, 0.10f, 0.10f, 1.00f, 0.20f, 1.00f, 0.90f, 0.20f, 0.80f, 0.10f, 0.50f, 0.40f } },
-    { "Root Expansion",   { 1.00f, 0.90f, 1.00f, 0.20f, 0.30f, 0.60f, 0.05f, 0.40f, 0.80f, 0.00f, 0.30f, 0.60f, 0.10f, 0.30f, 0.10f, 0.50f } },
-    { "Phloem Rush",      { 0.50f, 0.50f, 0.40f, 1.00f, 0.70f, 0.50f, 0.60f, 0.30f, 0.50f, 0.40f, 0.60f, 0.10f, 0.50f, 0.60f, 0.40f, 0.20f } },
-    { "Osmotic Shift",    { 0.70f, 0.40f, 0.60f, 0.50f, 0.80f, 0.30f, 0.20f, 0.80f, 0.90f, 0.60f, 0.50f, 0.40f, 0.60f, 0.20f, 0.70f, 0.30f } },
-    { "Photosynthesis",   { 0.10f, 0.10f, 0.20f, 0.80f, 1.00f, 0.20f, 0.90f, 0.50f, 0.40f, 0.90f, 0.80f, 0.30f, 0.70f, 0.00f, 1.00f, 0.50f } }
-}};
-
-constexpr std::array<FactoryPresetSectionDefinition, 15> factoryPresetSections {{
-    { "BIO-SIGNATURE",  0, 8 },   // The new flagship presets
-    { "ORGANIC STASIS", 8, 1 },   // Deep Mycelium (the old start)
-    { "MOTION",        9, 8 },
-    { "DEEP",         17, 6 },
-    { "WILD",         23, 7 },
-    { "BIO: LEGACY",  30, 3 },
-    { "BIO: GIANTS",  33, 6 },
-    { "BIO: CREEPERS",39, 6 },
-    { "BIO: LUMINA",  45, 6 },
-    { "BIO: SPORES",  51, 5 },
-    { "BIO: AQUATIC", 56, 5 },
-    { "BIO: DESERT",  61, 5 },
-    { "BIO: HUNTERS", 66, 4 },
-    { "BIO: XENO",    70, 10 },
-    { "REAL BOTANICS", 80, 6 }
-}};
 
 constexpr auto midiBindingsTag = "MidiBindings";
 constexpr auto midiMappingStateTag = "MidiMappingState";
@@ -289,288 +171,7 @@ constexpr int maxPromptMemoryEntries = 24;
 
 using GrowLockGroup = RootFlowAudioProcessor::GrowLockGroup;
 
-enum class MutationLane
-{
-    root,
-    sap,
-    pulse,
-    air,
-    fx,
-    sequencer,
-    master
-};
-
-struct MutationContext
-{
-    float evolution = 0.5f;
-    float rootWeight = 0.5f;
-    float motionWeight = 0.5f;
-    float airWeight = 0.5f;
-    float fxWeight = 0.0f;
-    float instability = 0.0f;
-};
-
-struct MutationProfile
-{
-    float continuousDepth = 0.08f;
-    float discreteChance = 0.32f;
-    float centerPull = 0.05f;
-    float sequencerDepth = 0.12f;
-    float masterScale = 0.55f;
-    float wildness = 0.45f;
-    bool sequencerOnly = false;
-};
-
-float getParameterValue(const juce::AudioProcessorValueTreeState& tree, const char* paramID, float fallback) noexcept
-{
-    if (auto* value = tree.getRawParameterValue(paramID))
-        return value->load();
-
-    return fallback;
-}
-
-MutationContext makeMutationContext(const juce::AudioProcessorValueTreeState& tree) noexcept
-{
-    MutationContext context;
-    context.evolution = getParameterValue(tree, "evolution", 0.5f);
-    context.rootWeight = (getParameterValue(tree, "rootDepth", 0.5f)
-                          + getParameterValue(tree, "rootSoil", 0.5f)
-                          + getParameterValue(tree, "rootAnchor", 0.5f)) / 3.0f;
-    context.motionWeight = (getParameterValue(tree, "pulseRate", 0.5f)
-                            + getParameterValue(tree, "pulseBreath", 0.5f)
-                            + getParameterValue(tree, "pulseGrowth", 0.5f)) / 3.0f;
-    context.airWeight = (getParameterValue(tree, "canopy", 0.65f)
-                         + getParameterValue(tree, "atmosphere", 0.18f)
-                         + getParameterValue(tree, "ecoSystem", 0.34f)) / 3.0f;
-    context.fxWeight = (getParameterValue(tree, "bloom", 0.0f)
-                        + getParameterValue(tree, "rain", 0.0f)
-                        + getParameterValue(tree, "sun", 0.0f)) / 3.0f;
-    context.instability = getParameterValue(tree, "instability", 0.28f);
-    return context;
-}
-
-MutationProfile getMutationProfile(MutationMode mode, const MutationContext& context) noexcept
-{
-    MutationProfile profile;
-
-    switch (mode)
-    {
-        case MutationMode::gentle:
-            profile.continuousDepth = 0.030f + context.evolution * 0.040f;
-            profile.discreteChance = 0.16f + context.evolution * 0.08f;
-            profile.centerPull = 0.10f;
-            profile.sequencerDepth = 0.08f + context.motionWeight * 0.05f;
-            profile.masterScale = 0.42f;
-            profile.wildness = 0.15f;
-            break;
-
-        case MutationMode::balanced:
-            profile.continuousDepth = 0.055f + context.evolution * 0.070f;
-            profile.discreteChance = 0.28f + context.evolution * 0.10f;
-            profile.centerPull = 0.06f;
-            profile.sequencerDepth = 0.12f + context.motionWeight * 0.06f;
-            profile.masterScale = 0.56f;
-            profile.wildness = 0.45f;
-            break;
-
-        case MutationMode::wild:
-            profile.continuousDepth = 0.100f + context.evolution * 0.120f;
-            profile.discreteChance = 0.48f + context.evolution * 0.14f;
-            profile.centerPull = 0.02f;
-            profile.sequencerDepth = 0.18f + context.motionWeight * 0.08f;
-            profile.masterScale = 0.66f;
-            profile.wildness = 1.0f;
-            break;
-
-        case MutationMode::sequencer:
-            profile.continuousDepth = 0.0f;
-            profile.discreteChance = 0.52f + context.evolution * 0.10f;
-            profile.centerPull = 0.0f;
-            profile.sequencerDepth = 0.18f + context.motionWeight * 0.10f + context.evolution * 0.08f;
-            profile.masterScale = 0.0f;
-            profile.wildness = 0.72f;
-            profile.sequencerOnly = true;
-            break;
-    }
-
-    return profile;
-}
-
-float randomBipolar(juce::Random& rng) noexcept
-{
-    return rng.nextFloat() * 2.0f - 1.0f;
-}
-
-MutationLane getMutationLane(const juce::String& paramID) noexcept
-{
-    if (paramID.startsWith("root"))
-        return MutationLane::root;
-
-    if (paramID.startsWith("sap"))
-        return MutationLane::sap;
-
-    if (paramID.startsWith("pulse"))
-        return MutationLane::pulse;
-
-    if (paramID == "canopy" || paramID == "atmosphere" || paramID == "ecoSystem")
-        return MutationLane::air;
-
-    if (paramID == "bloom" || paramID == "rain" || paramID == "sun" || paramID == "instability")
-        return MutationLane::fx;
-
-    if (paramID.startsWith("sequencer"))
-        return MutationLane::sequencer;
-
-    return MutationLane::master;
-}
-
-bool isDiscreteMutationParameter(const juce::String& paramID) noexcept
-{
-    return paramID == "sequencerOn"
-        || paramID == "sequencerRate"
-        || paramID == "sequencerSteps"
-        || paramID == "sequencerProbOn"
-        || paramID == "sequencerJitterOn"
-        || paramID == "oscWave";
-}
-
-float getLaneScale(MutationLane lane,
-                   MutationMode mode,
-                   const MutationContext& context,
-                   const MutationProfile& profile) noexcept
-{
-    float scale = 1.0f;
-
-    switch (lane)
-    {
-        case MutationLane::root:
-            scale = 0.82f + (1.0f - context.rootWeight) * 0.22f;
-            break;
-
-        case MutationLane::sap:
-            scale = 0.92f + context.instability * 0.24f;
-            break;
-
-        case MutationLane::pulse:
-            scale = 0.96f + context.motionWeight * 0.34f;
-            break;
-
-        case MutationLane::air:
-            scale = 0.86f + context.airWeight * 0.28f;
-            break;
-
-        case MutationLane::fx:
-            scale = 0.82f + context.fxWeight * 0.32f + context.instability * 0.10f;
-            break;
-
-        case MutationLane::sequencer:
-            scale = 0.95f + context.motionWeight * 0.36f + context.evolution * 0.10f;
-            break;
-
-        case MutationLane::master:
-            scale = 0.48f + context.fxWeight * 0.10f;
-            break;
-    }
-
-    if (mode == MutationMode::gentle)
-    {
-        if (lane == MutationLane::root && context.rootWeight > 0.66f)
-            scale *= 0.74f;
-        else if (lane == MutationLane::fx)
-            scale *= 0.84f;
-    }
-    else if (mode == MutationMode::wild)
-    {
-        if (lane == MutationLane::pulse || lane == MutationLane::sequencer)
-            scale *= 1.24f;
-        else if (lane == MutationLane::air && context.airWeight < 0.38f)
-            scale *= 1.12f;
-    }
-    else if (mode == MutationMode::sequencer)
-    {
-        scale = (lane == MutationLane::sequencer) ? scale * 1.18f : 0.0f;
-    }
-
-    juce::ignoreUnused(profile);
-    return juce::jlimit(0.0f, 2.0f, scale);
-}
-
-void mutateDiscreteParameter(juce::AudioProcessorParameter& parameter,
-                             const juce::String& paramID,
-                             juce::Random& rng,
-                             const MutationProfile& profile,
-                             float laneScale) noexcept
-{
-    const int numSteps = juce::jmax(2, parameter.getNumSteps());
-    int currentIndex = juce::roundToInt(parameter.getValue() * (float) (numSteps - 1));
-    currentIndex = juce::jlimit(0, numSteps - 1, currentIndex);
-
-    int nextIndex = currentIndex;
-
-    if (profile.sequencerOnly && paramID == "sequencerOn")
-    {
-        nextIndex = numSteps - 1;
-    }
-    else
-    {
-        const float chance = juce::jlimit(0.06f, 0.96f, profile.discreteChance * juce::jlimit(0.45f, 1.35f, laneScale));
-        if (rng.nextFloat() > chance)
-            return;
-
-        if (numSteps <= 2)
-        {
-            nextIndex = 1 - currentIndex;
-        }
-        else
-        {
-            int maxLeap = 1;
-            if (paramID == "sequencerSteps")
-                maxLeap = profile.wildness > 0.80f ? 3 : 2;
-            else if (paramID == "oscWave" && profile.wildness > 0.70f)
-                maxLeap = 2;
-
-            const int magnitude = 1 + (maxLeap > 1 ? rng.nextInt(maxLeap) : 0);
-            const int direction = rng.nextBool() ? 1 : -1;
-            nextIndex = juce::jlimit(0, numSteps - 1, currentIndex + direction * magnitude);
-
-            if (nextIndex == currentIndex)
-                nextIndex = currentIndex < numSteps - 1 ? currentIndex + 1 : currentIndex - 1;
-        }
-    }
-
-    parameter.setValueNotifyingHost((float) nextIndex / (float) (numSteps - 1));
-}
-
-void mutateContinuousParameter(juce::AudioProcessorParameter& parameter,
-                               const juce::String& paramID,
-                               juce::Random& rng,
-                               MutationLane lane,
-                               const MutationContext& context,
-                               const MutationProfile& profile,
-                               float laneScale) noexcept
-{
-    float currentValue = parameter.getValue();
-    float amount = profile.continuousDepth * laneScale;
-
-    if (lane == MutationLane::sequencer)
-        amount = juce::jmax(amount, profile.sequencerDepth * laneScale);
-    else if (lane == MutationLane::master)
-        amount *= profile.masterScale;
-
-    float bias = (0.5f - currentValue) * profile.centerPull;
-
-    if (lane == MutationLane::pulse)
-        bias += (0.50f - context.motionWeight) * 0.05f * (0.35f + profile.wildness * 0.65f);
-    else if (lane == MutationLane::air)
-        bias += (0.54f - context.airWeight) * 0.04f * (0.45f + profile.wildness * 0.45f);
-    else if (lane == MutationLane::fx)
-        bias += (0.40f - context.fxWeight) * 0.04f * (0.35f + profile.wildness * 0.55f);
-    else if (lane == MutationLane::root && context.rootWeight > 0.78f && profile.wildness < 0.5f)
-        bias -= (currentValue - 0.5f) * 0.06f;
-
-    const float nextValue = juce::jlimit(0.0f, 1.0f, currentValue + randomBipolar(rng) * amount + bias);
-    parameter.setValueNotifyingHost(nextValue);
-}
+    // --- Internal Mutation Logic moved to RootFlowMutation.h ---
 
 const char* mutationModeToStateString(MutationMode mode) noexcept
 {
@@ -633,6 +234,167 @@ constexpr int growLockBit(GrowLockGroup group) noexcept
     return 1 << (int) group;
 }
 
+inline juce::ValueTree makePromptMemoryEntry(const juce::String& prompt,
+                                             const juce::String& summary,
+                                             const RootFlow::PromptPatchTarget& target,
+                                             float reinforcement)
+{
+    const auto normalizedPrompt = RootFlow::normalizePromptText(prompt).trim();
+    auto tokens = RootFlow::tokenizePrompt(prompt);
+
+    juce::ValueTree vt(promptMemoryEntryTag);
+    vt.setProperty("prompt", prompt, nullptr);
+    vt.setProperty("summary", summary, nullptr);
+    vt.setProperty("normalized", normalizedPrompt, nullptr);
+    vt.setProperty("tokens", tokens.joinIntoString("|"), nullptr);
+    vt.setProperty("strength", juce::jlimit(0.2f, 6.0f, reinforcement), nullptr);
+    vt.setProperty("uses", 1, nullptr);
+    vt.setProperty("reinforcement", reinforcement, nullptr);
+    vt.setProperty("timestamp", juce::Time::getCurrentTime().toMilliseconds(), nullptr);
+    RootFlow::writePromptTargetToMemoryEntry(vt, target);
+    return vt;
+}
+
+
+
+inline float scorePromptMemoryEntryMatch(const juce::String& normalizedPrompt,
+                                         const juce::StringArray& tokens,
+                                         const juce::ValueTree& entry)
+{
+    const auto existingPrompt = entry.getProperty("prompt", {}).toString();
+    const auto existingNormalized = entry.getProperty("normalized",
+                                                      RootFlow::normalizePromptText(existingPrompt)).toString().trim();
+
+    if (existingNormalized.isEmpty())
+        return 0.0f;
+
+    if (existingNormalized == normalizedPrompt)
+        return 1.15f;
+
+    juce::StringArray existingTokens;
+    existingTokens.addTokens(entry.getProperty("tokens", {}).toString(), "|", "");
+    existingTokens.removeEmptyStrings();
+
+    if (existingTokens.isEmpty())
+        existingTokens = RootFlow::tokenizePrompt(existingPrompt);
+
+    int overlapCount = 0;
+    for (const auto& token : tokens)
+        if (token.isNotEmpty() && existingTokens.contains(token))
+            ++overlapCount;
+
+    const float tokenScore = (tokens.isEmpty() || existingTokens.isEmpty())
+        ? 0.0f
+        : (2.0f * (float) overlapCount) / (float) (tokens.size() + existingTokens.size());
+    const float phraseScore = (existingNormalized.contains(normalizedPrompt) || normalizedPrompt.contains(existingNormalized))
+        ? 0.20f
+        : 0.0f;
+    const float strengthBonus = juce::jlimit(0.0f, 0.12f, (float) entry.getProperty("strength", 1.0f) * 0.02f);
+
+    return juce::jlimit(0.0f, 1.0f, tokenScore + phraseScore + strengthBonus);
+}
+
+inline RootFlow::PromptPatchTarget capturePromptPatchTargetFromState(const juce::ValueTree& state)
+{
+    RootFlow::PromptPatchTarget target;
+
+    for (size_t i = 0; i < RootFlow::factoryPresetValueParameterIDs.size(); ++i)
+        target.values[i] = getStateParameterValue(state,
+                                                  RootFlow::factoryPresetValueParameterIDs[i],
+                                                  RootFlow::factoryPresetDefaultValues[i]);
+
+    target.sequencerOn = getStateParameterValue(state, "sequencerOn", 0.0f) > 0.5f;
+    target.sequencerRateIndex = juce::roundToInt(getStateParameterValue(state, "sequencerRate", 2.0f));
+    target.sequencerStepCount = juce::roundToInt(getStateParameterValue(state, "sequencerSteps", 8.0f));
+    target.sequencerGate = getStateParameterValue(state, "sequencerGate", target.sequencerGate);
+    target.sequencerProbOn = getStateParameterValue(state, "sequencerProbOn", target.sequencerProbOn ? 1.0f : 0.0f) > 0.5f;
+    target.sequencerJitterOn = getStateParameterValue(state, "sequencerJitterOn", target.sequencerJitterOn ? 1.0f : 0.0f) > 0.5f;
+    target.oscWaveIndex = juce::roundToInt(getStateParameterValue(state, "oscWave", 0.0f));
+    target.masterCompressor = getStateParameterValue(state, "masterCompressor", target.masterCompressor);
+    target.masterMix = getStateParameterValue(state, "masterMix", target.masterMix);
+    target.monoMaker = getStateParameterValue(state, "monoMakerToggle", target.monoMaker ? 1.0f : 0.0f) > 0.5f;
+    target.monoMakerFreqHz = getStateParameterValue(state, "monoMakerFreq", target.monoMakerFreqHz);
+    target.evolution = getStateParameterValue(state, "evolution", target.evolution);
+
+    return target;
+}
+
+    void migrateLegacyParameterState(juce::ValueTree& state)
+    {
+        for (int i = state.getNumChildren(); --i >= 0;)
+        {
+            auto child = state.getChild(i);
+            if (! child.hasType("PARAM"))
+                continue;
+
+            const auto currentID = child.getProperty("id", {}).toString();
+            const auto migratedID = mapLegacyParameterID(currentID);
+            if (migratedID == currentID)
+                continue;
+
+            if (auto replacement = findParameterStateChild(state, migratedID); replacement.isValid())
+            {
+                if (child.hasProperty("value"))
+                    replacement.setProperty("value", child.getProperty("value"), nullptr);
+
+                state.removeChild(child, nullptr);
+            }
+            else
+            {
+                child.setProperty("id", migratedID, nullptr);
+            }
+        }
+    }
+
+    void migrateLegacyPromptMemoryEntry(juce::ValueTree& entry)
+    {
+        const auto prompt = entry.getProperty("prompt", {}).toString();
+        if (! entry.hasProperty("normalized"))
+            entry.setProperty("normalized", RootFlow::normalizePromptText(prompt).trim(), nullptr);
+
+        if (! entry.hasProperty("tokens"))
+        {
+            auto tokens = RootFlow::tokenizePrompt(prompt);
+            entry.setProperty("tokens", tokens.joinIntoString("|"), nullptr);
+        }
+
+        if (! entry.hasProperty("strength"))
+            entry.setProperty("strength",
+                              juce::jlimit(0.2f, 6.0f, (float) entry.getProperty("reinforcement", 1.0f)),
+                              nullptr);
+
+        if (! entry.hasProperty("uses"))
+            entry.setProperty("uses", 1, nullptr);
+    }
+
+    void migrateLegacyState(juce::ValueTree& state)
+    {
+        migrateLegacyParameterState(state);
+
+        if (auto promptMemoryState = state.getChildWithName(promptMemoryStateTag); promptMemoryState.isValid())
+        {
+            for (int i = 0; i < promptMemoryState.getNumChildren(); ++i)
+            {
+                auto entry = promptMemoryState.getChild(i);
+                if (entry.hasType(promptMemoryEntryTag))
+                    migrateLegacyPromptMemoryEntry(entry);
+            }
+        }
+
+        if (auto userPresetsState = state.getChildWithName(userPresetsTag); userPresetsState.isValid())
+        {
+            for (int i = 0; i < userPresetsState.getNumChildren(); ++i)
+            {
+                auto presetState = userPresetsState.getChild(i);
+                if (presetState.hasType(userPresetTag) && presetState.getNumChildren() > 0)
+                {
+                    auto presetRoot = presetState.getChild(0);
+                    migrateLegacyState(presetRoot);
+                }
+            }
+        }
+    }
+
 bool hasGrowLock(int mask, GrowLockGroup group) noexcept
 {
     return (mask & growLockBit(group)) != 0;
@@ -662,31 +424,39 @@ int getSequencerLengthFromTree(const juce::AudioProcessorValueTreeState& tree) n
     return juce::jlimit(4, 16, juce::roundToInt(getParameterValue(tree, "sequencerSteps", 8.0f)));
 }
 
-enum class PromptPatternArchetype : int
-{
-    organic = 0,
-    straight,
-    club,
-    breakbeat,
-    halftime,
-    swing,
-    triplet,
-    latin,
-    afro,
-    cinematic
-};
+    using PromptPatternArchetype = RootFlow::PromptPatternArchetype;
+    using PromptRhythmProfile = RootFlow::PromptRhythmProfile;
 
-struct PromptRhythmProfile
-{
-    PromptPatternArchetype archetype = PromptPatternArchetype::organic;
-    float densityBias = 0.0f;
-    float anchorBias = 0.0f;
-    float offbeatBias = 0.0f;
-    float tripletBias = 0.0f;
-    float swingAmount = 0.0f;
-    float humanize = 0.0f;
-    float tightness = 0.58f;
-};
+    constexpr auto presetGlobalOutputParameterID = "masterVolume";
+
+    constexpr std::array<const char*, 4> factoryPresetUtilityParameterIDs {
+        "masterCompressor", "masterMix", "monoMakerToggle", "monoMakerFreq"
+    };
+
+    inline PromptPatternArchetype promptPatternArchetypeFromValue(int value) noexcept
+    {
+        if (value >= 0 && value <= (int) PromptPatternArchetype::cinematic)
+            return (PromptPatternArchetype) value;
+        return PromptPatternArchetype::matrix;
+    }
+
+    constexpr std::array<const char*, 16> mutationParameterIDs {
+        "sourceDepth", "sourceCore", "sourceAnchor",
+        "flowRate", "flowEnergy", "flowTexture",
+        "pulseFrequency", "pulseWidth", "pulseEnergy",
+        "fieldComplexity", "fieldDepth",
+        "instability",
+        "radiance", "charge", "discharge",
+        "systemMatrix"
+    };
+
+    inline RootFlow::MutationContext makeMutationContext(const juce::AudioProcessorValueTreeState& vts)
+    {
+        RootFlow::MutationContext c;
+        c.instability = getParameterValue(vts, "instability");
+        c.evolution = getParameterValue(vts, "evolution");
+        return c;
+    }
 
 float clampSequencerTimingOffset(float amount) noexcept
 {
@@ -830,7 +600,7 @@ void applyPromptPatternTemplate(std::array<RootFlowAudioProcessor::SequencerStep
             softenPatternFractions(steps, limitedStepCount, { 0.25f, 0.75f, 0.125f, 0.375f, 0.625f, 0.875f }, 0.82f, 0.74f);
             break;
 
-        case PromptPatternArchetype::organic:
+        case PromptPatternArchetype::matrix:
         default:
             break;
     }
@@ -840,1340 +610,10 @@ void applyPromptPatternTemplate(std::array<RootFlowAudioProcessor::SequencerStep
         steps[(size_t) i].timingOffset = clampSequencerTimingOffset(steps[(size_t) i].timingOffset * timingScale);
 }
 
-void buildSmartSequencerSteps(std::array<RootFlowAudioProcessor::SequencerStep, 16>& steps,
-                              int stepCount,
-                              MutationMode mode,
-                              const MutationContext& context,
-                              juce::Random& rng,
-                              const PromptRhythmProfile& promptRhythmProfile)
-{
-    const auto profile = getMutationProfile(mode, context);
-    const int limitedStepCount = juce::jlimit(1, (int) steps.size(), stepCount);
-    const float baseDensity = juce::jlimit(0.16f,
-                                           0.82f,
-                                           0.20f
-                                           + context.motionWeight * 0.26f
-                                           + context.evolution * 0.12f
-                                           + promptRhythmProfile.densityBias
-                                           + context.instability * 0.08f
-                                           + context.fxWeight * 0.05f
-                                           - context.rootWeight * 0.05f
-                                           - context.airWeight * 0.03f
-                                           + (mode == MutationMode::gentle ? -0.07f
-                                              : mode == MutationMode::wild ? 0.08f
-                                                                           : mode == MutationMode::sequencer ? 0.04f : 0.0f));
-    const int targetActiveCount = juce::jlimit(mode == MutationMode::gentle ? 1 : 2,
-                                               limitedStepCount,
-                                               juce::roundToInt((float) limitedStepCount * baseDensity)
-                                               + (mode == MutationMode::wild ? 1 : 0));
-    const float threshold = juce::jlimit(0.46f,
-                                         0.86f,
-                                         0.66f
-                                         - profile.wildness * 0.10f
-                                         - promptRhythmProfile.densityBias * 0.08f
-                                         - promptRhythmProfile.offbeatBias * 0.04f
-                                         - promptRhythmProfile.tripletBias * 0.03f
-                                         - context.motionWeight * 0.04f
-                                         + context.rootWeight * 0.03f
-                                         + promptRhythmProfile.anchorBias * 0.03f
-                                         - context.airWeight * 0.02f);
 
-    std::array<float, 16> activityScores {};
-    std::array<float, 16> velocityTargets {};
-    std::array<float, 16> probabilityTargets {};
-
-    for (int i = 0; i < (int) steps.size(); ++i)
-    {
-        steps[(size_t) i].active = false;
-        steps[(size_t) i].velocity = 0.72f;
-        steps[(size_t) i].probability = 1.0f;
-        steps[(size_t) i].timingOffset = 0.0f;
-        activityScores[(size_t) i] = -100.0f;
-        velocityTargets[(size_t) i] = 0.72f;
-        probabilityTargets[(size_t) i] = 1.0f;
-    }
-
-    for (int i = 0; i < limitedStepCount; ++i)
-    {
-        const float position01 = (float) i / (float) juce::jmax(1, limitedStepCount);
-        const float downbeat = rhythmicPulse(position01, { 0.0f, 0.25f, 0.5f, 0.75f }, 0.10f);
-        const float offbeat = rhythmicPulse(position01, { 0.125f, 0.375f, 0.625f, 0.875f }, 0.085f);
-        const float triplet = rhythmicPulse(position01, { 1.0f / 6.0f, 3.0f / 6.0f, 5.0f / 6.0f }, 0.075f);
-        const float waveMotion = 0.5f + 0.5f * std::sin((position01 * juce::MathConstants<float>::twoPi * (1.75f + context.evolution * 1.25f))
-                                                         + context.motionWeight * 1.7f
-                                                         + context.airWeight * 0.6f);
-        const float randomShape = rng.nextFloat();
-        const float syncScore = offbeat * (0.16f + context.motionWeight * 0.24f + context.instability * 0.14f
-                                           + promptRhythmProfile.offbeatBias * 0.36f)
-                              + triplet * ((limitedStepCount == 12 ? 0.22f : 0.06f)
-                                           + context.motionWeight * 0.10f
-                                           + context.airWeight * 0.08f
-                                           + promptRhythmProfile.tripletBias * 0.42f);
-        const float anchorScore = downbeat * (0.26f + context.rootWeight * 0.28f
-                                              + promptRhythmProfile.anchorBias * 0.24f);
-
-        const float activity = baseDensity
-                             + anchorScore
-                             + syncScore
-                             + (waveMotion - 0.5f) * 0.18f
-                             + (randomShape - 0.5f) * (0.12f + promptRhythmProfile.humanize * 0.14f
-                                                       + profile.wildness * 0.10f);
-        const bool anchorLock = downbeat > 0.92f && (context.rootWeight > 0.72f || limitedStepCount <= 8);
-
-        activityScores[(size_t) i] = activity;
-        velocityTargets[(size_t) i] = juce::jlimit(0.18f,
-                                                   1.0f,
-                                                   0.28f
-                                                   + anchorScore * 0.86f
-                                                   + syncScore * 0.44f
-                                                   + waveMotion * 0.12f
-                                                   + (randomShape - 0.5f) * 0.24f);
-        probabilityTargets[(size_t) i] = juce::jlimit(0.24f,
-                                                      1.0f,
-                                                      0.52f
-                                                      + downbeat * (0.20f + promptRhythmProfile.tightness * 0.14f)
-                                                      + (1.0f - context.instability) * 0.10f
-                                                      - offbeat * (0.04f + promptRhythmProfile.tightness * 0.04f)
-                                                      + promptRhythmProfile.offbeatBias * 0.04f
-                                                      + (rng.nextFloat() - 0.5f) * (0.18f + context.instability * 0.18f)
-                                                      - promptRhythmProfile.humanize * 0.08f
-                                                      + (mode == MutationMode::gentle ? 0.08f
-                                                         : mode == MutationMode::wild ? -0.04f : 0.0f));
-
-        steps[(size_t) i].active = anchorLock || activity >= threshold;
-        steps[(size_t) i].velocity = velocityTargets[(size_t) i];
-        steps[(size_t) i].probability = steps[(size_t) i].active ? probabilityTargets[(size_t) i] : 1.0f;
-    }
-
-    auto countActiveSteps = [&steps, limitedStepCount]()
-    {
-        int count = 0;
-        for (int i = 0; i < limitedStepCount; ++i)
-            if (steps[(size_t) i].active)
-                ++count;
-        return count;
-    };
-
-    int activeCount = countActiveSteps();
-    while (activeCount < targetActiveCount)
-    {
-        int bestIndex = -1;
-        float bestScore = -1000.0f;
-
-        for (int i = 0; i < limitedStepCount; ++i)
-        {
-            if (steps[(size_t) i].active)
-                continue;
-
-            if (activityScores[(size_t) i] > bestScore)
-            {
-                bestScore = activityScores[(size_t) i];
-                bestIndex = i;
-            }
-        }
-
-        if (bestIndex < 0)
-            break;
-
-        steps[(size_t) bestIndex].active = true;
-        steps[(size_t) bestIndex].velocity = velocityTargets[(size_t) bestIndex];
-        steps[(size_t) bestIndex].probability = probabilityTargets[(size_t) bestIndex];
-        activityScores[(size_t) bestIndex] = -1000.0f;
-        ++activeCount;
-    }
-
-    while (activeCount > targetActiveCount + (mode == MutationMode::wild ? 1 : 0))
-    {
-        int weakestIndex = -1;
-        float weakestScore = 1000.0f;
-
-        for (int i = 0; i < limitedStepCount; ++i)
-        {
-            if (! steps[(size_t) i].active)
-                continue;
-
-            const float position01 = (float) i / (float) juce::jmax(1, limitedStepCount);
-            const float downbeat = rhythmicPulse(position01, { 0.0f, 0.25f, 0.5f, 0.75f }, 0.10f);
-            if (downbeat > 0.95f && context.rootWeight > 0.68f)
-                continue;
-
-            if (activityScores[(size_t) i] < weakestScore)
-            {
-                weakestScore = activityScores[(size_t) i];
-                weakestIndex = i;
-            }
-        }
-
-        if (weakestIndex < 0)
-            break;
-
-        steps[(size_t) weakestIndex].active = false;
-        steps[(size_t) weakestIndex].probability = 1.0f;
-        --activeCount;
-    }
-
-    applyPromptPatternTemplate(steps, limitedStepCount, promptRhythmProfile, rng);
-}
-
-struct PromptIntent
-{
-    float darkness = 0.0f;
-    float brightness = 0.0f;
-    float warmth = 0.0f;
-    float cold = 0.0f;
-    float air = 0.0f;
-    float wet = 0.0f;
-    float bass = 0.0f;
-    float motion = 0.0f;
-    float rhythm = 0.0f;
-    float aggression = 0.0f;
-    float softness = 0.0f;
-    float grit = 0.0f;
-    float shimmer = 0.0f;
-    float organic = 0.0f;
-    float evolution = 0.0f;
-    float weird = 0.0f;
-    float drone = 0.0f;
-    float pluck = 0.0f;
-    float lead = 0.0f;
-    float cinematic = 0.0f;
-    float metallic = 0.0f;
-    float lofi = 0.0f;
-    float punch = 0.0f;
-    float width = 0.0f;
-    float digital = 0.0f;
-    float vintage = 0.0f;
-    float acid = 0.0f;
-    float detune = 0.0f;
-    float calm = 0.0f;
-    float density = 0.0f;
-    float house = 0.0f;
-    float techno = 0.0f;
-    float trance = 0.0f;
-    float synthwave = 0.0f;
-    float edm = 0.0f;
-    float dubstep = 0.0f;
-    float dnb = 0.0f;
-    float breakbeat = 0.0f;
-    float ukGarage = 0.0f;
-    float trap = 0.0f;
-    float hiphop = 0.0f;
-    float drill = 0.0f;
-    float reggaeton = 0.0f;
-    float afrobeat = 0.0f;
-    float amapiano = 0.0f;
-    float latin = 0.0f;
-    float jazz = 0.0f;
-    float soul = 0.0f;
-    float funk = 0.0f;
-    float disco = 0.0f;
-    float industrial = 0.0f;
-    float orchestral = 0.0f;
-    float idm = 0.0f;
-    float swingFeel = 0.0f;
-    float tripletFeel = 0.0f;
-    float straightFeel = 0.0f;
-    float humanFeel = 0.0f;
-    float halftimeFeel = 0.0f;
-    float polyrhythm = 0.0f;
-    bool wantsSequencer = false;
-    bool wantsMono = false;
-    int explicitWaveform = -1;
-};
-
-struct PromptPatchTarget
-{
-    std::array<float, 16> values {};
-    bool sequencerOn = false;
-    int sequencerRateIndex = 1;
-    int sequencerStepCount = 8;
-    float sequencerGate = 0.5f;
-    bool sequencerProbOn = false;
-    bool sequencerJitterOn = false;
-    int oscWaveIndex = 0;
-    float masterCompressor = 0.12f;
-    float masterMix = 0.88f;
-    bool monoMaker = false;
-    float monoMakerFreqHz = 80.0f;
-    float evolution = 0.5f;
-    PromptRhythmProfile rhythmProfile;
-    juce::String summary;
-};
-
-struct PromptMemoryMatch
-{
-    juce::ValueTree entry;
-    float score = 0.0f;
-    float blendAmount = 0.0f;
-};
-
-juce::String normalizePromptText(juce::String text)
-{
-    text = text.toLowerCase();
-    text = text.replace("\n", " ");
-    text = text.replace("\t", " ");
-    text = text.replace("ä", "ae");
-    text = text.replace("ö", "oe");
-    text = text.replace("ü", "ue");
-    text = text.replace("ß", "ss");
-    return text;
-}
-
-bool isPromptStopWord(const juce::String& token)
-{
-    static const std::array<const char*, 26> stopWords {{
-        "a", "an", "and", "the", "mit", "und", "der", "die", "das",
-        "ein", "eine", "mehr", "less", "weniger", "bitte", "please",
-        "sound", "patch", "seed", "preset", "mach", "make", "more",
-        "with", "fuer", "for"
-    }};
-
-    for (const auto* stopWord : stopWords)
-    {
-        if (token == stopWord)
-            return true;
-    }
-
-    return false;
-}
-
-bool promptContainsAny(const juce::String& prompt, std::initializer_list<const char*> keywords)
-{
-    for (const auto* keyword : keywords)
-    {
-        if (prompt.contains(keyword))
-            return true;
-    }
-
-    return false;
-}
-
-float promptMetric(const juce::String& prompt, std::initializer_list<const char*> keywords, float hitsForFullScale = 2.0f)
-{
-    int hits = 0;
-    for (const auto* keyword : keywords)
-    {
-        if (prompt.contains(keyword))
-            ++hits;
-    }
-
-    return juce::jlimit(0.0f, 1.0f, (float) hits / juce::jmax(0.5f, hitsForFullScale));
-}
-
-juce::StringArray tokenizePrompt(const juce::String& rawPrompt)
-{
-    auto normalized = normalizePromptText(rawPrompt);
-    juce::StringArray rawTokens;
-    rawTokens.addTokens(normalized, " ,.;:!?/\\|()[]{}<>+-_=*&^%$#@~`'\"", "");
-    rawTokens.removeEmptyStrings();
-
-    juce::StringArray tokens;
-    for (auto token : rawTokens)
-    {
-        token = token.trim();
-
-        if (token.length() < 3 || isPromptStopWord(token))
-            continue;
-
-        if (! tokens.contains(token))
-            tokens.add(token);
-    }
-
-    return tokens;
-}
-
-float promptTokenSimilarity(const juce::StringArray& a, const juce::StringArray& b)
-{
-    if (a.isEmpty() || b.isEmpty())
-        return 0.0f;
-
-    int intersection = 0;
-    for (const auto& token : a)
-    {
-        if (b.contains(token))
-            ++intersection;
-    }
-
-    const int unionCount = a.size() + b.size() - intersection;
-    return unionCount > 0 ? (float) intersection / (float) unionCount : 0.0f;
-}
-
-float mixFloat(float a, float b, float amount) noexcept
-{
-    return a + (b - a) * juce::jlimit(0.0f, 1.0f, amount);
-}
-
-int mixInt(int a, int b, float amount) noexcept
-{
-    return juce::roundToInt(mixFloat((float) a, (float) b, amount));
-}
-
-PromptIntent analysePromptIntent(const juce::String& rawPrompt)
-{
-    const auto prompt = normalizePromptText(rawPrompt);
-    PromptIntent intent;
-
-    intent.darkness = promptMetric(prompt, { "dark", "dunkel", "deep", "tief", "night", "nacht", "shadow", "schatten",
-                                             "moody", "murky", "brooding", "cavern", "cave", "black" });
-    intent.brightness = promptMetric(prompt, { "bright", "hell", "light", "glow", "glowing", "sonn", "shine", "shimmer",
-                                               "klar", "crisp", "clear", "glossy", "radiant", "brilliant" });
-    intent.warmth = promptMetric(prompt, { "warm", "warmth", "analog", "wood", "holz", "earth", "erd", "soil",
-                                           "vintage", "mellow", "creamy", "velvet", "woody", "amber" });
-    intent.cold = promptMetric(prompt, { "cold", "kalt", "icy", "eis", "glass", "glassy", "crystal", "crystalline",
-                                         "frost", "sterile", "frozen" });
-    intent.air = promptMetric(prompt, { "air", "airy", "luftig", "offen", "wide", "weit", "open", "float", "floating",
-                                        "breath", "hazy", "misty" });
-    intent.wet = promptMetric(prompt, { "wet", "reverb", "space", "spacious", "raum", "ambient", "hall", "echo",
-                                        "wash", "cavernous", "distant", "halo" });
-    intent.bass = promptMetric(prompt, { "bass", "sub", "lowend", "low end", "low-end", "bottom", "fundament",
-                                         "druck", "rumble", "808", "thick low" });
-    intent.motion = promptMetric(prompt, { "moving", "motion", "beweg", "flow", "drift", "alive", "lebendig",
-                                           "wander", "swirl", "animated", "modulated", "wobble" });
-    intent.rhythm = promptMetric(prompt, { "rhythm", "rhythmic", "groove", "beat", "pulse", "puls", "sequence",
-                                           "sequenz", "arp", "arpeggio", "pattern", "syncopated", "stutter" });
-    intent.aggression = promptMetric(prompt, { "aggressive", "hart", "hard", "cut", "bite", "edgy", "sharp", "push",
-                                               "fierce", "snarl", "nasty", "attack" });
-    intent.softness = promptMetric(prompt, { "soft", "weich", "smooth", "gentle", "sanft", "round", "silky",
-                                             "calm", "mellow", "pillowy", "softly" });
-    intent.grit = promptMetric(prompt, { "dirty", "dirt", "grit", "gritty", "rough", "raw", "noise", "noisy",
-                                         "distort", "crunch", "fuzzy", "broken", "overdriven", "granular" });
-    intent.shimmer = promptMetric(prompt, { "shimmer", "sparkle", "sparkling", "glitter", "shine", "bloom",
-                                            "glow", "luminous", "angelic", "ethereal" });
-    intent.organic = promptMetric(prompt, { "organic", "organisch", "bio", "plant", "root", "forest", "moos",
-                                            "moss", "wood", "mycel", "natural", "living", "earthy" });
-    intent.evolution = promptMetric(prompt, { "evolve", "evolving", "evolution", "grow", "growing", "growth",
-                                              "develop", "mutation", "morph", "unfold", "transform" });
-    intent.weird = promptMetric(prompt, { "weird", "strange", "alien", "xeno", "chaotic", "chaos", "unstable",
-                                          "broken", "abstract", "glitch", "wonky", "surreal" });
-    intent.drone = promptMetric(prompt, { "drone", "pad", "flaeche", "flaechig", "bed", "sustain", "long", "lang",
-                                          "texture", "atmospheric", "endless" });
-    intent.pluck = promptMetric(prompt, { "pluck", "plucky", "percussive", "short", "kurz", "staccato", "blip",
-                                          "clicky", "hit", "mallet", "pluckish" });
-    intent.lead = promptMetric(prompt, { "lead", "solo", "hook", "melody", "melodie", "topline", "anthem", "riff" });
-    intent.cinematic = promptMetric(prompt, { "cinematic", "film", "score", "soundtrack", "trailer", "epic",
-                                              "scene", "orchestral" });
-    intent.metallic = promptMetric(prompt, { "metallic", "metal", "steel", "chrome", "bell", "clang", "bronze",
-                                             "brass", "ringing" });
-    intent.lofi = promptMetric(prompt, { "lofi", "lo-fi", "cassette", "dusty", "vhs", "aged", "worn", "degraded",
-                                         "tape", "hazy vintage" });
-    intent.punch = promptMetric(prompt, { "punchy", "punch", "tight", "snappy", "impact", "knock", "thump", "slam" });
-    intent.width = promptMetric(prompt, { "wide", "stereo", "panoramic", "huge", "massive", "spread", "breit", "big" });
-    intent.digital = promptMetric(prompt, { "digital", "synthetic", "neon", "cyber", "pixel", "computer", "hybrid", "clean" });
-    intent.vintage = promptMetric(prompt, { "vintage", "retro", "analog", "tape", "tube", "classic", "oldschool", "old-school" });
-    intent.acid = promptMetric(prompt, { "acid", "squelch", "squelchy", "resonant", "rez", "303", "tb" }, 1.5f);
-    intent.detune = promptMetric(prompt, { "detune", "detuned", "chorus", "chorused", "swarm", "beating", "stacked", "ensemble" });
-    intent.calm = promptMetric(prompt, { "calm", "peaceful", "meditative", "meditation", "serene", "still", "restful" });
-    intent.density = promptMetric(prompt, { "dense", "thick", "layered", "wall", "full", "fat", "rich", "packed" });
-    intent.house = promptMetric(prompt, { "house", "deep house", "club house", "slap house", "jackin", "nu house" }, 1.4f);
-    intent.techno = promptMetric(prompt, { "techno", "warehouse", "peak time", "peak-time", "berghain", "hypnotic techno" }, 1.3f);
-    intent.trance = promptMetric(prompt, { "trance", "uplifting", "euphoric", "supersaw", "anthemic", "hands up", "hands-up" }, 1.4f);
-    intent.synthwave = promptMetric(prompt, { "synthwave", "retrowave", "retro wave", "outrun", "neon 80s", "80s" }, 1.4f);
-    intent.edm = promptMetric(prompt, { "edm", "festival", "mainstage", "big room", "electro house" }, 1.3f);
-    intent.dubstep = promptMetric(prompt, { "dubstep", "brostep", "tearout", "wobble", "growl bass", "riddim" }, 1.3f);
-    intent.dnb = promptMetric(prompt, { "dnb", "drum and bass", "drum&bass", "liquid", "neurofunk", "jungle" }, 1.3f);
-    intent.breakbeat = promptMetric(prompt, { "breakbeat", "breakbeats", "breaks", "amen", "broken beat" }, 1.3f);
-    intent.ukGarage = promptMetric(prompt, { "garage", "uk garage", "ukg", "2-step", "2step", "shuffle garage" }, 1.3f);
-    intent.trap = promptMetric(prompt, { "trap", "808 trap", "hat rolls", "hihat rolls", "trappy" }, 1.4f);
-    intent.hiphop = promptMetric(prompt, { "hiphop", "hip-hop", "boom bap", "boombap", "rap beat" }, 1.4f);
-    intent.drill = promptMetric(prompt, { "drill", "uk drill", "slide 808", "sliding 808", "ominous trap" }, 1.3f);
-    intent.reggaeton = promptMetric(prompt, { "reggaeton", "dembow", "latin club" }, 1.2f);
-    intent.afrobeat = promptMetric(prompt, { "afrobeat", "afrobeats", "afro groove", "afro swing" }, 1.3f);
-    intent.amapiano = promptMetric(prompt, { "amapiano", "log drum", "piano house", "private school" }, 1.3f);
-    intent.latin = promptMetric(prompt, { "latin", "salsa", "bachata", "bossa", "samba", "tango" }, 1.4f);
-    intent.jazz = promptMetric(prompt, { "jazz", "bebop", "fusion", "blue note", "walking bass" }, 1.4f);
-    intent.soul = promptMetric(prompt, { "soul", "neo soul", "neo-soul", "rnb", "r&b" }, 1.4f);
-    intent.funk = promptMetric(prompt, { "funk", "funky", "slap", "groovy", "pocket" }, 1.4f);
-    intent.disco = promptMetric(prompt, { "disco", "nu disco", "nudisco", "mirrorball" }, 1.3f);
-    intent.industrial = promptMetric(prompt, { "industrial", "ebm", "factory", "mechanical", "machine" }, 1.4f);
-    intent.orchestral = promptMetric(prompt, { "orchestral", "strings", "brass", "ensemble", "score" }, 1.6f);
-    intent.idm = promptMetric(prompt, { "idm", "glitch", "microsound", "braindance", "leftfield" }, 1.4f);
-    intent.swingFeel = promptMetric(prompt, { "swing", "swung", "shuffle", "shuffled", "laidback", "laid-back" }, 1.3f);
-    intent.tripletFeel = promptMetric(prompt, { "triplet", "triplets", "12/8", "ternary", "triplet groove" }, 1.2f);
-    intent.straightFeel = promptMetric(prompt, { "straight", "on grid", "on-grid", "4-on-the-floor", "four on the floor", "straight eighth" }, 1.2f);
-    intent.humanFeel = promptMetric(prompt, { "human", "humanized", "humanised", "loose", "organic timing", "drunken" }, 1.4f);
-    intent.halftimeFeel = promptMetric(prompt, { "halftime", "half-time", "slow groove", "slow bounce" }, 1.2f);
-    intent.polyrhythm = promptMetric(prompt, { "polyrhythm", "polyrhythmic", "cross rhythm", "cross-rhythm" }, 1.2f);
-
-    const float dry = promptMetric(prompt, { "dry", "trocken", "close", "nah", "tight", "direct" });
-    const float clubEnergy = juce::jlimit(0.0f, 1.0f, intent.house * 0.54f + intent.techno * 0.70f + intent.trance * 0.44f
-                                                       + intent.edm * 0.46f + intent.disco * 0.22f + intent.amapiano * 0.20f);
-    const float brokenGroove = juce::jlimit(0.0f, 1.0f, intent.dnb * 0.74f + intent.breakbeat * 0.66f
-                                                         + intent.ukGarage * 0.58f + intent.idm * 0.32f);
-    const float urbanWeight = juce::jlimit(0.0f, 1.0f, intent.trap * 0.72f + intent.hiphop * 0.56f
-                                                        + intent.drill * 0.74f + intent.reggaeton * 0.30f);
-    const float afroLatinGroove = juce::jlimit(0.0f, 1.0f, intent.afrobeat * 0.70f + intent.amapiano * 0.56f
-                                                            + intent.latin * 0.52f + intent.reggaeton * 0.48f
-                                                            + intent.polyrhythm * 0.24f);
-    const float soulfulWeight = juce::jlimit(0.0f, 1.0f, intent.jazz * 0.52f + intent.soul * 0.68f
-                                                          + intent.funk * 0.62f + intent.disco * 0.36f);
-    const float retroWeight = juce::jlimit(0.0f, 1.0f, intent.synthwave * 0.72f + intent.disco * 0.30f
-                                                        + intent.vintage * 0.20f);
-    const float heavyEdge = juce::jlimit(0.0f, 1.0f, intent.dubstep * 0.64f + intent.industrial * 0.72f
-                                                      + intent.drill * 0.26f + intent.aggression * 0.16f);
-    const float euphoricLift = juce::jlimit(0.0f, 1.0f, intent.trance * 0.74f + intent.edm * 0.42f
-                                                         + intent.synthwave * 0.34f + intent.cinematic * 0.26f
-                                                         + intent.orchestral * 0.18f);
-
-    intent.wet = juce::jlimit(0.0f, 1.0f, intent.wet - dry * 0.75f + intent.drone * 0.12f + intent.cinematic * 0.10f);
-    intent.air = juce::jlimit(0.0f, 1.0f, intent.air + intent.width * 0.22f + intent.cinematic * 0.08f);
-    intent.rhythm = juce::jlimit(0.0f, 1.0f, intent.rhythm + intent.punch * 0.12f + intent.pluck * 0.10f);
-    intent.motion = juce::jlimit(0.0f, 1.0f, intent.motion + intent.detune * 0.14f - intent.calm * 0.06f);
-    intent.warmth = juce::jlimit(0.0f, 1.0f, intent.warmth + intent.vintage * 0.22f - intent.digital * 0.08f);
-    intent.cold = juce::jlimit(0.0f, 1.0f, intent.cold + intent.digital * 0.18f + intent.metallic * 0.12f);
-    intent.grit = juce::jlimit(0.0f, 1.0f, intent.grit + intent.lofi * 0.22f + intent.acid * 0.10f);
-    intent.brightness = juce::jlimit(0.0f, 1.0f, intent.brightness + intent.cinematic * 0.10f);
-    intent.softness = juce::jlimit(0.0f, 1.0f, intent.softness + intent.calm * 0.24f);
-    intent.rhythm = juce::jlimit(0.0f, 1.0f, intent.rhythm + clubEnergy * 0.16f + brokenGroove * 0.24f
-                                                  + urbanWeight * 0.16f + afroLatinGroove * 0.22f
-                                                  + soulfulWeight * 0.12f + intent.swingFeel * 0.08f
-                                                  + intent.tripletFeel * 0.08f + intent.halftimeFeel * 0.10f);
-    intent.motion = juce::jlimit(0.0f, 1.0f, intent.motion + clubEnergy * 0.12f + brokenGroove * 0.14f
-                                                  + afroLatinGroove * 0.16f + intent.idm * 0.12f
-                                                  + intent.humanFeel * 0.08f);
-    intent.bass = juce::jlimit(0.0f, 1.0f, intent.bass + urbanWeight * 0.20f + intent.dubstep * 0.22f
-                                                + clubEnergy * 0.08f + intent.drill * 0.12f);
-    intent.darkness = juce::jlimit(0.0f, 1.0f, intent.darkness + urbanWeight * 0.12f + heavyEdge * 0.16f
-                                                     - euphoricLift * 0.10f);
-    intent.brightness = juce::jlimit(0.0f, 1.0f, intent.brightness + euphoricLift * 0.16f + retroWeight * 0.12f
-                                                       + soulfulWeight * 0.06f - heavyEdge * 0.08f);
-    intent.width = juce::jlimit(0.0f, 1.0f, intent.width + euphoricLift * 0.16f + retroWeight * 0.12f
-                                                 + soulfulWeight * 0.08f + intent.orchestral * 0.12f);
-    intent.detune = juce::jlimit(0.0f, 1.0f, intent.detune + intent.trance * 0.22f + retroWeight * 0.12f
-                                                  + intent.house * 0.06f);
-    intent.warmth = juce::jlimit(0.0f, 1.0f, intent.warmth + soulfulWeight * 0.18f + intent.afrobeat * 0.08f
-                                                  + intent.reggaeton * 0.06f);
-    intent.cold = juce::jlimit(0.0f, 1.0f, intent.cold + intent.techno * 0.10f + intent.industrial * 0.22f);
-    intent.grit = juce::jlimit(0.0f, 1.0f, intent.grit + heavyEdge * 0.18f + brokenGroove * 0.06f);
-    intent.punch = juce::jlimit(0.0f, 1.0f, intent.punch + clubEnergy * 0.14f + urbanWeight * 0.16f
-                                                 + brokenGroove * 0.10f + afroLatinGroove * 0.10f);
-    intent.wet = juce::jlimit(0.0f, 1.0f, intent.wet + euphoricLift * 0.08f + intent.orchestral * 0.16f
-                                               + soulfulWeight * 0.04f - urbanWeight * 0.06f);
-    intent.shimmer = juce::jlimit(0.0f, 1.0f, intent.shimmer + euphoricLift * 0.14f + retroWeight * 0.10f);
-    intent.cinematic = juce::jlimit(0.0f, 1.0f, intent.cinematic + intent.orchestral * 0.48f);
-    intent.aggression = juce::jlimit(0.0f, 1.0f, intent.aggression + heavyEdge * 0.18f + intent.drill * 0.10f);
-    intent.softness = juce::jlimit(0.0f, 1.0f, intent.softness + soulfulWeight * 0.10f - heavyEdge * 0.06f);
-
-    intent.wantsSequencer = promptContainsAny(prompt, { "rhythm", "rhythmic", "groove", "beat", "pulse", "puls", "sequence",
-                                                        "sequenz", "arp", "arpeggio", "step", "pattern", "stutter", "syncopated" })
-                        || clubEnergy > 0.28f || brokenGroove > 0.24f || urbanWeight > 0.30f
-                        || afroLatinGroove > 0.28f || intent.funk > 0.26f || intent.disco > 0.24f;
-    intent.wantsMono = promptContainsAny(prompt, { "mono", "center", "zentral", "focused bass", "sub mono", "centered", "mono bass" })
-                    || urbanWeight > 0.32f || intent.dubstep > 0.28f || intent.techno > 0.28f;
-
-    if (promptContainsAny(prompt, { "sine", "sinus" }))
-        intent.explicitWaveform = 0;
-    else if (promptContainsAny(prompt, { "saw", "saegezahn" }))
-        intent.explicitWaveform = 1;
-    else if (promptContainsAny(prompt, { "pulse", "square", "rechteck" }))
-        intent.explicitWaveform = 2;
-
-    return intent;
-}
-
-juce::String buildPromptSummary(const PromptIntent& intent)
-{
-    juce::StringArray tags;
-    const auto dominantStyleTag = [&intent]()
-    {
-        struct StyleCandidate
-        {
-            const char* tag;
-            float score;
-        };
-
-        const std::array<StyleCandidate, 23> styleCandidates {{
-            { "Techno", intent.techno },
-            { "House", intent.house },
-            { "Trance", intent.trance },
-            { "Synthwave", intent.synthwave },
-            { "EDM", intent.edm },
-            { "Dubstep", intent.dubstep },
-            { "DnB", intent.dnb },
-            { "Breakbeat", intent.breakbeat },
-            { "Garage", intent.ukGarage },
-            { "Trap", intent.trap },
-            { "Hip-Hop", intent.hiphop },
-            { "Drill", intent.drill },
-            { "Reggaeton", intent.reggaeton },
-            { "Afro", intent.afrobeat },
-            { "Amapiano", intent.amapiano },
-            { "Latin", intent.latin },
-            { "Jazz", intent.jazz },
-            { "Soul", intent.soul },
-            { "Funk", intent.funk },
-            { "Disco", intent.disco },
-            { "Industrial", intent.industrial },
-            { "Orchestral", intent.orchestral },
-            { "IDM", intent.idm }
-        }};
-
-        const auto bestIt = std::max_element(styleCandidates.begin(), styleCandidates.end(),
-                                             [] (const auto& a, const auto& b) { return a.score < b.score; });
-        return bestIt != styleCandidates.end() && bestIt->score > 0.34f
-            ? juce::String(bestIt->tag)
-            : juce::String();
-    }();
-
-    if (dominantStyleTag.isNotEmpty())
-        tags.add(dominantStyleTag);
-
-    if (intent.bass > 0.52f)                tags.add("Bass");
-    else if (intent.lead > 0.50f)           tags.add("Lead");
-    else if (intent.pluck > 0.56f)          tags.add("Pluck");
-    else if (intent.drone > 0.52f)          tags.add("Drone");
-
-    if (intent.trap > 0.48f || intent.drill > 0.48f || intent.halftimeFeel > 0.44f)           tags.add("Half-Time");
-    else if (intent.dnb > 0.46f || intent.breakbeat > 0.44f || intent.ukGarage > 0.42f)      tags.add("Broken");
-    else if (intent.afrobeat > 0.46f || intent.amapiano > 0.44f)                               tags.add("Afro");
-    else if (intent.latin > 0.42f || intent.reggaeton > 0.42f)                                 tags.add("Latin");
-    else if (intent.swingFeel > 0.42f || intent.jazz > 0.42f || intent.funk > 0.44f)          tags.add("Swing");
-    else if (intent.rhythm > 0.42f)                                                             tags.add("Rhythmic");
-
-    if (intent.cinematic > 0.48f)           tags.add("Cinematic");
-    if (intent.lofi > 0.46f)                tags.add("Lo-Fi");
-    if (intent.metallic > 0.50f)            tags.add("Metallic");
-    if (intent.air > 0.48f || intent.width > 0.52f) tags.add("Airy");
-    if (intent.wet > 0.48f)                 tags.add("Wet");
-
-    if (intent.darkness > intent.brightness + 0.12f)            tags.add("Dark");
-    else if (intent.brightness > intent.darkness + 0.12f)       tags.add("Bright");
-
-    if (intent.acid > 0.52f)                 tags.add("Acid");
-    if (intent.grit > 0.45f || intent.weird > 0.45f)             tags.add("Wild");
-    else if (intent.softness > 0.45f || intent.calm > 0.45f)     tags.add("Soft");
-
-    while (tags.size() > 4)
-        tags.remove(tags.size() - 1);
-
-    if (tags.isEmpty())
-        tags.add("Custom Seed");
-
-    return tags.joinIntoString(" / ");
-}
-
-PromptPatternArchetype promptPatternArchetypeFromValue(int value) noexcept
-{
-    switch (value)
-    {
-        case 1:  return PromptPatternArchetype::straight;
-        case 2:  return PromptPatternArchetype::club;
-        case 3:  return PromptPatternArchetype::breakbeat;
-        case 4:  return PromptPatternArchetype::halftime;
-        case 5:  return PromptPatternArchetype::swing;
-        case 6:  return PromptPatternArchetype::triplet;
-        case 7:  return PromptPatternArchetype::latin;
-        case 8:  return PromptPatternArchetype::afro;
-        case 9:  return PromptPatternArchetype::cinematic;
-        case 0:
-        default: return PromptPatternArchetype::organic;
-    }
-}
-
-PromptRhythmProfile buildPromptRhythmProfile(const PromptIntent& intent)
-{
-    const float clubScore = juce::jlimit(0.0f, 1.0f, intent.house * 0.52f + intent.techno * 0.74f
-                                                      + intent.trance * 0.44f + intent.edm * 0.42f
-                                                      + intent.disco * 0.24f);
-    const float straightScore = juce::jlimit(0.0f, 1.0f, intent.straightFeel * 0.88f + intent.house * 0.18f
-                                                          + intent.techno * 0.12f);
-    const float breakbeatScore = juce::jlimit(0.0f, 1.0f, intent.dnb * 0.78f + intent.breakbeat * 0.72f
-                                                           + intent.ukGarage * 0.52f + intent.idm * 0.26f);
-    const float halftimeScore = juce::jlimit(0.0f, 1.0f, intent.halftimeFeel * 0.84f + intent.trap * 0.70f
-                                                          + intent.drill * 0.66f + intent.hiphop * 0.50f
-                                                          + intent.dubstep * 0.42f);
-    const float swingScore = juce::jlimit(0.0f, 1.0f, intent.swingFeel * 0.82f + intent.jazz * 0.60f
-                                                       + intent.funk * 0.58f + intent.soul * 0.30f
-                                                       + intent.hiphop * 0.18f);
-    const float tripletScore = juce::jlimit(0.0f, 1.0f, intent.tripletFeel * 0.90f + intent.amapiano * 0.30f
-                                                         + intent.polyrhythm * 0.16f + intent.trap * 0.14f);
-    const float latinScore = juce::jlimit(0.0f, 1.0f, intent.latin * 0.68f + intent.reggaeton * 0.72f
-                                                       + intent.polyrhythm * 0.16f);
-    const float afroScore = juce::jlimit(0.0f, 1.0f, intent.afrobeat * 0.80f + intent.amapiano * 0.60f
-                                                      + intent.polyrhythm * 0.24f + intent.swingFeel * 0.12f);
-    const float cinematicScore = juce::jlimit(0.0f, 1.0f, intent.cinematic * 0.74f + intent.orchestral * 0.56f
-                                                           + intent.drone * 0.24f + intent.calm * 0.08f);
-
-    struct ArchetypeCandidate
-    {
-        PromptPatternArchetype archetype;
-        float score;
-    };
-
-    const std::array<ArchetypeCandidate, 8> candidates {{
-        { PromptPatternArchetype::straight, straightScore },
-        { PromptPatternArchetype::club, clubScore },
-        { PromptPatternArchetype::breakbeat, breakbeatScore },
-        { PromptPatternArchetype::halftime, halftimeScore },
-        { PromptPatternArchetype::swing, swingScore },
-        { PromptPatternArchetype::triplet, tripletScore },
-        { PromptPatternArchetype::latin, latinScore },
-        { PromptPatternArchetype::afro, afroScore }
-    }};
-
-    PromptRhythmProfile profile;
-    auto bestIt = std::max_element(candidates.begin(), candidates.end(),
-                                   [] (const auto& a, const auto& b) { return a.score < b.score; });
-    if (cinematicScore > (bestIt != candidates.end() ? bestIt->score : 0.0f) && cinematicScore > 0.36f)
-        profile.archetype = PromptPatternArchetype::cinematic;
-    else if (bestIt != candidates.end() && bestIt->score > 0.34f)
-        profile.archetype = bestIt->archetype;
-
-    profile.densityBias = juce::jlimit(-0.28f, 0.34f,
-                                       clubScore * 0.10f
-                                       + breakbeatScore * 0.12f
-                                       + afroScore * 0.08f
-                                       + latinScore * 0.05f
-                                       - halftimeScore * 0.14f
-                                       - cinematicScore * 0.12f);
-    profile.anchorBias = juce::jlimit(-0.24f, 0.34f,
-                                      straightScore * 0.24f
-                                      + clubScore * 0.16f
-                                      + halftimeScore * 0.18f
-                                      - breakbeatScore * 0.10f
-                                      - afroScore * 0.08f
-                                      - latinScore * 0.06f);
-    profile.offbeatBias = juce::jlimit(0.0f, 1.0f,
-                                       0.08f
-                                       + breakbeatScore * 0.44f
-                                       + latinScore * 0.34f
-                                       + afroScore * 0.38f
-                                       + swingScore * 0.18f
-                                       + intent.ukGarage * 0.14f);
-    profile.tripletBias = juce::jlimit(0.0f, 1.0f,
-                                       tripletScore * 0.86f
-                                       + afroScore * 0.16f
-                                       + intent.jazz * 0.08f);
-    profile.swingAmount = juce::jlimit(0.0f, 1.0f,
-                                       swingScore * 0.72f
-                                       + intent.ukGarage * 0.14f
-                                       + afroScore * 0.12f);
-    profile.humanize = juce::jlimit(0.0f, 1.0f,
-                                    intent.humanFeel * 0.72f
-                                    + swingScore * 0.14f
-                                    + afroScore * 0.18f
-                                    + latinScore * 0.10f
-                                    + breakbeatScore * 0.08f
-                                    - straightScore * 0.16f
-                                    - intent.techno * 0.12f);
-    profile.tightness = juce::jlimit(0.18f, 0.94f,
-                                     0.58f
-                                     + straightScore * 0.18f
-                                     + intent.techno * 0.12f
-                                     + clubScore * 0.10f
-                                     - swingScore * 0.10f
-                                     - afroScore * 0.12f
-                                     - latinScore * 0.10f
-                                     - intent.humanFeel * 0.14f);
-    return profile;
-}
-
-void blendPromptRhythmProfiles(PromptRhythmProfile& base,
-                               const PromptRhythmProfile& memory,
-                               float amount) noexcept
-{
-    const float blend = juce::jlimit(0.0f, 1.0f, amount);
-
-    if (blend >= 0.48f)
-        base.archetype = memory.archetype;
-
-    base.densityBias = juce::jlimit(-0.40f, 0.40f, mixFloat(base.densityBias, memory.densityBias, blend));
-    base.anchorBias = juce::jlimit(-0.40f, 0.40f, mixFloat(base.anchorBias, memory.anchorBias, blend));
-    base.offbeatBias = juce::jlimit(0.0f, 1.0f, mixFloat(base.offbeatBias, memory.offbeatBias, blend));
-    base.tripletBias = juce::jlimit(0.0f, 1.0f, mixFloat(base.tripletBias, memory.tripletBias, blend));
-    base.swingAmount = juce::jlimit(0.0f, 1.0f, mixFloat(base.swingAmount, memory.swingAmount, blend));
-    base.humanize = juce::jlimit(0.0f, 1.0f, mixFloat(base.humanize, memory.humanize, blend));
-    base.tightness = juce::jlimit(0.18f, 0.94f, mixFloat(base.tightness, memory.tightness, blend));
-}
-
-PromptRhythmProfile morphPromptRhythmProfiles(const PromptRhythmProfile& a,
-                                              const PromptRhythmProfile& b,
-                                              float amount) noexcept
-{
-    PromptRhythmProfile profile = a;
-    blendPromptRhythmProfiles(profile, b, amount);
-    if (juce::jlimit(0.0f, 1.0f, amount) > 0.52f)
-        profile.archetype = b.archetype;
-    return profile;
-}
-
-PromptPatchTarget buildPromptPatchTarget(const juce::String& rawPrompt)
-{
-    const auto intent = analysePromptIntent(rawPrompt);
-    PromptPatchTarget target;
-    const auto rhythmProfile = buildPromptRhythmProfile(intent);
-    target.summary = buildPromptSummary(intent);
-    target.rhythmProfile = rhythmProfile;
-
-    const float clubEnergy = juce::jlimit(0.0f, 1.0f, intent.house * 0.50f + intent.techno * 0.68f
-                                                       + intent.trance * 0.42f + intent.edm * 0.44f
-                                                       + intent.disco * 0.20f + intent.amapiano * 0.18f);
-    const float brokenGroove = juce::jlimit(0.0f, 1.0f, intent.dnb * 0.72f + intent.breakbeat * 0.64f
-                                                         + intent.ukGarage * 0.56f + intent.idm * 0.34f);
-    const float urbanWeight = juce::jlimit(0.0f, 1.0f, intent.trap * 0.70f + intent.hiphop * 0.54f
-                                                        + intent.drill * 0.72f + intent.reggaeton * 0.28f);
-    const float afroLatinGroove = juce::jlimit(0.0f, 1.0f, intent.afrobeat * 0.66f + intent.amapiano * 0.58f
-                                                            + intent.latin * 0.50f + intent.reggaeton * 0.44f
-                                                            + intent.polyrhythm * 0.20f);
-    const float soulfulWeight = juce::jlimit(0.0f, 1.0f, intent.jazz * 0.52f + intent.soul * 0.66f
-                                                          + intent.funk * 0.62f + intent.disco * 0.30f);
-    const float retroWeight = juce::jlimit(0.0f, 1.0f, intent.synthwave * 0.74f + intent.trance * 0.28f
-                                                        + intent.disco * 0.20f + intent.vintage * 0.18f);
-    const float heavyEdge = juce::jlimit(0.0f, 1.0f, intent.dubstep * 0.62f + intent.industrial * 0.72f
-                                                      + intent.drill * 0.24f + intent.aggression * 0.16f);
-    const float euphoricLift = juce::jlimit(0.0f, 1.0f, intent.trance * 0.76f + intent.edm * 0.46f
-                                                         + intent.synthwave * 0.36f + intent.cinematic * 0.24f
-                                                         + intent.orchestral * 0.18f);
-    const float halftimeDrive = juce::jlimit(0.0f, 1.0f, intent.halftimeFeel * 0.76f + intent.trap * 0.34f
-                                                          + intent.drill * 0.30f + intent.hiphop * 0.24f
-                                                          + intent.dubstep * 0.16f);
-    const float leftfieldWeight = juce::jlimit(0.0f, 1.0f, intent.idm * 0.70f + intent.weird * 0.22f
-                                                            + intent.digital * 0.12f);
-
-    const float dark = juce::jlimit(0.0f, 1.0f, 0.15f + intent.darkness * 0.78f + intent.bass * 0.16f
-                                                     + intent.drone * 0.10f + intent.lofi * 0.08f
-                                                     + intent.cinematic * 0.10f + urbanWeight * 0.08f
-                                                     + heavyEdge * 0.10f - intent.brightness * 0.24f
-                                                     - euphoricLift * 0.10f);
-    const float bright = juce::jlimit(0.0f, 1.0f, 0.16f + intent.brightness * 0.76f + intent.shimmer * 0.12f
-                                                       + intent.air * 0.08f + intent.cinematic * 0.08f
-                                                       + euphoricLift * 0.12f + retroWeight * 0.10f
-                                                       + intent.metallic * 0.10f - intent.darkness * 0.20f
-                                                       - intent.lofi * 0.10f - heavyEdge * 0.08f);
-    const float body = juce::jlimit(0.0f, 1.0f, 0.18f + intent.bass * 0.68f + intent.warmth * 0.18f
-                                                     + intent.drone * 0.16f + intent.density * 0.18f
-                                                     + urbanWeight * 0.14f + clubEnergy * 0.08f
-                                                     + intent.punch * 0.10f - intent.air * 0.10f
-                                                     - intent.width * 0.08f);
-    const float motion = juce::jlimit(0.0f, 1.0f, 0.18f + intent.motion * 0.54f + intent.rhythm * 0.26f
-                                                       + intent.evolution * 0.12f + intent.detune * 0.18f
-                                                       + brokenGroove * 0.12f + afroLatinGroove * 0.12f
-                                                       + clubEnergy * 0.08f + intent.acid * 0.06f
-                                                       + leftfieldWeight * 0.08f - intent.calm * 0.10f);
-    const float airiness = juce::jlimit(0.0f, 1.0f, 0.10f + intent.air * 0.60f + intent.wet * 0.16f
-                                                         + intent.shimmer * 0.08f + intent.width * 0.24f
-                                                         + intent.cinematic * 0.10f + euphoricLift * 0.08f
-                                                         + intent.orchestral * 0.10f - intent.bass * 0.10f
-                                                         - intent.density * 0.06f);
-    const float wetness = juce::jlimit(0.0f, 1.0f, 0.06f + intent.wet * 0.66f + intent.drone * 0.10f
-                                                        + intent.air * 0.08f + intent.cinematic * 0.18f
-                                                        + intent.orchestral * 0.14f + soulfulWeight * 0.04f
-                                                        + intent.lofi * 0.06f - intent.pluck * 0.16f
-                                                        - intent.punch * 0.10f - urbanWeight * 0.06f);
-    const float texture = juce::jlimit(0.0f, 1.0f, 0.12f + intent.grit * 0.48f + intent.organic * 0.14f
-                                                        + intent.cold * 0.08f + intent.weird * 0.10f
-                                                        + intent.metallic * 0.14f + intent.lofi * 0.18f
-                                                        + intent.digital * 0.10f + heavyEdge * 0.12f
-                                                        + leftfieldWeight * 0.08f);
-    const float instability = juce::jlimit(0.0f, 1.0f, 0.08f + intent.grit * 0.28f + intent.weird * 0.26f
-                                                            + intent.motion * 0.10f + intent.acid * 0.18f
-                                                            + intent.detune * 0.16f + intent.digital * 0.08f
-                                                            + leftfieldWeight * 0.10f + heavyEdge * 0.08f
-                                                            - intent.softness * 0.10f - intent.calm * 0.10f);
-    const float punchiness = juce::jlimit(0.0f, 1.0f, 0.10f + intent.punch * 0.56f + intent.aggression * 0.20f
-                                                           + intent.pluck * 0.18f + clubEnergy * 0.08f
-                                                           + urbanWeight * 0.10f + afroLatinGroove * 0.06f
-                                                           - intent.drone * 0.12f);
-    const float stereoWidth = juce::jlimit(0.0f, 1.0f, 0.10f + intent.width * 0.70f + airiness * 0.18f
-                                                            + wetness * 0.08f + euphoricLift * 0.10f
-                                                            + retroWeight * 0.12f - body * 0.08f);
-    const float vintageTone = juce::jlimit(0.0f, 1.0f, 0.08f + intent.vintage * 0.56f + intent.lofi * 0.18f
-                                                            + intent.warmth * 0.16f + soulfulWeight * 0.08f
-                                                            + retroWeight * 0.08f - intent.digital * 0.10f);
-    const float metallicTone = juce::jlimit(0.0f, 1.0f, intent.metallic * 0.70f + intent.digital * 0.14f
-                                                             + intent.industrial * 0.18f + bright * 0.10f);
-    const float acidTone = juce::jlimit(0.0f, 1.0f, intent.acid * 0.74f + intent.aggression * 0.14f
-                                                         + motion * 0.08f + intent.techno * 0.06f);
-
-    target.values[0]  = juce::jlimit(0.0f, 1.0f, 0.24f + body * 0.54f + dark * 0.10f - intent.pluck * 0.08f);
-    target.values[1]  = juce::jlimit(0.0f, 1.0f, 0.18f + intent.warmth * 0.28f + body * 0.12f + intent.organic * 0.18f
-                                                      + vintageTone * 0.24f + soulfulWeight * 0.10f
-                                                      - intent.cold * 0.14f);
-    target.values[2]  = juce::jlimit(0.0f, 1.0f, 0.22f + body * 0.22f + intent.drone * 0.22f + intent.bass * 0.14f
-                                                      + intent.density * 0.12f - intent.lead * 0.08f);
-    target.values[3]  = juce::jlimit(0.0f, 1.0f, 0.20f + bright * 0.56f + airiness * 0.08f + metallicTone * 0.08f
-                                                      + stereoWidth * 0.06f + euphoricLift * 0.08f
-                                                      - dark * 0.22f);
-    target.values[4]  = juce::jlimit(0.0f, 1.0f, 0.20f + intent.aggression * 0.24f + motion * 0.18f + intent.lead * 0.12f
-                                                      + intent.grit * 0.08f + punchiness * 0.18f + acidTone * 0.10f
-                                                      + clubEnergy * 0.06f);
-    target.values[5]  = juce::jlimit(0.0f, 1.0f, 0.12f + texture * 0.54f + intent.warmth * 0.08f
-                                                      + metallicTone * 0.16f + vintageTone * 0.10f
-                                                      + leftfieldWeight * 0.06f);
-    target.values[6]  = juce::jlimit(0.0f, 1.0f, 0.06f + intent.rhythm * 0.56f + motion * 0.14f
-                                                      + intent.pluck * 0.10f + punchiness * 0.12f + acidTone * 0.10f
-                                                      + clubEnergy * 0.08f + brokenGroove * 0.10f
-                                                      + afroLatinGroove * 0.08f);
-    target.values[7]  = juce::jlimit(0.0f, 1.0f, 0.16f + motion * 0.34f + intent.drone * 0.16f + airiness * 0.10f
-                                                      + intent.detune * 0.12f + intent.calm * 0.08f
-                                                      + soulfulWeight * 0.04f);
-    target.values[8]  = juce::jlimit(0.0f, 1.0f, 0.16f + intent.evolution * 0.38f + motion * 0.16f
-                                                      + intent.organic * 0.12f + intent.cinematic * 0.10f
-                                                      + intent.density * 0.08f + leftfieldWeight * 0.08f
-                                                      + afroLatinGroove * 0.04f);
-    target.values[9]  = juce::jlimit(0.0f, 1.0f, 0.24f + airiness * 0.32f + intent.shimmer * 0.08f
-                                                      + intent.drone * 0.08f + stereoWidth * 0.26f
-                                                      + intent.cinematic * 0.10f);
-    target.values[10] = juce::jlimit(0.0f, 1.0f, 0.06f + wetness * 0.52f + airiness * 0.14f + intent.drone * 0.08f
-                                                      + stereoWidth * 0.10f + intent.cinematic * 0.16f
-                                                      + soulfulWeight * 0.04f);
-    target.values[11] = juce::jlimit(0.0f, 1.0f, instability);
-    target.values[12] = juce::jlimit(0.0f, 1.0f, 0.02f + intent.shimmer * 0.48f + bright * 0.08f
-                                                      + intent.cinematic * 0.12f + euphoricLift * 0.10f);
-    target.values[13] = juce::jlimit(0.0f, 1.0f, wetness * 0.58f + dark * 0.08f + intent.lofi * 0.10f + stereoWidth * 0.04f);
-    target.values[14] = juce::jlimit(0.0f, 1.0f, bright * 0.58f + intent.shimmer * 0.14f + metallicTone * 0.10f
-                                                      + euphoricLift * 0.08f - dark * 0.08f);
-    target.values[15] = juce::jlimit(0.0f, 1.0f, 0.34f + intent.warmth * 0.16f + bright * 0.08f + vintageTone * 0.08f
-                                                      + retroWeight * 0.06f - intent.cold * 0.18f
-                                                      - dark * 0.08f);
-
-    target.sequencerOn = intent.wantsSequencer || intent.rhythm > 0.40f || intent.pluck > 0.50f
-                      || intent.punch > 0.48f || intent.acid > 0.54f || clubEnergy > 0.34f
-                      || brokenGroove > 0.32f || urbanWeight > 0.38f || afroLatinGroove > 0.34f;
-    target.sequencerProbOn = intent.evolution > 0.30f || intent.organic > 0.40f || intent.weird > 0.34f
-                          || intent.lofi > 0.34f || rhythmProfile.humanize > 0.20f
-                          || brokenGroove > 0.28f || afroLatinGroove > 0.28f;
-    target.sequencerJitterOn = intent.motion > 0.36f || instability > 0.42f || intent.weird > 0.34f
-                            || intent.detune > 0.42f || intent.acid > 0.38f
-                            || rhythmProfile.humanize > 0.22f || rhythmProfile.swingAmount > 0.18f
-                            || brokenGroove > 0.32f || afroLatinGroove > 0.30f;
-    target.sequencerGate = juce::jlimit(0.12f, 0.92f, 0.24f + intent.drone * 0.38f + wetness * 0.08f
-                                                     + intent.cinematic * 0.06f - intent.pluck * 0.24f
-                                                     - punchiness * 0.10f + intent.rhythm * 0.06f
-                                                     + halftimeDrive * 0.08f - clubEnergy * 0.06f
-                                                     + soulfulWeight * 0.04f);
-
-    const float rateDrive = intent.rhythm * 0.44f + intent.pluck * 0.20f + intent.motion * 0.10f
-                          + punchiness * 0.12f + acidTone * 0.14f + clubEnergy * 0.18f
-                          + brokenGroove * 0.20f + afroLatinGroove * 0.12f
-                          - intent.cinematic * 0.08f;
-    target.sequencerRateIndex = rateDrive > 0.72f ? 3 : rateDrive > 0.46f ? 2 : rateDrive > 0.22f ? 1 : 0;
-
-    const float stepComplexity = intent.rhythm * 0.26f + intent.evolution * 0.18f + intent.weird * 0.12f
-                               + intent.motion * 0.14f + intent.density * 0.14f + acidTone * 0.10f
-                               + brokenGroove * 0.18f + afroLatinGroove * 0.16f + leftfieldWeight * 0.12f;
-
-    if (rhythmProfile.archetype == PromptPatternArchetype::triplet
-        || rhythmProfile.archetype == PromptPatternArchetype::afro
-        || rhythmProfile.archetype == PromptPatternArchetype::latin)
-    {
-        target.sequencerStepCount = stepComplexity > 0.30f ? 12 : 8;
-    }
-    else if (rhythmProfile.archetype == PromptPatternArchetype::club
-             || rhythmProfile.archetype == PromptPatternArchetype::straight
-             || brokenGroove > 0.42f
-             || clubEnergy > 0.48f)
-    {
-        target.sequencerStepCount = stepComplexity > 0.26f ? 16 : 8;
-    }
-    else if (rhythmProfile.archetype == PromptPatternArchetype::halftime || halftimeDrive > 0.42f)
-    {
-        target.sequencerStepCount = stepComplexity > 0.54f ? 12 : 8;
-    }
-    else
-    {
-        target.sequencerStepCount = stepComplexity > 0.74f ? 16 : stepComplexity > 0.48f ? 12 : stepComplexity > 0.24f ? 8 : 4;
-    }
-
-    if (intent.explicitWaveform >= 0)
-        target.oscWaveIndex = intent.explicitWaveform;
-    else if (intent.pluck > 0.52f || intent.rhythm > 0.62f || intent.acid > 0.50f
-             || urbanWeight > 0.42f || intent.dubstep > 0.36f || intent.ukGarage > 0.36f)
-        target.oscWaveIndex = 2;
-    else if (intent.lead > 0.42f || intent.aggression > 0.42f || bright > 0.56f || metallicTone > 0.46f
-             || intent.digital > 0.46f || clubEnergy > 0.34f || retroWeight > 0.32f
-             || euphoricLift > 0.32f)
-        target.oscWaveIndex = 1;
-    else
-        target.oscWaveIndex = 0;
-
-    target.masterCompressor = juce::jlimit(0.04f, 0.68f, 0.06f + intent.aggression * 0.18f + intent.bass * 0.12f
-                                                        + intent.rhythm * 0.06f + punchiness * 0.16f
-                                                        + clubEnergy * 0.06f + urbanWeight * 0.08f
-                                                        + heavyEdge * 0.06f);
-    target.masterMix = juce::jlimit(0.72f, 1.0f, 0.84f + wetness * 0.08f + airiness * 0.02f
-                                                    + intent.cinematic * 0.06f - intent.bass * 0.04f
-                                                    - punchiness * 0.05f + euphoricLift * 0.04f
-                                                    + soulfulWeight * 0.02f - heavyEdge * 0.04f);
-    target.monoMaker = intent.wantsMono || intent.bass > 0.58f || (body > 0.62f && wetness < 0.48f)
-                    || (punchiness > 0.62f && stereoWidth < 0.40f)
-                    || clubEnergy > 0.46f || urbanWeight > 0.40f || intent.dubstep > 0.32f;
-    target.monoMakerFreqHz = juce::jlimit(42.0f, 220.0f, 56.0f + body * 96.0f + punchiness * 28.0f
-                                                       + intent.rhythm * 12.0f + urbanWeight * 10.0f
-                                                       + clubEnergy * 8.0f);
-    target.evolution = juce::jlimit(0.0f, 1.0f, 0.20f + intent.evolution * 0.40f + intent.motion * 0.14f
-                                                     + intent.weird * 0.10f + intent.cinematic * 0.06f
-                                                     + intent.detune * 0.10f + leftfieldWeight * 0.08f
-                                                     + afroLatinGroove * 0.04f - intent.softness * 0.04f
-                                                     - intent.calm * 0.10f - intent.straightFeel * 0.06f);
-
-    return target;
-}
-
-juce::String promptMemoryValuePropertyName(int index)
-{
-    return "v" + juce::String(index);
-}
-
-float stateValue(const juce::ValueTree& state, const char* propertyName, float fallback)
-{
-    return (float) state.getProperty(propertyName, fallback);
-}
-
-void writePromptTargetToMemoryEntry(juce::ValueTree& entry, const PromptPatchTarget& target)
-{
-    for (size_t i = 0; i < target.values.size(); ++i)
-        entry.setProperty(promptMemoryValuePropertyName((int) i), target.values[i], nullptr);
-
-    entry.setProperty("seqOn", target.sequencerOn, nullptr);
-    entry.setProperty("seqRate", target.sequencerRateIndex, nullptr);
-    entry.setProperty("seqSteps", target.sequencerStepCount, nullptr);
-    entry.setProperty("seqGate", target.sequencerGate, nullptr);
-    entry.setProperty("seqProb", target.sequencerProbOn, nullptr);
-    entry.setProperty("seqJitter", target.sequencerJitterOn, nullptr);
-    entry.setProperty("oscWave", target.oscWaveIndex, nullptr);
-    entry.setProperty("masterComp", target.masterCompressor, nullptr);
-    entry.setProperty("masterMix", target.masterMix, nullptr);
-    entry.setProperty("monoMaker", target.monoMaker, nullptr);
-    entry.setProperty("monoFreq", target.monoMakerFreqHz, nullptr);
-    entry.setProperty("evolution", target.evolution, nullptr);
-    entry.setProperty("seqPattern", (int) target.rhythmProfile.archetype, nullptr);
-    entry.setProperty("seqDensityBias", target.rhythmProfile.densityBias, nullptr);
-    entry.setProperty("seqAnchorBias", target.rhythmProfile.anchorBias, nullptr);
-    entry.setProperty("seqOffbeatBias", target.rhythmProfile.offbeatBias, nullptr);
-    entry.setProperty("seqTripletBias", target.rhythmProfile.tripletBias, nullptr);
-    entry.setProperty("seqSwing", target.rhythmProfile.swingAmount, nullptr);
-    entry.setProperty("seqHumanize", target.rhythmProfile.humanize, nullptr);
-    entry.setProperty("seqTightness", target.rhythmProfile.tightness, nullptr);
-    entry.setProperty("summary", target.summary, nullptr);
-}
-
-PromptPatchTarget readPromptTargetFromMemoryEntry(const juce::ValueTree& entry)
-{
-    PromptPatchTarget target;
-    for (size_t i = 0; i < factoryPresetDefaultValues.size(); ++i)
-        target.values[i] = juce::jlimit(0.0f, 1.0f, stateValue(entry, promptMemoryValuePropertyName((int) i).toRawUTF8(), factoryPresetDefaultValues[i]));
-
-    target.sequencerOn = (bool) entry.getProperty("seqOn", false);
-    target.sequencerRateIndex = juce::jlimit(0, 3, (int) entry.getProperty("seqRate", 1));
-    target.sequencerStepCount = juce::jlimit(4, 16, (int) entry.getProperty("seqSteps", 8));
-    target.sequencerGate = juce::jlimit(0.12f, 0.92f, stateValue(entry, "seqGate", 0.5f));
-    target.sequencerProbOn = (bool) entry.getProperty("seqProb", false);
-    target.sequencerJitterOn = (bool) entry.getProperty("seqJitter", false);
-    target.oscWaveIndex = juce::jlimit(0, 2, (int) entry.getProperty("oscWave", 0));
-    target.masterCompressor = juce::jlimit(0.0f, 1.0f, stateValue(entry, "masterComp", 0.12f));
-    target.masterMix = juce::jlimit(0.0f, 1.0f, stateValue(entry, "masterMix", 0.88f));
-    target.monoMaker = (bool) entry.getProperty("monoMaker", false);
-    target.monoMakerFreqHz = juce::jlimit(42.0f, 220.0f, stateValue(entry, "monoFreq", 80.0f));
-    target.evolution = juce::jlimit(0.0f, 1.0f, stateValue(entry, "evolution", 0.5f));
-    target.rhythmProfile.archetype = promptPatternArchetypeFromValue((int) entry.getProperty("seqPattern", 0));
-    target.rhythmProfile.densityBias = juce::jlimit(-0.40f, 0.40f, stateValue(entry, "seqDensityBias", 0.0f));
-    target.rhythmProfile.anchorBias = juce::jlimit(-0.40f, 0.40f, stateValue(entry, "seqAnchorBias", 0.0f));
-    target.rhythmProfile.offbeatBias = juce::jlimit(0.0f, 1.0f, stateValue(entry, "seqOffbeatBias", 0.0f));
-    target.rhythmProfile.tripletBias = juce::jlimit(0.0f, 1.0f, stateValue(entry, "seqTripletBias", 0.0f));
-    target.rhythmProfile.swingAmount = juce::jlimit(0.0f, 1.0f, stateValue(entry, "seqSwing", 0.0f));
-    target.rhythmProfile.humanize = juce::jlimit(0.0f, 1.0f, stateValue(entry, "seqHumanize", 0.0f));
-    target.rhythmProfile.tightness = juce::jlimit(0.18f, 0.94f, stateValue(entry, "seqTightness", 0.58f));
-    target.summary = entry.getProperty("summary", {}).toString();
-    return target;
-}
-
-PromptPatchTarget capturePromptPatchTargetFromState(const juce::ValueTree& state)
-{
-    PromptPatchTarget target;
-    for (size_t i = 0; i < factoryPresetDefaultValues.size(); ++i)
-        target.values[i] = juce::jlimit(0.0f, 1.0f, stateValue(state, factoryPresetValueParameterIDs[i], factoryPresetDefaultValues[i]));
-
-    target.sequencerOn = (bool) state.getProperty("sequencerOn", false);
-    target.sequencerRateIndex = juce::jlimit(0, 3, (int) state.getProperty("sequencerRate", 1));
-    target.sequencerStepCount = juce::jlimit(4, 16, (int) state.getProperty("sequencerSteps", 8));
-    target.sequencerGate = juce::jlimit(0.12f, 0.92f, stateValue(state, "sequencerGate", 0.5f));
-    target.sequencerProbOn = (bool) state.getProperty("sequencerProbOn", true);
-    target.sequencerJitterOn = (bool) state.getProperty("sequencerJitterOn", true);
-    target.oscWaveIndex = juce::jlimit(0, 2, (int) state.getProperty("oscWave", 0));
-    target.masterCompressor = juce::jlimit(0.0f, 1.0f, stateValue(state, "masterCompressor", 0.12f));
-    target.masterMix = juce::jlimit(0.0f, 1.0f, stateValue(state, "masterMix", 0.88f));
-    target.monoMaker = (bool) state.getProperty("monoMakerToggle", false);
-    target.monoMakerFreqHz = juce::jlimit(42.0f, 220.0f, stateValue(state, "monoMakerFreq", 80.0f));
-    target.evolution = juce::jlimit(0.0f, 1.0f, stateValue(state, "evolution", 0.5f));
-    return target;
-}
-
-juce::ValueTree makePromptMemoryEntry(const juce::String& prompt,
-                                      const juce::String& summary,
-                                      const PromptPatchTarget& target,
-                                      float strength,
-                                      int uses = 1)
-{
-    juce::ValueTree entry(promptMemoryEntryTag);
-    const auto normalizedPrompt = normalizePromptText(prompt).trim();
-    const auto tokens = tokenizePrompt(prompt);
-
-    entry.setProperty("prompt", prompt, nullptr);
-    entry.setProperty("normalized", normalizedPrompt, nullptr);
-    entry.setProperty("tokens", tokens.joinIntoString("|"), nullptr);
-    entry.setProperty("summary", summary.isNotEmpty() ? summary : target.summary, nullptr);
-    entry.setProperty("strength", juce::jlimit(0.2f, 6.0f, strength), nullptr);
-    entry.setProperty("uses", juce::jmax(1, uses), nullptr);
-    writePromptTargetToMemoryEntry(entry, target);
-    return entry;
-}
-
-float scorePromptMemoryEntryMatch(const juce::String& normalizedPrompt,
-                                  const juce::StringArray& promptTokens,
-                                  const juce::ValueTree& entry)
-{
-    const auto entryNormalized = entry.getProperty("normalized", {}).toString().trim();
-    if (entryNormalized.isEmpty())
-        return 0.0f;
-
-    if (normalizedPrompt == entryNormalized)
-        return 1.15f;
-
-    juce::StringArray entryTokens;
-    entryTokens.addTokens(entry.getProperty("tokens", {}).toString(), "|", "");
-    entryTokens.removeEmptyStrings();
-
-    const float tokenScore = promptTokenSimilarity(promptTokens, entryTokens);
-    const bool containsPhrase = normalizedPrompt.length() >= 6
-                             && entryNormalized.length() >= 6
-                             && (normalizedPrompt.contains(entryNormalized) || entryNormalized.contains(normalizedPrompt));
-    const float containsBonus = containsPhrase ? 0.18f : 0.0f;
-    const float strength = (float) entry.getProperty("strength", 1.0f);
-    const float useBoost = juce::jlimit(0.0f, 0.16f, (float) (int) entry.getProperty("uses", 1) * 0.03f);
-
-    return juce::jlimit(0.0f, 1.35f,
-                        (tokenScore + containsBonus) * juce::jlimit(0.72f, 1.20f, 0.84f + strength * 0.06f)
-                        + useBoost);
-}
-
-PromptMemoryMatch findPromptMemoryMatch(const juce::String& prompt, const std::vector<juce::ValueTree>& entries)
-{
-    PromptMemoryMatch bestMatch;
-    const auto normalizedPrompt = normalizePromptText(prompt).trim();
-    const auto promptTokens = tokenizePrompt(prompt);
-
-    for (const auto& entry : entries)
-    {
-        if (! entry.hasType(promptMemoryEntryTag))
-            continue;
-
-        const float score = scorePromptMemoryEntryMatch(normalizedPrompt, promptTokens, entry);
-        if (score > bestMatch.score)
-        {
-            bestMatch.entry = entry.createCopy();
-            bestMatch.score = score;
-        }
-    }
-
-    if (bestMatch.score < 0.34f)
-    {
-        bestMatch.entry = {};
-        bestMatch.score = 0.0f;
-        bestMatch.blendAmount = 0.0f;
-        return bestMatch;
-    }
-
-    bestMatch.blendAmount = juce::jlimit(0.14f, 0.58f, 0.10f + (bestMatch.score - 0.34f) * 0.58f);
-    return bestMatch;
-}
-
-void blendPromptPatchTargets(PromptPatchTarget& base, const PromptPatchTarget& memory, float amount)
-{
-    const float blend = juce::jlimit(0.0f, 1.0f, amount);
-
-    for (size_t i = 0; i < base.values.size(); ++i)
-        base.values[i] = juce::jlimit(0.0f, 1.0f, mixFloat(base.values[i], memory.values[i], blend));
-
-    if (blend > 0.30f)
-        base.sequencerOn = base.sequencerOn || memory.sequencerOn;
-
-    if (blend > 0.24f)
-    {
-        base.sequencerProbOn = base.sequencerProbOn || memory.sequencerProbOn;
-        base.sequencerJitterOn = base.sequencerJitterOn || memory.sequencerJitterOn;
-    }
-
-    if (blend > 0.34f)
-        base.monoMaker = base.monoMaker || memory.monoMaker;
-
-    blendPromptRhythmProfiles(base.rhythmProfile, memory.rhythmProfile, blend);
-    base.sequencerRateIndex = juce::jlimit(0, 3, mixInt(base.sequencerRateIndex, memory.sequencerRateIndex, blend));
-    base.sequencerStepCount = juce::jlimit(4, 16, mixInt(base.sequencerStepCount, memory.sequencerStepCount, blend));
-    base.sequencerGate = juce::jlimit(0.12f, 0.92f, mixFloat(base.sequencerGate, memory.sequencerGate, blend));
-    base.oscWaveIndex = juce::jlimit(0, 2, mixInt(base.oscWaveIndex, memory.oscWaveIndex, blend));
-    base.masterCompressor = juce::jlimit(0.0f, 1.0f, mixFloat(base.masterCompressor, memory.masterCompressor, blend));
-    base.masterMix = juce::jlimit(0.0f, 1.0f, mixFloat(base.masterMix, memory.masterMix, blend));
-    base.monoMakerFreqHz = juce::jlimit(42.0f, 220.0f, mixFloat(base.monoMakerFreqHz, memory.monoMakerFreqHz, blend));
-    base.evolution = juce::jlimit(0.0f, 1.0f, mixFloat(base.evolution, memory.evolution, blend));
-}
-
-void setNormalizedParameter(juce::AudioProcessorValueTreeState& tree, const char* paramID, float normalizedValue)
-{
-    if (auto* parameter = tree.getParameter(paramID))
-        parameter->setValueNotifyingHost(juce::jlimit(0.0f, 1.0f, normalizedValue));
-}
-
-void setRangedParameter(juce::AudioProcessorValueTreeState& tree, const char* paramID, float realValue)
-{
-    if (auto* parameter = dynamic_cast<juce::RangedAudioParameter*>(tree.getParameter(paramID)))
-        parameter->setValueNotifyingHost(parameter->convertTo0to1(realValue));
-}
-
-void applyPromptTargetParameters(juce::AudioProcessorValueTreeState& tree, const PromptPatchTarget& target)
-{
-    for (size_t i = 0; i < factoryPresetValueParameterIDs.size(); ++i)
-        setNormalizedParameter(tree, factoryPresetValueParameterIDs[i], target.values[i]);
-
-    setNormalizedParameter(tree, "sequencerOn", target.sequencerOn ? 1.0f : 0.0f);
-    setNormalizedParameter(tree, "sequencerRate", (float) target.sequencerRateIndex / 3.0f);
-    setRangedParameter(tree, "sequencerSteps", (float) target.sequencerStepCount);
-    setRangedParameter(tree, "sequencerGate", target.sequencerGate);
-    setNormalizedParameter(tree, "sequencerProbOn", target.sequencerProbOn ? 1.0f : 0.0f);
-    setNormalizedParameter(tree, "sequencerJitterOn", target.sequencerJitterOn ? 1.0f : 0.0f);
-    setNormalizedParameter(tree, "oscWave", (float) target.oscWaveIndex / 2.0f);
-    setNormalizedParameter(tree, "masterCompressor", target.masterCompressor);
-    setNormalizedParameter(tree, "masterMix", target.masterMix);
-    setNormalizedParameter(tree, "monoMakerToggle", target.monoMaker ? 1.0f : 0.0f);
-    setRangedParameter(tree, "monoMakerFreq", target.monoMakerFreqHz);
-    setNormalizedParameter(tree, "evolution", target.evolution);
-}
-
-void applyGrowLocksToPromptTarget(PromptPatchTarget& target,
-                                  int growLockMask,
-                                  const juce::AudioProcessorValueTreeState& tree)
-{
-    auto preserveValue = [&](size_t index, const char* paramID, float fallback)
-    {
-        target.values[index] = getParameterValue(tree, paramID, fallback);
-    };
-
-    if (hasGrowLock(growLockMask, GrowLockGroup::root))
-    {
-        preserveValue(0, "rootDepth", factoryPresetDefaultValues[0]);
-        preserveValue(1, "rootSoil", factoryPresetDefaultValues[1]);
-        preserveValue(2, "rootAnchor", factoryPresetDefaultValues[2]);
-        target.monoMaker = getParameterValue(tree, "monoMakerToggle", 0.0f) > 0.5f;
-        target.monoMakerFreqHz = getParameterValue(tree, "monoMakerFreq", 80.0f);
-    }
-
-    if (hasGrowLock(growLockMask, GrowLockGroup::motion))
-    {
-        preserveValue(3, "sapFlow", factoryPresetDefaultValues[3]);
-        preserveValue(4, "sapVitality", factoryPresetDefaultValues[4]);
-        preserveValue(5, "sapTexture", factoryPresetDefaultValues[5]);
-        preserveValue(6, "pulseRate", factoryPresetDefaultValues[6]);
-        preserveValue(7, "pulseBreath", factoryPresetDefaultValues[7]);
-        preserveValue(8, "pulseGrowth", factoryPresetDefaultValues[8]);
-        target.evolution = getParameterValue(tree, "evolution", 0.5f);
-    }
-
-    if (hasGrowLock(growLockMask, GrowLockGroup::air))
-    {
-        preserveValue(9, "canopy", factoryPresetDefaultValues[9]);
-        preserveValue(10, "atmosphere", factoryPresetDefaultValues[10]);
-        preserveValue(15, "ecoSystem", factoryPresetDefaultValues[15]);
-    }
-
-    if (hasGrowLock(growLockMask, GrowLockGroup::fx))
-    {
-        preserveValue(11, "instability", factoryPresetDefaultValues[11]);
-        preserveValue(12, "bloom", factoryPresetDefaultValues[12]);
-        preserveValue(13, "rain", factoryPresetDefaultValues[13]);
-        preserveValue(14, "sun", factoryPresetDefaultValues[14]);
-        target.masterCompressor = getParameterValue(tree, "masterCompressor", 0.12f);
-        target.masterMix = getParameterValue(tree, "masterMix", 0.88f);
-    }
-
-    if (hasGrowLock(growLockMask, GrowLockGroup::sequencer))
-    {
-        target.sequencerOn = getParameterValue(tree, "sequencerOn", 0.0f) > 0.5f;
-        target.sequencerRateIndex = juce::jlimit(0, 3, juce::roundToInt(getParameterValue(tree, "sequencerRate", 1.0f)));
-        target.sequencerStepCount = juce::jlimit(4, 16, juce::roundToInt(getParameterValue(tree, "sequencerSteps", 8.0f)));
-        target.sequencerGate = juce::jlimit(0.12f, 0.92f, getParameterValue(tree, "sequencerGate", 0.5f));
-        target.sequencerProbOn = getParameterValue(tree, "sequencerProbOn", 1.0f) > 0.5f;
-        target.sequencerJitterOn = getParameterValue(tree, "sequencerJitterOn", 1.0f) > 0.5f;
-    }
-}
-
-PromptPatchTarget resolvePromptPatchTarget(const juce::String& prompt,
-                                           const std::vector<juce::ValueTree>& promptMemorySnapshot,
-                                           bool* usedRecall = nullptr)
-{
-    auto target = buildPromptPatchTarget(prompt);
-    const auto memoryMatch = findPromptMemoryMatch(prompt, promptMemorySnapshot);
-    const bool recalled = memoryMatch.entry.isValid();
-
-    if (recalled)
-    {
-        blendPromptPatchTargets(target, readPromptTargetFromMemoryEntry(memoryMatch.entry), memoryMatch.blendAmount);
-        if (! target.summary.containsIgnoreCase("Recall"))
-            target.summary << " / Recall";
-    }
-
-    if (usedRecall != nullptr)
-        *usedRecall = recalled;
-
-    return target;
-}
-
-bool selectMorphBoolean(bool a, bool b, float amount) noexcept
-{
-    const float morph = juce::jlimit(0.0f, 1.0f, amount);
-    if (morph < 0.34f)
-        return a;
-    if (morph > 0.66f)
-        return b;
-    return a || b;
-}
-
-juce::String getPromptLeadTag(const juce::String& summary)
-{
-    auto tags = juce::StringArray::fromTokens(summary, "/", "");
-    tags.trim();
-    tags.removeEmptyStrings();
-    return tags.isEmpty() ? juce::String() : tags[0];
-}
-
-juce::String buildPromptMorphSummary(const PromptPatchTarget& a, const PromptPatchTarget& b, float amount)
-{
-    const int percent = juce::roundToInt(juce::jlimit(0.0f, 1.0f, amount) * 100.0f);
-    const auto aTag = getPromptLeadTag(a.summary);
-    const auto bTag = getPromptLeadTag(b.summary);
-
-    juce::String summary = "Morph " + juce::String(percent) + "%";
-    if (aTag.isNotEmpty() || bTag.isNotEmpty())
-        summary << " / " << (aTag.isNotEmpty() ? aTag : juce::String("Seed A"))
-                << " -> " << (bTag.isNotEmpty() ? bTag : juce::String("Seed B"));
-
-    return summary;
-}
-
-PromptPatchTarget morphPromptPatchTargets(const PromptPatchTarget& a,
-                                          const PromptPatchTarget& b,
-                                          float amount)
-{
-    const float morph = juce::jlimit(0.0f, 1.0f, amount);
-    PromptPatchTarget target;
-
-    for (size_t i = 0; i < target.values.size(); ++i)
-        target.values[i] = juce::jlimit(0.0f, 1.0f, mixFloat(a.values[i], b.values[i], morph));
-
-    target.sequencerOn = selectMorphBoolean(a.sequencerOn, b.sequencerOn, morph);
-    target.sequencerRateIndex = juce::jlimit(0, 3, mixInt(a.sequencerRateIndex, b.sequencerRateIndex, morph));
-    target.sequencerStepCount = juce::jlimit(4, 16, mixInt(a.sequencerStepCount, b.sequencerStepCount, morph));
-    target.sequencerGate = juce::jlimit(0.12f, 0.92f, mixFloat(a.sequencerGate, b.sequencerGate, morph));
-    target.sequencerProbOn = selectMorphBoolean(a.sequencerProbOn, b.sequencerProbOn, morph);
-    target.sequencerJitterOn = selectMorphBoolean(a.sequencerJitterOn, b.sequencerJitterOn, morph);
-    target.oscWaveIndex = juce::jlimit(0, 2, mixInt(a.oscWaveIndex, b.oscWaveIndex, morph));
-    target.masterCompressor = juce::jlimit(0.0f, 1.0f, mixFloat(a.masterCompressor, b.masterCompressor, morph));
-    target.masterMix = juce::jlimit(0.0f, 1.0f, mixFloat(a.masterMix, b.masterMix, morph));
-    target.monoMaker = selectMorphBoolean(a.monoMaker, b.monoMaker, morph);
-    target.monoMakerFreqHz = juce::jlimit(42.0f, 220.0f, mixFloat(a.monoMakerFreqHz, b.monoMakerFreqHz, morph));
-    target.evolution = juce::jlimit(0.0f, 1.0f, mixFloat(a.evolution, b.evolution, morph));
-    target.rhythmProfile = morphPromptRhythmProfiles(a.rhythmProfile, b.rhythmProfile, morph);
-    target.summary = buildPromptMorphSummary(a, b, morph);
-    return target;
-}
+    // --- Modularized Prompt & Mutation Logic ---
+    // The previous monolithic block of prompt analysis, generation, and 
+    // mutation logic has been migrated to RootFlowMutation.h/cpp.
 
 bool presetNameContainsAny(juce::String name, std::initializer_list<const char*> needles)
 {
@@ -2187,40 +627,40 @@ bool presetNameContainsAny(juce::String name, std::initializer_list<const char*>
     return false;
 }
 
-FactoryPresetMasterSettings getFactoryPresetMasterSettings(int index, const FactoryPreset& preset) noexcept
+FactoryPresetMasterSettings getFactoryPresetMasterSettings(int index, const RootFlow::FactoryPreset& preset) noexcept
 {
     const auto name = juce::String(preset.name).trim();
     const auto& values = preset.values;
 
-    const float rootWeight = (values[0] + values[1] + values[2]) / 3.0f;
+    const float coreWeight = (values[0] + values[1] + values[2]) / 3.0f;
     const float motionWeight = (values[6] + values[7] + values[8]) / 3.0f;
-    const float airWeight = (values[9] + values[10] + values[15]) / 3.0f;
+    const float spectralWeight = (values[9] + values[10] + values[15]) / 3.0f;
     const float fxWeight = (values[12] + values[13] + values[14]) / 3.0f;
     const float instability = values[11];
 
     FactoryPresetMasterSettings settings;
     settings.compressor = juce::jlimit(0.05f, 0.58f,
                                        0.06f
-                                       + rootWeight * 0.14f
+                                       + coreWeight * 0.14f
                                        + motionWeight * 0.10f
                                        + instability * 0.20f
                                        + fxWeight * 0.05f);
 
     settings.mix = juce::jlimit(0.76f, 1.0f,
                                 0.90f
-                                + airWeight * 0.07f
+                                + spectralWeight * 0.07f
                                 + fxWeight * 0.06f
-                                - rootWeight * 0.08f
+                                - coreWeight * 0.08f
                                 - instability * 0.05f);
 
     settings.monoFreqHz = juce::jlimit(42.0f, 220.0f,
                                        52.0f
-                                       + rootWeight * 90.0f
+                                       + coreWeight * 90.0f
                                        + motionWeight * 28.0f
                                        + instability * 18.0f);
 
-    settings.mono = rootWeight > 0.76f
-                 || ((index >= 17 && index <= 22) && rootWeight > 0.56f)
+    settings.mono = coreWeight > 0.76f
+                 || ((index >= 17 && index <= 22) && coreWeight > 0.56f)
                  || (index >= 61 && index <= 65)
                  || presetNameContainsAny(name, { "ROOT", "MYCEL", "CAVE", "LOAM", "HUMUS", "TRUFFLE", "SAGUARO", "CAVITATION" });
 
@@ -2279,7 +719,7 @@ float shapeAtmosphereResponse(float value) noexcept
 }
 
 float applySeasonalFxScale(float base,
-                           const SeasonMorph& seasonMorph,
+                           const RootFlowDSP::SeasonMorph& seasonMorph,
                            float springScale,
                            float summerScale,
                            float autumnScale,
@@ -2324,7 +764,7 @@ RootFlowAudioProcessor::RootFlowAudioProcessor()
     resetMidiExpressionState();
     resetToDefaultMpkMiniMappings();
 
-    // Default Bio-Sequencer Pattern
+    // Default Matrix-Sequencer Pattern
     for (int i = 0; i < 16; ++i)
     {
         sequencerSteps[i].active = (i % 2 == 0); // Trigger every other step
@@ -2359,22 +799,22 @@ juce::AudioProcessorValueTreeState::ParameterLayout RootFlowAudioProcessor::crea
         params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID(id, 1), name, 0.0f, 1.0f, defaultVal));
     };
 
-    addParam("rootDepth", "Root Depth", 0.5f);
-    addParam("rootSoil", "Root Soil", 0.5f);
-    addParam("rootAnchor", "Root Anchor", 0.5f);
-    addParam("sapFlow", "Sap Flow", 0.5f);
-    addParam("sapVitality", "Sap Vitality", 0.5f);
-    addParam("sapTexture", "Sap Texture", 0.5f);
-    addParam("pulseRate", "Pulse Rate", 0.5f);
-    addParam("pulseBreath", "Pulse Breath", 0.5f);
-    addParam("pulseGrowth", "Pulse Growth", 0.5f);
-    addParam("canopy", "Canopy", 0.65f);
-    addParam("atmosphere", "Atmosphere", 0.18f);
+    addParam("sourceDepth", "Source Depth", 0.5f);
+    addParam("sourceCore", "Source Core", 0.5f);
+    addParam("sourceAnchor", "Source Anchor", 0.5f);
+    addParam("flowRate", "Flow Rate", 0.5f);
+    addParam("flowEnergy", "Flow Energy", 0.5f);
+    addParam("flowTexture", "Flow Texture", 0.5f);
+    addParam("pulseFrequency", "Pulse Frequency", 0.5f);
+    addParam("pulseWidth", "Pulse Width", 0.5f);
+    addParam("pulseEnergy", "Pulse Energy", 0.5f);
+    addParam("fieldComplexity", "Field Complexity", 0.65f);
+    addParam("fieldDepth", "Field Depth", 0.18f);
     addParam("instability", "Instability", 0.28f);
-    addParam("bloom", "Bloom Glow", 0.0f);
-    addParam("rain", "Rain Density", 0.0f);
-    addParam("sun", "Sun Flare", 0.0f);
-    addParam("ecoSystem", "Seasons", 0.34f);
+    addParam("radiance", "Radiance Flux", 0.0f);
+    addParam("charge", "Charge Intake", 0.0f);
+    addParam("discharge", "Discharge Pulse", 0.0f);
+    addParam("systemMatrix", "System Matrix", 0.34f);
 
     // Bio-Sequencer
     params.push_back(std::make_unique<juce::AudioParameterBool>(juce::ParameterID("sequencerOn", 1), "Sequencer On", false));
@@ -2482,9 +922,9 @@ void RootFlowAudioProcessor::prepareEffects(double safeSampleRate, int safeBlock
     fxSpec.maximumBlockSize = (juce::uint32) safeBlockSize;
     fxSpec.numChannels = (juce::uint32) numChannels;
 
-    bloom.prepare(fxSpec);
-    rain.prepare(fxSpec);
-    sun.prepare(fxSpec);
+    resonance.prepare(fxSpec);
+    field.prepare(fxSpec);
+    radiance.prepare(fxSpec);
 
     juce::dsp::ProcessSpec monoSpec { safeSampleRate, (juce::uint32) safeBlockSize, 1 };
     for (auto& filter : masterToneFilters)
@@ -2603,26 +1043,24 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
 juce::StringArray RootFlowAudioProcessor::getFactoryPresetNames() const
 {
     juce::StringArray names;
-    for (const auto& preset : factoryPresets)
+    for (const auto& preset : RootFlow::factoryPresets)
         names.add(preset.name);
-
     return names;
 }
 
-std::vector<RootFlowAudioProcessor::PresetMenuSection> RootFlowAudioProcessor::getFactoryPresetMenuSections() const
+juce::StringArray RootFlowAudioProcessor::getFactoryPresetSections() const
 {
-    std::vector<PresetMenuSection> sections;
-    sections.reserve(factoryPresetSections.size());
-
-    for (const auto& section : factoryPresetSections)
-        sections.push_back({ juce::String(section.title), section.startIndex, section.count });
-
+    juce::StringArray sections;
+    
+    for (const auto& section : RootFlow::factoryPresetSections)
+        sections.add(section.title);
+        
     return sections;
 }
 
-int RootFlowAudioProcessor::getFactoryPresetCount() const noexcept
+int RootFlowAudioProcessor::getNumFactoryPresets() const
 {
-    return (int) factoryPresets.size();
+    return (int) RootFlow::factoryPresets.size();
 }
 
 juce::StringArray RootFlowAudioProcessor::getCombinedPresetNames() const
@@ -2636,10 +1074,9 @@ juce::StringArray RootFlowAudioProcessor::getCombinedPresetNames() const
     return names;
 }
 
-int RootFlowAudioProcessor::getCombinedPresetCount() const noexcept
+int RootFlowAudioProcessor::getNumPresets() const
 {
-    const juce::ScopedLock lock(presetStateLock);
-    return (int) factoryPresets.size() + (int) userPresets.size();
+    return (int) RootFlow::factoryPresets.size() + (int) userPresets.size();
 }
 
 int RootFlowAudioProcessor::getCurrentPresetMenuIndex() const noexcept
@@ -2650,9 +1087,9 @@ int RootFlowAudioProcessor::getCurrentPresetMenuIndex() const noexcept
 
     const int userPresetIndex = currentUserPresetIndex.load(std::memory_order_relaxed);
     if (userPresetIndex >= 0)
-        return (int) factoryPresets.size() + userPresetIndex;
-
-    return -1;
+    {
+        return (int) RootFlow::factoryPresets.size() + userPresetIndex;
+    } return -1;
 }
 
 RootFlowAudioProcessor::MutationMode RootFlowAudioProcessor::getCurrentMutationMode() const noexcept
@@ -2710,7 +1147,7 @@ void RootFlowAudioProcessor::applyPromptPatch(const juce::String& prompt)
     }
 
     bool recalled = false;
-    auto target = resolvePromptPatchTarget(trimmedPrompt, promptMemorySnapshot, &recalled);
+    auto target = RootFlow::resolvePromptPatchTarget(trimmedPrompt, promptMemorySnapshot, &recalled);
     const int currentGrowLockMask = growLockMask.load(std::memory_order_relaxed);
     applyGrowLocksToPromptTarget(target, currentGrowLockMask, tree);
 
@@ -2786,9 +1223,9 @@ void RootFlowAudioProcessor::applyPromptMorph(const juce::String& promptA,
 
     bool recalledA = false;
     bool recalledB = false;
-    const auto targetA = resolvePromptPatchTarget(trimmedA, promptMemorySnapshot, &recalledA);
-    const auto targetB = resolvePromptPatchTarget(trimmedB, promptMemorySnapshot, &recalledB);
-    auto target = morphPromptPatchTargets(targetA, targetB, morphAmount);
+    const auto targetA = RootFlow::resolvePromptPatchTarget(trimmedA, promptMemorySnapshot, &recalledA);
+    const auto targetB = RootFlow::resolvePromptPatchTarget(trimmedB, promptMemorySnapshot, &recalledB);
+    auto target = RootFlow::morphPromptPatchTargets(targetA, targetB, morphAmount);
     const int currentGrowLockMask = growLockMask.load(std::memory_order_relaxed);
     applyGrowLocksToPromptTarget(target, currentGrowLockMask, tree);
 
@@ -2887,7 +1324,7 @@ std::vector<RootFlowAudioProcessor::PromptMemoryPreview> RootFlowAudioProcessor:
                               int uses)
     {
         const auto trimmedPrompt = prompt.trim();
-        const auto normalizedPrompt = normalizePromptText(trimmedPrompt).trim();
+        const auto normalizedPrompt = RootFlow::normalizePromptText(trimmedPrompt).trim();
         if (trimmedPrompt.isEmpty() || normalizedPrompt.isEmpty() || normalizedPrompts.contains(normalizedPrompt))
             return;
 
@@ -2926,7 +1363,7 @@ std::vector<RootFlowAudioProcessor::PromptMemoryPreview> RootFlowAudioProcessor:
 bool RootFlowAudioProcessor::removePromptMemoryEntry(const juce::String& prompt)
 {
     const auto trimmedPrompt = prompt.trim();
-    const auto normalizedPrompt = normalizePromptText(trimmedPrompt).trim();
+    const auto normalizedPrompt = RootFlow::normalizePromptText(trimmedPrompt).trim();
     if (normalizedPrompt.isEmpty())
         return false;
 
@@ -2950,7 +1387,7 @@ bool RootFlowAudioProcessor::removePromptMemoryEntry(const juce::String& prompt)
 
     {
         const juce::ScopedLock lock(promptStateLock);
-        if (normalizePromptText(lastPromptSeed).trim() == normalizedPrompt)
+        if (RootFlow::normalizePromptText(lastPromptSeed).trim() == normalizedPrompt)
         {
             lastPromptSeed.clear();
             lastPromptSeedCanReinforce = false;
@@ -3004,10 +1441,10 @@ void RootFlowAudioProcessor::resetPromptRhythmState() noexcept
 
 void RootFlowAudioProcessor::applyFactoryPreset(int index)
 {
-    if (! juce::isPositiveAndBelow(index, (int) factoryPresets.size()))
+    if (! juce::isPositiveAndBelow(index, (int) RootFlow::factoryPresets.size()))
         return;
 
-    const auto& preset = factoryPresets[(size_t) index];
+    const auto& preset = RootFlow::factoryPresets[(size_t) index];
     const auto masterSettings = getFactoryPresetMasterSettings(index, preset);
     presetLoadInProgress.fetch_add(1, std::memory_order_acq_rel);
 
@@ -3016,9 +1453,9 @@ void RootFlowAudioProcessor::applyFactoryPreset(int index)
     juce::Random bioRng (juce::Time::getCurrentTime().toMilliseconds());
     const size_t numPresetValues = preset.values.size(); // 16
 
-    for (size_t i = 0; i < factoryPresetValueParameterIDs.size(); ++i)
+    for (size_t i = 0; i < RootFlow::factoryPresetValueParameterIDs.size(); ++i)
     {
-        if (auto* parameter = tree.getParameter(factoryPresetValueParameterIDs[i]))
+        if (auto* parameter = tree.getParameter(RootFlow::factoryPresetValueParameterIDs[i]))
         {
             const float base = (i < numPresetValues) ? preset.values[i] : 0.0f;
             const float jitter = (i < numPresetValues) ? (bioRng.nextFloat() * 0.02f - 0.01f) : 0.0f;
@@ -3064,7 +1501,7 @@ void RootFlowAudioProcessor::applyCombinedPreset(int menuIndex)
     if (menuIndex < 0)
         return;
 
-    const int factoryCount = (int) factoryPresets.size();
+    const int factoryCount = (int) RootFlow::factoryPresets.size();
     if (menuIndex < factoryCount)
     {
         applyFactoryPreset(menuIndex);
@@ -3081,10 +1518,19 @@ void RootFlowAudioProcessor::applyCombinedPreset(int menuIndex)
         userPresetState = userPresets[(size_t) userIndex].state.createCopy();
     }
 
+    migrateLegacyState(userPresetState);
+
+    const float preservedMasterVolume = tree.getParameter(presetGlobalOutputParameterID) != nullptr
+        ? tree.getParameter(presetGlobalOutputParameterID)->getValue()
+        : 0.0f;
+
     presetLoadInProgress.fetch_add(1, std::memory_order_acq_rel);
     tree.replaceState(userPresetState);
+    if (auto* parameter = tree.getParameter(presetGlobalOutputParameterID))
+        parameter->setValueNotifyingHost(preservedMasterVolume);
     presetLoadInProgress.fetch_sub(1, std::memory_order_acq_rel);
     restoreSequencerState(userPresetState);
+    restoreNodeSystemState(userPresetState);
     clearPendingMappedParameterChanges();
     currentFactoryPresetIndex.store(-1, std::memory_order_relaxed);
     currentUserPresetIndex.store(userIndex, std::memory_order_relaxed);
@@ -3148,6 +1594,30 @@ void RootFlowAudioProcessor::saveCurrentStateAsUserPreset()
     currentFactoryPresetIndex.store(-1, std::memory_order_relaxed);
     currentUserPresetIndex.store((int) userPresets.size() - 1, std::memory_order_relaxed);
     currentPresetDirty.store(0, std::memory_order_relaxed);
+}
+
+int RootFlowAudioProcessor::getCombinedPresetCount() const noexcept
+{
+    return getFactoryPresetCount() + (int) userPresets.size();
+}
+
+int RootFlowAudioProcessor::getFactoryPresetCount() const noexcept
+{
+    return (int) RootFlow::factoryPresets.size();
+}
+
+std::vector<RootFlowAudioProcessor::PresetMenuSection> RootFlowAudioProcessor::getFactoryPresetMenuSections() const
+{
+    std::vector<PresetMenuSection> sections;
+    for (const auto& def : RootFlow::factoryPresetSections)
+    {
+        PresetMenuSection section;
+        section.title = def.title;
+        section.startIndex = def.startIndex;
+        section.count = def.count;
+        sections.push_back(section);
+    }
+    return sections;
 }
 
 void RootFlowAudioProcessor::appendSequencerState(juce::ValueTree& state) const
@@ -3257,6 +1727,7 @@ void RootFlowAudioProcessor::restorePromptMemoryState(const juce::ValueTree& sta
             if (! entry.hasType(promptMemoryEntryTag))
                 continue;
 
+            migrateLegacyPromptMemoryEntry(entry);
             restoredEntries.push_back(entry.createCopy());
         }
     }
@@ -3318,6 +1789,7 @@ void RootFlowAudioProcessor::rememberPromptMemoryEntry(juce::ValueTree entry, fl
             break;
         }
 
+
         const float score = scorePromptMemoryEntryMatch(normalizedPrompt, promptTokens, existing);
         if (score > bestScore)
         {
@@ -3329,10 +1801,10 @@ void RootFlowAudioProcessor::rememberPromptMemoryEntry(juce::ValueTree entry, fl
     if (bestIndex >= 0 && bestScore >= 0.72f)
     {
         auto& existing = promptMemoryEntries[(size_t) bestIndex];
-        auto existingTarget = readPromptTargetFromMemoryEntry(existing);
-        const auto newTarget = readPromptTargetFromMemoryEntry(entry);
-        blendPromptPatchTargets(existingTarget, newTarget, juce::jlimit(0.18f, 0.86f, 0.20f + reinforcement * 0.24f));
-        writePromptTargetToMemoryEntry(existing, existingTarget);
+        auto existingTarget = RootFlow::readPromptTargetFromMemoryEntry(existing);
+        const auto newTarget = RootFlow::readPromptTargetFromMemoryEntry(entry);
+        RootFlow::blendPromptPatchTargets(existingTarget, newTarget, juce::jlimit(0.18f, 0.86f, 0.20f + reinforcement * 0.24f));
+        RootFlow::writePromptTargetToMemoryEntry(existing, existingTarget);
         existing.setProperty("prompt", entry.getProperty("prompt", {}), nullptr);
         existing.setProperty("normalized", normalizedPrompt, nullptr);
         existing.setProperty("tokens", entryTokens, nullptr);
@@ -3592,14 +2064,14 @@ void RootFlowAudioProcessor::resetToDefaultMpkMiniMappings()
         midiBindings.clear();
 
         const std::array<std::pair<int, const char*>, 8> defaultBindings {{
-            { 20, "rootDepth" },
-            { 21, "sapFlow" },
-            { 22, "sapVitality" },
-            { 23, "pulseBreath" },
-            { 24, "canopy" },
-            { 25, "bloom" },
-            { 26, "rain" },
-            { 27, "sun" }
+            { 20, "sourceDepth" },
+            { 21, "flowRate" },
+            { 22, "flowEnergy" },
+            { 23, "pulseWidth" },
+            { 24, "fieldComplexity" },
+            { 25, "radiance" },
+            { 26, "charge" },
+            { 27, "discharge" }
         }};
 
         for (const auto& binding : defaultBindings)
@@ -3666,7 +2138,7 @@ void RootFlowAudioProcessor::handleIncomingMidiMessages(juce::MidiBuffer& midiMe
                 int targetNode = note % (int)nodes.size();
                 nodes[targetNode].energy = juce::jmin(1.0f, nodes[targetNode].energy + velocity * 0.55f);
 
-                // Organic growth jitter – the node breathes from the hit
+                // Cybernetic pulse jitter – the node breathes from the hit
                 auto& rng = juce::Random::getSystemRandom();
                 nodes[targetNode].position.x = juce::jlimit(0.05f, 0.95f,
                     nodes[targetNode].position.x + (rng.nextFloat() - 0.5f) * 0.02f);
@@ -3823,31 +2295,7 @@ void RootFlowAudioProcessor::appendCustomState(juce::ValueTree& state) const
     userPresetsState.setProperty("currentUserPresetIndex", currentUserPresetIndex.load(std::memory_order_relaxed), nullptr);
     state.addChild(userPresetsState, -1, nullptr);
 
-    // Node System Serialization
-    juce::ValueTree nodeSystemState(nodeSystemTag);
-    {
-        const juce::ScopedLock nodeLock(nodeSystem.getLock());
-        auto& nodes = nodeSystem.getNodes();
-        for (int i = 0; i < (int) nodes.size(); ++i)
-        {
-            juce::ValueTree nState(nodeTag);
-            nState.setProperty("idx", i, nullptr);
-            nState.setProperty("x", nodes[i].position.x, nullptr);
-            nState.setProperty("y", nodes[i].position.y, nullptr);
-            nodeSystemState.addChild(nState, -1, nullptr);
-        }
-
-        auto& connections = nodeSystem.getConnections();
-        for (const auto& c : connections)
-        {
-            juce::ValueTree cState(connectionTag);
-            cState.setProperty("src", c.source, nullptr);
-            cState.setProperty("dst", c.target, nullptr);
-            cState.setProperty("amt", c.amount, nullptr);
-            nodeSystemState.addChild(cState, -1, nullptr);
-        }
-    }
-    state.addChild(nodeSystemState, -1, nullptr);
+    appendNodeSystemState(state);
 }
 
 void RootFlowAudioProcessor::restoreCustomState(const juce::ValueTree& state)
@@ -3954,39 +2402,7 @@ void RootFlowAudioProcessor::restoreCustomState(const juce::ValueTree& state)
         }
     }
 
-    // Node System Deserialization
-    if (auto nodeSystemState = state.getChildWithName(nodeSystemTag); nodeSystemState.isValid())
-    {
-        {
-            const juce::ScopedLock nodeLock(nodeSystem.getLock());
-            auto& nodes = nodeSystem.getNodes();
-            auto& connections = nodeSystem.getConnections();
-            connections.clear();
-
-            for (int i = 0; i < nodeSystemState.getNumChildren(); ++i)
-            {
-                auto child = nodeSystemState.getChild(i);
-                if (child.hasType(nodeTag))
-                {
-                    int idx = child.getProperty("idx");
-                    if (idx >= 0 && idx < (int) nodes.size())
-                    {
-                        nodes[idx].position.x = child.getProperty("x");
-                        nodes[idx].position.y = child.getProperty("y");
-                    }
-                }
-                else if (child.hasType(connectionTag))
-                {
-                    connections.push_back({
-                        (int) child.getProperty("src"),
-                        (int) child.getProperty("dst"),
-                        -1, // targetSlot (resolved below)
-                        (float) child.getProperty("amt")
-                    });
-                }
-            }
-        }
-    }
+    restoreNodeSystemState(state);
 
     clearPendingMappedParameterChanges();
     clearPendingMidiLearnBinding();
@@ -4022,9 +2438,12 @@ juce::ValueTree RootFlowAudioProcessor::captureStateForUserPreset()
 {
     auto state = tree.copyState();
     appendSequencerState(state);
+    appendNodeSystemState(state);
     if (auto child = state.getChildWithName(midiMappingStateTag); child.isValid())
         state.removeChild(child, nullptr);
     if (auto child = state.getChildWithName(midiBindingsTag); child.isValid())
+        state.removeChild(child, nullptr);
+    if (auto child = state.getChildWithName("CONNECTIONS"); child.isValid())
         state.removeChild(child, nullptr);
     if (auto child = state.getChildWithName(userPresetsTag); child.isValid())
         state.removeChild(child, nullptr);
@@ -4042,7 +2461,100 @@ juce::ValueTree RootFlowAudioProcessor::captureStateForUserPreset()
     return state;
 }
 
+void RootFlowAudioProcessor::appendNodeSystemState(juce::ValueTree& state) const
+{
+    if (auto existing = state.getChildWithName(nodeSystemTag); existing.isValid())
+        state.removeChild(existing, nullptr);
+
+    juce::ValueTree nodeSystemState(nodeSystemTag);
+    {
+        const juce::ScopedLock nodeLock(nodeSystem.getLock());
+        const auto& nodes = nodeSystem.getNodes();
+        for (int i = 0; i < (int) nodes.size(); ++i)
+        {
+            juce::ValueTree nState(nodeTag);
+            nState.setProperty("idx", i, nullptr);
+            nState.setProperty("x", nodes[(size_t) i].position.x, nullptr);
+            nState.setProperty("y", nodes[(size_t) i].position.y, nullptr);
+            nodeSystemState.addChild(nState, -1, nullptr);
+        }
+
+        const auto& connections = nodeSystem.getConnections();
+        for (const auto& c : connections)
+        {
+            juce::ValueTree cState(connectionTag);
+            cState.setProperty("src", c.source, nullptr);
+            cState.setProperty("dst", c.target, nullptr);
+            cState.setProperty("amt", c.amount, nullptr);
+            cState.setProperty("h", c.health, nullptr);
+            cState.setProperty("p", c.isPersistent, nullptr);
+            nodeSystemState.addChild(cState, -1, nullptr);
+        }
+    }
+
+    state.addChild(nodeSystemState, -1, nullptr);
+}
+
+void RootFlowAudioProcessor::restoreNodeSystemState(const juce::ValueTree& state)
+{
+    auto nodeSystemState = state.getChildWithName(nodeSystemTag);
+    if (! nodeSystemState.isValid())
+        return;
+
+    const juce::ScopedLock nodeLock(nodeSystem.getLock());
+    auto& nodes = nodeSystem.getNodes();
+    auto& connections = nodeSystem.getConnections();
+
+    for (auto& node : nodes)
+        node.slotIndex = getMappedParameterSlotForID(node.paramID);
+
+    connections.clear();
+
+    for (int i = 0; i < nodeSystemState.getNumChildren(); ++i)
+    {
+        auto child = nodeSystemState.getChild(i);
+        if (child.hasType(nodeTag))
+        {
+            const int idx = child.getProperty("idx");
+            if (! juce::isPositiveAndBelow(idx, (int) nodes.size()))
+                continue;
+
+            nodes[(size_t) idx].position.x = child.getProperty("x", nodes[(size_t) idx].position.x);
+            nodes[(size_t) idx].position.y = child.getProperty("y", nodes[(size_t) idx].position.y);
+            continue;
+        }
+
+        if (! child.hasType(connectionTag))
+            continue;
+
+        NodeConnection connection;
+        connection.source = child.getProperty("src", -1);
+        connection.target = child.getProperty("dst", -1);
+        connection.amount = child.getProperty("amt", 0.5f);
+        connection.health = child.getProperty("h", 1.0f);
+        connection.isPersistent = child.getProperty("p", false);
+        connection.targetSlot = juce::isPositiveAndBelow(connection.target, (int) nodes.size())
+            ? nodes[(size_t) connection.target].slotIndex
+            : -1;
+
+        for (int particleIndex = 0; particleIndex < 4; ++particleIndex)
+        {
+            FlowParticle particle;
+            particle.t = juce::Random::getSystemRandom().nextFloat();
+            particle.speed = 0.1f + juce::Random::getSystemRandom().nextFloat() * 0.3f;
+            connection.particles.push_back(particle);
+        }
+
+        connections.push_back(std::move(connection));
+    }
+}
+
 void RootFlowAudioProcessor::markSequencerStateDirty() noexcept
+{
+    currentPresetDirty.store(1, std::memory_order_relaxed);
+}
+
+void RootFlowAudioProcessor::markNodeSystemStateDirty() noexcept
 {
     currentPresetDirty.store(1, std::memory_order_relaxed);
 }
@@ -4205,9 +2717,9 @@ void RootFlowAudioProcessor::pushNextSampleIntoFifo(float sample) noexcept
     fifo[fifoIndex++] = sample;
 }
 
-float RootFlowAudioProcessor::getPlantEnergy() const
+float RootFlowAudioProcessor::getSystemEnergy() const
 {
-    return lastPlantEnergy.load(std::memory_order_relaxed);
+    return lastSystemEnergy.load(std::memory_order_relaxed);
 }
 
 void RootFlowAudioProcessor::setTestToneEnabled(bool shouldEnable) noexcept
@@ -4296,8 +2808,8 @@ void RootFlowAudioProcessor::performPendingProcessingStateReset() noexcept
     const int safeBlockSize = juce::jmax(getBlockSize(), 1);
 
     modulation.prepare(safeSampleRate, safeBlockSize);
-    currentBioFeedback = {};
-    lastPlantEnergy.store(0.0f, std::memory_order_relaxed);
+    currentSystemFeedback = {};
+    lastSystemEnergy.store(0.0f, std::memory_order_relaxed);
 
     for (int i = 0; i < synth.getNumVoices(); ++i)
     {
@@ -4309,9 +2821,9 @@ void RootFlowAudioProcessor::performPendingProcessingStateReset() noexcept
         }
     }
 
-    bloom.reset();
-    rain.reset();
-    sun.reset();
+    resonance.reset();
+    field.reset();
+    radiance.reset();
 
     for (auto& filter : masterToneFilters)
     {
@@ -4404,6 +2916,7 @@ void RootFlowAudioProcessor::setStateInformation (const void* data, int sizeInBy
         if (xmlState->hasTagName (tree.state.getType()))
         {
             auto restoredState = juce::ValueTree::fromXml(*xmlState);
+            migrateLegacyState(restoredState);
             restoreCustomState(restoredState);
             
             // Restore Node System connections
@@ -4614,12 +3127,12 @@ void RootFlowAudioProcessor::updateSequencer(int numSamples, juce::MidiBuffer& m
     const int stepsChoice = (int) *tree.getRawParameterValue("sequencerSteps");
     const int numSteps = juce::jlimit(1, (int) stepSnapshot.size(), stepsChoice);
     const float gateParam = *tree.getRawParameterValue("sequencerGate");
-    const float energy = currentBioFeedback.plantEnergy;
+    const float energy = currentSystemFeedback.systemEnergy;
 
     double speedMod = 0.95 + (energy * 0.1);
 
-    if (isRealBotanicsPreset())
-        speedMod *= (1.0 + (botanicsRng.nextFloat() - 0.5) * 0.035);
+    if (isRealRootFlowPreset())
+        speedMod *= (1.0 + (systemRng.nextFloat() - 0.5) * 0.035);
 
     double bpm = 120.0;
     if (auto* playHead = getPlayHead())
@@ -4711,7 +3224,7 @@ void RootFlowAudioProcessor::updateSequencer(int numSamples, juce::MidiBuffer& m
     }
 }
 
-bool RootFlowAudioProcessor::isRealBotanicsPreset() const noexcept
+bool RootFlowAudioProcessor::isRealRootFlowPreset() const noexcept
 {
     const int idx = currentFactoryPresetIndex.load(std::memory_order_relaxed);
     return (idx >= 80 && idx <= 85);
@@ -4749,7 +3262,7 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
     return new RootFlowAudioProcessor();
 }
 
-void RootFlowAudioProcessor::mutatePlant()
+void RootFlowAudioProcessor::mutateSystem()
 {
     auto& r = juce::Random::getSystemRandom();
     const auto mode = getCurrentMutationMode();
@@ -4764,17 +3277,17 @@ void RootFlowAudioProcessor::mutatePlant()
         if (param == nullptr)
             continue;
 
-        const auto lane = getMutationLane(paramID);
-        const float laneScale = getLaneScale(lane, mode, context, profile);
+        const int lane = RootFlow::getMutationLane(paramID);
+        const float laneScale = RootFlow::getLaneScale(lane, mode, context);
         if (laneScale <= 0.0f)
             continue;
 
         const float previousValue = param->getValue();
 
-        if (isDiscreteMutationParameter(paramID))
-            mutateDiscreteParameter(*param, paramID, r, profile, laneScale);
+        if (RootFlow::isDiscreteMutationParameter(paramID))
+            RootFlow::mutateDiscreteParameter(*param, paramID, r, mode, laneScale);
         else
-            mutateContinuousParameter(*param, paramID, r, lane, context, profile, laneScale);
+            RootFlow::mutateContinuousParameter(*param, paramID, r, lane, context, mode, laneScale);
 
         mutatedAnyParameter = mutatedAnyParameter || previousValue != param->getValue();
     }
@@ -4815,7 +3328,7 @@ void RootFlowAudioProcessor::mutatePlant()
     if (mutatedAnyParameter)
         currentPresetDirty.store(1, std::memory_order_relaxed);
 
-    // Trigger a visual energy pulse through the neural mycelium.
+    // Trigger a visual energy pulse through the neural matrix.
     sequencerTriggered.store(true);
 }
 
@@ -4883,22 +3396,22 @@ void RootFlowAudioProcessor::renderSynthAndVoices(juce::AudioBuffer<float>& proc
     const float evolutionDecay  = juce::jlimit(0.0f, 1.0f, (evolution - 0.70f) / 0.30f);
 
     std::array<float, 16> baseValues {{
-        *tree.getRawParameterValue("rootDepth"),
-        *tree.getRawParameterValue("rootSoil"),
-        *tree.getRawParameterValue("rootAnchor"),
-        *tree.getRawParameterValue("sapFlow"),
-        *tree.getRawParameterValue("sapVitality"),
-        *tree.getRawParameterValue("sapTexture"),
-        *tree.getRawParameterValue("pulseRate"),
-        *tree.getRawParameterValue("pulseBreath"),
-        *tree.getRawParameterValue("pulseGrowth"),
-        *tree.getRawParameterValue("canopy"),
-        *tree.getRawParameterValue("atmosphere"),
+        *tree.getRawParameterValue("sourceDepth"),
+        *tree.getRawParameterValue("sourceCore"),
+        *tree.getRawParameterValue("sourceAnchor"),
+        *tree.getRawParameterValue("flowRate"),
+        *tree.getRawParameterValue("flowEnergy"),
+        *tree.getRawParameterValue("flowTexture"),
+        *tree.getRawParameterValue("pulseFrequency"),
+        *tree.getRawParameterValue("pulseWidth"),
+        *tree.getRawParameterValue("pulseEnergy"),
+        *tree.getRawParameterValue("fieldComplexity"),
+        *tree.getRawParameterValue("fieldDepth"),
         *tree.getRawParameterValue("instability"),
-        *tree.getRawParameterValue("bloom"),
-        *tree.getRawParameterValue("rain"),
-        *tree.getRawParameterValue("sun"),
-        *tree.getRawParameterValue("ecoSystem")
+        *tree.getRawParameterValue("radiance"),
+        *tree.getRawParameterValue("charge"),
+        *tree.getRawParameterValue("discharge"),
+        *tree.getRawParameterValue("systemMatrix")
     }};
 
     // --- EVOLUTION MACRO MORPHING ---
@@ -4931,48 +3444,48 @@ void RootFlowAudioProcessor::renderSynthAndVoices(juce::AudioBuffer<float>& proc
 
     auto getBlockModulatedValue = [&](size_t index) { return juce::jlimit(0.0f, 1.0f, baseValues[index] + modulationValues[index]); };
 
-    const float seasonMacro = getBlockModulatedValue(15);
-    const auto seasonMorph = getSeasonMorph(seasonMacro);
+    const float systemMatrix = getBlockModulatedValue(15);
+    const auto seasonMorph = RootFlowDSP::getSeasonMorph(systemMatrix);
     auto seasonBlend = [&](float base, float springOffset, float summerOffset, float autumnOffset, float winterOffset) {
         return juce::jlimit(0.0f, 1.0f, base + seasonMorph.spring * springOffset + seasonMorph.summer * summerOffset + seasonMorph.autumn * autumnOffset + seasonMorph.winter * winterOffset);
     };
 
-    const float rootDepth = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(0), 0.22f, 0.12f, 0.18f, -0.32f), 0.015f);
-    const float rootSoil = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(1), -0.12f, -0.04f, 0.44f, 0.18f), 0.018f);
-    const float rootAnchor = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(2), -0.42f, -0.15f, 0.24f, 0.48f), 0.012f);
-    const float sapFlow = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(3), 0.28f, 0.24f, 0.04f, -0.32f), 0.12f);
-    const float sapVitality = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(4), 0.44f, 0.28f, -0.12f, -0.44f), 0.10f);
-    const float sapTexture = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(5), -0.05f, 0.12f, 0.48f, 0.22f), 0.08f);
-    const float pulseRate = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(6), 0.48f, 0.18f, -0.22f, -0.44f), 0.008f);
-    const float pulseBreath = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(7), -0.24f, -0.08f, 0.36f, 0.24f), 0.012f);
-    const float pulseGrowth = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(8), 0.48f, 0.14f, -0.12f, -0.44f), 0.008f);
-    const float canopy = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(9), 0.12f, 0.22f, -0.04f, -0.32f), 0.09f);
+    const float sourceDepth = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(0), 0.22f, 0.12f, 0.18f, -0.32f), 0.015f);
+    const float sourceCore = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(1), -0.12f, -0.04f, 0.44f, 0.18f), 0.018f);
+    const float sourceAnchor = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(2), -0.42f, -0.15f, 0.24f, 0.48f), 0.012f);
+    const float flowRate = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(3), 0.28f, 0.24f, 0.04f, -0.32f), 0.12f);
+    const float flowEnergy = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(4), 0.44f, 0.28f, -0.12f, -0.44f), 0.10f);
+    const float flowTexture = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(5), -0.05f, 0.12f, 0.48f, 0.22f), 0.08f);
+    const float pulseFrequency = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(6), 0.48f, 0.18f, -0.22f, -0.44f), 0.008f);
+    const float pulseWidth = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(7), -0.24f, -0.08f, 0.36f, 0.24f), 0.012f);
+    const float pulseEnergy = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(8), 0.48f, 0.14f, -0.12f, -0.44f), 0.008f);
+    const float fieldComplexity = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(9), 0.12f, 0.22f, -0.04f, -0.32f), 0.09f);
     const float instabilityAmount = emphasizeMacroResponse(seasonBlend(getBlockModulatedValue(11), 0.05f, 0.12f, 0.22f, -0.14f), 0.025f);
-    const float bloomAmount = applySeasonalFxScale(getBlockModulatedValue(12), seasonMorph, 0.22f, 0.14f, -0.10f, -0.22f, 0.65f);
-    const float rainAmount = applySeasonalFxScale(getBlockModulatedValue(13), seasonMorph, 0.08f, -0.02f, 0.38f, 0.12f, 0.85f);
-    const float sunAmount = applySeasonalFxScale(getBlockModulatedValue(14), seasonMorph, 0.40f, 0.16f, 0.00f, -0.16f, 1.05f);
+    const float radianceAmount = applySeasonalFxScale(getBlockModulatedValue(12), seasonMorph, 0.22f, 0.14f, -0.10f, -0.22f, 0.65f);
+    const float chargeAmount   = applySeasonalFxScale(getBlockModulatedValue(13), seasonMorph, 0.08f, -0.02f, 0.38f, 0.12f, 0.85f);
+    const float dischargeAmount = applySeasonalFxScale(getBlockModulatedValue(14), seasonMorph, 0.40f, 0.16f, 0.00f, -0.16f, 1.05f);
 
     currentProcessingBlockState = {
-        seasonMacro,
-        rootDepth,
-        rootAnchor,
-        sapFlow,
-        sapVitality,
-        sapTexture,
-        pulseBreath,
-        canopy,
-        bloomAmount,
-        rainAmount,
-        sunAmount
+        .seasonMacro = systemMatrix,
+        .sourceDepth = sourceDepth,
+        sourceAnchor,
+        flowRate,
+        flowEnergy,
+        flowTexture,
+        pulseWidth,
+        fieldComplexity,
+        radianceAmount,
+        chargeAmount,
+        dischargeAmount
     };
 
     for (int i = 0; i < synth.getNumVoices(); ++i)
     {
         if (auto* voice = dynamic_cast<RootFlowVoice*>(synth.getVoice(i)))
         {
-            voice->setFlow(sapFlow); voice->setVitality(sapVitality); voice->setTexture(sapTexture);
-            voice->setDepth(rootDepth); voice->setGrowth(pulseGrowth); voice->setPulseRate(pulseRate);
-            voice->setPulseAmount(pulseBreath); voice->setCanopy(canopy); voice->setInstability(instabilityAmount);
+            voice->setFlow(flowRate); voice->setEnergy(flowEnergy); voice->setTexture(flowTexture);
+            voice->setDepth(sourceDepth); voice->setPulseEnergy(pulseEnergy); voice->setPulseFrequency(pulseFrequency);
+            voice->setPulseWidth(pulseWidth); voice->setFieldComplexity(fieldComplexity); voice->setInstability(instabilityAmount);
             voice->setWaveform((int)(*tree.getRawParameterValue("oscWave")));
         }
     }
@@ -4983,8 +3496,8 @@ void RootFlowAudioProcessor::renderSynthAndVoices(juce::AudioBuffer<float>& proc
         if (auto* voice = dynamic_cast<RootFlowVoice*>(synth.getVoice(i)))
         {
             int voiceVoices = 3; // Default internal unison
-            if (seasonMacro > 0.45f) voiceVoices = 6;
-            if (seasonMacro > 0.85f) voiceVoices = 8;
+            if (systemMatrix > 0.45f) voiceVoices = 6;
+            if (systemMatrix > 0.85f) voiceVoices = 8;
             voice->setUnison(voiceVoices);
         }
     }
@@ -5005,16 +3518,16 @@ void RootFlowAudioProcessor::renderSynthAndVoices(juce::AudioBuffer<float>& proc
     for (int channel = 0; channel < numChannels; ++channel)
         drySafetyBuffer.copyFrom(channel, 0, procBuffer, channel, 0, numSamples);
 
-    modulation.setParams(rootDepth, rootSoil, rootAnchor, sapFlow, sapVitality, sapTexture, pulseRate, pulseBreath, pulseGrowth);
+    modulation.setParams(sourceDepth, sourceCore, sourceAnchor, flowRate, flowEnergy, flowTexture, pulseFrequency, pulseWidth, pulseEnergy);
     modulation.update(procBuffer);
-    currentBioFeedback = modulation.getBioFeedbackSnapshot();
-    lastPlantEnergy.store(currentBioFeedback.plantEnergy, std::memory_order_relaxed);
+    currentSystemFeedback = modulation.getSystemFeedbackSnapshot();
+    lastSystemEnergy.store(currentSystemFeedback.systemEnergy, std::memory_order_relaxed);
 }
 
 void RootFlowAudioProcessor::applyGlobalFx(juce::AudioBuffer<float>& procBuffer)
 {
-    const float plantEnergy = currentBioFeedback.plantEnergy;
-    lastPlantEnergy.store(plantEnergy, std::memory_order_relaxed);
+    const float systemEnergy = currentSystemFeedback.systemEnergy;
+    lastSystemEnergy.store(systemEnergy, std::memory_order_relaxed);
 
     // --- BPM & BEAT SYNC ---
     double bpm = 120.0;
@@ -5039,19 +3552,19 @@ void RootFlowAudioProcessor::applyGlobalFx(juce::AudioBuffer<float>& procBuffer)
     }
 
     const auto blockState = currentProcessingBlockState;
-    const float ecoRaw = RootFlowDSP::clamp01(*tree.getRawParameterValue("ecoSystem"));
+    const float ecoRaw = RootFlowDSP::clamp01(*tree.getRawParameterValue("systemMatrix"));
     const float ecoMaster = std::pow(ecoRaw, 1.35f);
-    const auto seasonMorph = getSeasonMorph(blockState.seasonMacro);
-    const float fxEnergy = juce::jlimit(0.0f, 1.0f, plantEnergy * (0.46f + seasonMorph.spring * 0.06f + seasonMorph.summer * 0.12f + seasonMorph.autumn * 0.16f + seasonMorph.winter * 0.04f) + 0.01f) * ecoMaster;
+    const auto seasonMorph = RootFlowDSP::getSeasonMorph(blockState.seasonMacro);
+    const float fxEnergy = juce::jlimit(0.0f, 1.0f, systemEnergy * (0.46f + seasonMorph.spring * 0.06f + seasonMorph.summer * 0.12f + seasonMorph.autumn * 0.16f + seasonMorph.winter * 0.04f) + 0.01f) * ecoMaster;
 
-    bloom.setParams(blockState.bloomAmount * ecoMaster, fxEnergy, blockState.sapVitality, blockState.pulseBreath, blockState.canopy, blockState.rootAnchor);
-    bloom.process(procBuffer);
+    resonance.setParams(blockState.radianceAmount * ecoMaster, fxEnergy, blockState.flowEnergy, blockState.pulseWidth, blockState.fieldComplexity, blockState.sourceAnchor);
+    resonance.process(procBuffer);
 
-    rain.setParams(blockState.rainAmount * ecoMaster, fxEnergy, blockState.sapFlow, blockState.sapTexture, blockState.pulseBreath, blockState.canopy);
-    rain.process(procBuffer);
+    field.setParams(blockState.chargeAmount * ecoMaster, fxEnergy, blockState.flowRate, blockState.flowTexture, blockState.pulseWidth, blockState.fieldComplexity);
+    field.process(procBuffer);
 
-    sun.setParams(blockState.sunAmount * ecoMaster, fxEnergy, blockState.rootDepth, blockState.sapVitality, blockState.pulseBreath, blockState.canopy);
-    sun.process(procBuffer);
+    radiance.setParams(blockState.dischargeAmount * ecoMaster, fxEnergy, blockState.sourceDepth, blockState.flowEnergy, blockState.pulseWidth, blockState.fieldComplexity);
+    radiance.process(procBuffer);
 
     if (auto* mixParam = tree.getRawParameterValue("masterMix"))
         masterMixSmoothed.setTargetValue(mixParam->load());

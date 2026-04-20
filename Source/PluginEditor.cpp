@@ -271,9 +271,9 @@ juce::String makeUtilitySummaryText(bool hoverEffectsEnabled,
 {
     juce::StringArray parts;
     juce::StringArray locks;
-    if (audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::root))       locks.add("Root");
+    if (audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::core))       locks.add("Core");
     if (audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::motion))     locks.add("Move");
-    if (audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::air))        locks.add("Air");
+    if (audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::spectral))   locks.add("Spectral");
     if (audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::fx))         locks.add("FX");
     if (audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::sequencer))  locks.add("Seq");
 
@@ -347,35 +347,33 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
     mainLayout->setOpaque(false); // Let the Editor's backdrop shine through
     addAndMakeVisible(*mainLayout);
 
-    startTimerHz(30); // Global UI Animation Pulse
-
     // --- ACTUAL ATTACHMENTS FOR SUB-PANELS ---
-    auto& rp = mainLayout->getRootPanel();
-    rootDepthAtt  = std::make_unique<Attachment>(p.tree, "rootDepth", rp.getDepthSlider());
-    rootSoilAtt   = std::make_unique<Attachment>(p.tree, "rootSoil",  rp.getSoilSlider());
-    rootAnchorAtt = std::make_unique<Attachment>(p.tree, "rootAnchor", rp.getAnchorSlider());
+    auto& sp = mainLayout->getSourcePanel();
+    sourceDepthAtt  = std::make_unique<Attachment>(p.tree, "sourceDepth", sp.getDepthSlider());
+    sourceCoreAtt   = std::make_unique<Attachment>(p.tree, "sourceCore",  sp.getCoreSlider());
+    sourceAnchorAtt = std::make_unique<Attachment>(p.tree, "sourceAnchor", sp.getAnchorSlider());
 
     auto& pp = mainLayout->getPulsePanel();
-    pulseRateAtt   = std::make_unique<Attachment>(p.tree, "pulseRate",   pp.getRateSlider());
-    pulseBreathAtt = std::make_unique<Attachment>(p.tree, "pulseBreath", pp.getBreathSlider());
-    pulseGrowthAtt = std::make_unique<Attachment>(p.tree, "pulseGrowth", pp.getGrowthSlider());
+    pulseFrequencyAtt = std::make_unique<Attachment>(p.tree, "pulseFrequency", pp.getFrequencySlider());
+    pulseWidthAtt     = std::make_unique<Attachment>(p.tree, "pulseWidth",     pp.getWidthSlider());
+    pulseEnergyAtt    = std::make_unique<Attachment>(p.tree, "pulseEnergy",    pp.getEnergySlider());
 
     auto& cc = mainLayout->getCenterComponent();
-    sapFlowAtt      = std::make_unique<Attachment>(p.tree, "sapFlow",      cc.getFlowSlider());
-    sapVitalityAtt  = std::make_unique<Attachment>(p.tree, "sapVitality",  cc.getVitalitySlider());
-    sapTextureAtt   = std::make_unique<Attachment>(p.tree, "sapTexture",   cc.getTextureSlider());
-    canopyAtt       = std::make_unique<Attachment>(p.tree, "canopy",       cc.getCanopySlider());
-    instabilityAtt  = std::make_unique<Attachment>(p.tree, "instability",  cc.getInstabilitySlider());
-    atmosAtt        = std::make_unique<Attachment>(p.tree, "atmosphere",   cc.getAtmosSlider());
-    seasonsAtt      = std::make_unique<Attachment>(p.tree, "ecoSystem",    cc.getSeasonsSlider());
+    flowRateAtt       = std::make_unique<Attachment>(p.tree, "flowRate",      cc.getFlowSlider());
+    flowEnergyAtt     = std::make_unique<Attachment>(p.tree, "flowEnergy",  cc.getVitalitySlider());
+    flowTextureAtt    = std::make_unique<Attachment>(p.tree, "flowTexture",   cc.getTextureSlider());
+    fieldComplexityAtt = std::make_unique<Attachment>(p.tree, "fieldComplexity", cc.getCanopySlider());
+    instabilityAtt    = std::make_unique<Attachment>(p.tree, "instability",  cc.getInstabilitySlider());
+    fieldDepthAtt     = std::make_unique<Attachment>(p.tree, "fieldDepth",   cc.getAtmosSlider());
+    systemMatrixAtt   = std::make_unique<Attachment>(p.tree, "systemMatrix",    cc.getSeasonsSlider());
 
     // Connect the Visualizer to the Processor
     cc.getEnergyDisplay().setProcessor(&audioProcessor);
 
     auto& bp = mainLayout->getBottomPanel();
-    bloomAtt = std::make_unique<Attachment>(audioProcessor.tree, "bloom", bp.getBloomSlider());
-    rainAtt = std::make_unique<Attachment>(audioProcessor.tree, "rain", bp.getRainSlider());
-    sunAtt = std::make_unique<Attachment>(audioProcessor.tree, "sun", bp.getSunSlider());
+    radianceAtt = std::make_unique<Attachment>(audioProcessor.tree, "radiance", bp.getRadianceSlider());
+    chargeAtt = std::make_unique<Attachment>(audioProcessor.tree, "charge", bp.getChargeSlider());
+    dischargeAtt = std::make_unique<Attachment>(audioProcessor.tree, "discharge", bp.getDischargeSlider());
     evolutionAtt = std::make_unique<Attachment>(audioProcessor.tree, "evolution", cc.getEvolution());
 
     // --- GLOBAL HEADER UI ---
@@ -391,9 +389,9 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
     addAndMakeVisible(popupToggleButton);
     addAndMakeVisible(mutateModeButton);
     addAndMakeVisible(mutateButton);
-    addAndMakeVisible(growLockRootButton);
+    addAndMakeVisible(growLockCoreButton);
     addAndMakeVisible(growLockMotionButton);
-    addAndMakeVisible(growLockAirButton);
+    addAndMakeVisible(growLockSpectralButton);
     addAndMakeVisible(growLockFxButton);
     addAndMakeVisible(growLockSeqButton);
     addAndMakeVisible(promptEditor);
@@ -417,9 +415,9 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
     popupToggleButton.setButtonText("POPUP");
     mutateModeButton.setButtonText(audioProcessor.getMutationModeShortLabel());
     mutateButton.setButtonText("MUTATE");
-    growLockRootButton.setButtonText("ROOT");
-    growLockMotionButton.setButtonText("MOVE");
-    growLockAirButton.setButtonText("AIR");
+    growLockCoreButton.setButtonText("SOURCE");
+    growLockMotionButton.setButtonText("FLOW");
+    growLockSpectralButton.setButtonText("FIELD");
     growLockFxButton.setButtonText("FX");
     growLockSeqButton.setButtonText("SEQ");
     promptApplyButton.setButtonText("GROW");
@@ -429,9 +427,9 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
     hoverToggleButton.setClickingTogglesState(true);
     idleToggleButton.setClickingTogglesState(true);
     popupToggleButton.setClickingTogglesState(true);
-    growLockRootButton.setClickingTogglesState(true);
+    growLockCoreButton.setClickingTogglesState(true);
     growLockMotionButton.setClickingTogglesState(true);
-    growLockAirButton.setClickingTogglesState(true);
+    growLockSpectralButton.setClickingTogglesState(true);
     growLockFxButton.setClickingTogglesState(true);
     growLockSeqButton.setClickingTogglesState(true);
     hoverToggleButton.setToggleState(RootFlow::areHoverEffectsEnabled(), juce::dontSendNotification);
@@ -442,9 +440,9 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
     presetDeleteButton.setVisible(false);
     midiLearnButton.setVisible(false);
     mutateModeButton.setVisible(false);
-    growLockRootButton.setVisible(false);
+    growLockCoreButton.setVisible(false);
     growLockMotionButton.setVisible(false);
-    growLockAirButton.setVisible(false);
+    growLockSpectralButton.setVisible(false);
     growLockFxButton.setVisible(false);
     growLockSeqButton.setVisible(false);
     hoverToggleButton.setVisible(false);
@@ -483,10 +481,12 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
     promptMorphSlider.setDoubleClickReturnValue(true, 0.5);
     promptMorphSlider.setValue(0.5, juce::dontSendNotification);
     promptMorphSlider.setName("Prompt Morph");
-    promptMorphSlider.getProperties().set("rootflowStyle", "pod-horizontal");
+    promptMorphSlider.getProperties().set("rootflowStyle", "core-horizontal");
     promptMorphSlider.setTooltip("Blend between Seed A and Seed B");
     promptApplyButton.getProperties().set("rootflowStyle", "header-flat");
     promptApplyButton.setTooltip("Apply the current seed pair or use EDIT for style recipes");
+    mutateButton.getProperties().set("rootflowStyle", "cyber-core");
+    mutateButton.setTooltip("Reconfigure the system matrix based on current settings");
     for (size_t i = 0; i < seedMemoryButtons.size(); ++i)
     {
         auto& button = seedMemoryButtons[i];
@@ -563,10 +563,10 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
         repaint();
     };
 
-    growLockRootButton.onClick = [this]
+    growLockCoreButton.onClick = [this]
     {
-        audioProcessor.setGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::root,
-                                          growLockRootButton.getToggleState());
+        audioProcessor.setGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::core,
+                                          growLockCoreButton.getToggleState());
         refreshHeaderControlState();
         repaint();
     };
@@ -579,10 +579,10 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
         repaint();
     };
 
-    growLockAirButton.onClick = [this]
+    growLockSpectralButton.onClick = [this]
     {
-        audioProcessor.setGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::air,
-                                          growLockAirButton.getToggleState());
+        audioProcessor.setGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::spectral,
+                                          growLockSpectralButton.getToggleState());
         refreshHeaderControlState();
         repaint();
     };
@@ -642,8 +642,8 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
     }
 
     mutateButton.onClick = [this] {
-        audioProcessor.mutatePlant();
-        mainLayout->getCenterComponent().getEnergyDisplay().triggerSporeBurst();
+        audioProcessor.mutateSystem();
+        mainLayout->getCenterComponent().getEnergyDisplay().triggerCoreBurst();
         refreshHeaderControlState();
     };
 
@@ -656,9 +656,9 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
                                  static_cast<juce::Component*>(&utilityMenuButton),
                                  static_cast<juce::Component*>(&mutateModeButton),
                                  static_cast<juce::Component*>(&mutateButton),
-                                 static_cast<juce::Component*>(&growLockRootButton),
+                                 static_cast<juce::Component*>(&growLockCoreButton),
                                  static_cast<juce::Component*>(&growLockMotionButton),
-                                 static_cast<juce::Component*>(&growLockAirButton),
+                                 static_cast<juce::Component*>(&growLockSpectralButton),
                                  static_cast<juce::Component*>(&growLockFxButton),
                                  static_cast<juce::Component*>(&growLockSeqButton),
                                  static_cast<juce::Component*>(&promptEditor),
@@ -682,7 +682,7 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
     // Overlay MUST be added LAST so it sits on top of every other child in Z-order
     addAndMakeVisible(atmosphericOverlay);
 
-    startTimerHz(30); // Keep motion present without making the UI feel busy
+    startTimerHz(24); // Keep motion present without making the UI feel busy
 }
 
 RootFlowAudioProcessorEditor::~RootFlowAudioProcessorEditor()
@@ -696,9 +696,9 @@ RootFlowAudioProcessorEditor::~RootFlowAudioProcessorEditor()
                                  static_cast<juce::Component*>(&utilityMenuButton),
                                  static_cast<juce::Component*>(&mutateModeButton),
                                  static_cast<juce::Component*>(&mutateButton),
-                                 static_cast<juce::Component*>(&growLockRootButton),
+                                 static_cast<juce::Component*>(&growLockCoreButton),
                                  static_cast<juce::Component*>(&growLockMotionButton),
-                                 static_cast<juce::Component*>(&growLockAirButton),
+                                 static_cast<juce::Component*>(&growLockSpectralButton),
                                  static_cast<juce::Component*>(&growLockFxButton),
                                  static_cast<juce::Component*>(&growLockSeqButton),
                                  static_cast<juce::Component*>(&promptEditor),
@@ -753,9 +753,9 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
     const bool focusPreset = focusControl == &presetBox;
     const bool focusPatchMenu = focusControl == &patchMenuButton;
     const bool focusMutate = focusControl == &mutateButton;
-    const bool focusLockRoot = focusControl == &growLockRootButton;
+    const bool focusLockCore = focusControl == &growLockCoreButton;
     const bool focusLockMotion = focusControl == &growLockMotionButton;
-    const bool focusLockAir = focusControl == &growLockAirButton;
+    const bool focusLockSpectral = focusControl == &growLockSpectralButton;
     const bool focusLockFx = focusControl == &growLockFxButton;
     const bool focusLockSeq = focusControl == &growLockSeqButton;
     const bool focusPrompt = focusControl == &promptEditor;
@@ -766,9 +766,9 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
     const bool focusSeedMemoryB = focusControl == &seedMemoryButtons[1];
     const bool focusSeedMemoryC = focusControl == &seedMemoryButtons[2];
     const bool focusUtilityMenu = focusControl == &utilityMenuButton;
-    const bool anyGrowLockEnabled = audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::root)
+    const bool anyGrowLockEnabled = audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::core)
                                  || audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::motion)
-                                 || audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::air)
+                                 || audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::spectral)
                                  || audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::fx)
                                  || audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::sequencer);
     const bool focusLeftCluster = focusWave || focusOversampling || focusPreset || focusPatchMenu || focusMutate;
@@ -812,22 +812,22 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
         focusValue = audioProcessor.getMutationModeDisplayName() + " Mutation";
         focusTint = RootFlow::amber;
     }
-    else if (focusLockRoot)
+    else if (focusLockCore)
     {
-        focusSection = "Grow Lock";
-        focusValue = "Root / Low Body";
+        focusSection = "System Lock";
+        focusValue = "Core / Matrix";
         focusTint = RootFlow::accentSoft;
     }
     else if (focusLockMotion)
     {
-        focusSection = "Grow Lock";
+        focusSection = "System Lock";
         focusValue = "Motion / Pulse";
         focusTint = RootFlow::violet;
     }
-    else if (focusLockAir)
+    else if (focusLockSpectral)
     {
-        focusSection = "Grow Lock";
-        focusValue = "Air / Space";
+        focusSection = "System Lock";
+        focusValue = "Spectral / Space";
         focusTint = RootFlow::accent;
     }
     else if (focusLockFx)
@@ -1361,9 +1361,9 @@ void RootFlowAudioProcessorEditor::resized()
         promptEditor.setBounds({});
         morphPromptEditor.setBounds({});
         promptMorphSlider.setBounds({});
-        growLockRootButton.setBounds({});
+        growLockCoreButton.setBounds({});
         growLockMotionButton.setBounds({});
-        growLockAirButton.setBounds({});
+        growLockSpectralButton.setBounds({});
         growLockFxButton.setBounds({});
         growLockSeqButton.setBounds({});
         promptApplyButton.setBounds({});
@@ -1371,9 +1371,9 @@ void RootFlowAudioProcessorEditor::resized()
             seedMemoryButton.setBounds({});
     }
 
-    growLockRootButton.setBounds({});
+    growLockCoreButton.setBounds({});
     growLockMotionButton.setBounds({});
-    growLockAirButton.setBounds({});
+    growLockSpectralButton.setBounds({});
     growLockFxButton.setBounds({});
     growLockSeqButton.setBounds({});
 
@@ -1389,21 +1389,23 @@ void RootFlowAudioProcessorEditor::timerCallback()
 
     // Drive overlay from synth params
     float phase          = (mainLayout != nullptr) ? mainLayout->getPulsePhase() : 0.0f;
-    float atmosIntensity = *audioProcessor.tree.getRawParameterValue("atmosphere");
+    float atmosIntensity = mainLayout != nullptr
+        ? (float) mainLayout->getCenterComponent().getAtmosSlider().getValue()
+        : 0.0f;
 
     // MIDI-reactive bio-dust: grab latest velocity, smooth decay
     auto midiSnap = audioProcessor.getMidiActivitySnapshot();
     const bool midiActive = (midiSnap.type == RootFlowAudioProcessor::MidiActivitySnapshot::Type::note
                              && midiSnap.value > 0);
-    float rawVel = midiActive ? juce::jlimit(0.0f, 1.0f, (float) midiSnap.value / 127.0f) * 0.72f : 0.0f;
+    float rawVel = midiActive ? juce::jlimit(0.0f, 1.0f, (float) midiSnap.value / 127.0f) * 0.60f : 0.0f;
 
     // Smooth: 5-frame attack, ~60-frame decay (≈2 s at 30 Hz)
     if (rawVel > smoothedMidiVelocity)
         smoothedMidiVelocity = rawVel;                    // instant attack
     else
-        smoothedMidiVelocity *= 0.93f;                   // slightly shorter decay keeps the overlay calmer
+        smoothedMidiVelocity *= 0.90f;                   // slightly shorter decay keeps the overlay calmer
 
-    atmosIntensity *= 0.82f;
+    atmosIntensity *= 0.70f;
 
     atmosphericOverlay.setPhase(phase);
     atmosphericOverlay.setIntensity(atmosIntensity);
@@ -1426,7 +1428,7 @@ void RootFlowAudioProcessorEditor::applyPromptSeed()
         audioProcessor.applyPromptPatch({});
 
     if (mainLayout != nullptr)
-        mainLayout->getCenterComponent().getEnergyDisplay().triggerSporeBurst();
+        mainLayout->getCenterComponent().getEnergyDisplay().triggerCoreBurst();
 
     refreshHeaderControlState();
     repaint();
@@ -1539,7 +1541,7 @@ void RootFlowAudioProcessorEditor::showUtilityMenu()
     menu.addSectionHeader("Grow Locks");
     menu.addItem(toggleLockRoot, "Keep Root", true, audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::root));
     menu.addItem(toggleLockMotion, "Keep Motion", true, audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::motion));
-    menu.addItem(toggleLockAir, "Keep Air", true, audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::air));
+    menu.addItem(toggleLockAir, "Keep Air", true, audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::spectral));
     menu.addItem(toggleLockFx, "Keep FX", true, audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::fx));
     menu.addItem(toggleLockSeq, "Keep Sequencer", true, audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::sequencer));
     menu.addSeparator();
@@ -1564,7 +1566,7 @@ void RootFlowAudioProcessorEditor::showUtilityMenu()
         {
             case toggleLockRoot:   setGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::root, ! audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::root)); break;
             case toggleLockMotion: setGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::motion, ! audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::motion)); break;
-            case toggleLockAir:    setGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::air, ! audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::air)); break;
+            case toggleLockAir:    setGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::spectral, ! audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::spectral)); break;
             case toggleLockFx:     setGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::fx, ! audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::fx)); break;
             case toggleLockSeq:    setGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::sequencer, ! audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::sequencer)); break;
             case toggleMidiLearn:  setMidiLearnEnabled(! audioProcessor.isMidiLearnArmed()); break;
@@ -1638,9 +1640,9 @@ void RootFlowAudioProcessorEditor::setGrowLockEnabled(RootFlowAudioProcessor::Gr
 
     switch (group)
     {
-        case RootFlowAudioProcessor::GrowLockGroup::root:      growLockRootButton.setToggleState(enabled, juce::dontSendNotification); break;
+        case RootFlowAudioProcessor::GrowLockGroup::core:      growLockCoreButton.setToggleState(enabled, juce::dontSendNotification); break;
         case RootFlowAudioProcessor::GrowLockGroup::motion:    growLockMotionButton.setToggleState(enabled, juce::dontSendNotification); break;
-        case RootFlowAudioProcessor::GrowLockGroup::air:       growLockAirButton.setToggleState(enabled, juce::dontSendNotification); break;
+        case RootFlowAudioProcessor::GrowLockGroup::spectral:  growLockSpectralButton.setToggleState(enabled, juce::dontSendNotification); break;
         case RootFlowAudioProcessor::GrowLockGroup::fx:        growLockFxButton.setToggleState(enabled, juce::dontSendNotification); break;
         case RootFlowAudioProcessor::GrowLockGroup::sequencer: growLockSeqButton.setToggleState(enabled, juce::dontSendNotification); break;
     }
@@ -1762,7 +1764,7 @@ void RootFlowAudioProcessorEditor::refreshHeaderControlState()
     const bool popupEnabled = RootFlow::arePopupOverlaysEnabled();
     const bool anyGrowLockEnabled = audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::root)
                                  || audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::motion)
-                                 || audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::air)
+                                 || audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::spectral)
                                  || audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::fx)
                                  || audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::sequencer);
 
@@ -1771,9 +1773,9 @@ void RootFlowAudioProcessorEditor::refreshHeaderControlState()
     hoverToggleButton.setToggleState(hoverEnabled, juce::dontSendNotification);
     idleToggleButton.setToggleState(idleEnabled, juce::dontSendNotification);
     popupToggleButton.setToggleState(popupEnabled, juce::dontSendNotification);
-    growLockRootButton.setToggleState(audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::root), juce::dontSendNotification);
+    growLockCoreButton.setToggleState(audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::core), juce::dontSendNotification);
     growLockMotionButton.setToggleState(audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::motion), juce::dontSendNotification);
-    growLockAirButton.setToggleState(audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::air), juce::dontSendNotification);
+    growLockSpectralButton.setToggleState(audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::spectral), juce::dontSendNotification);
     growLockFxButton.setToggleState(audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::fx), juce::dontSendNotification);
     growLockSeqButton.setToggleState(audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::sequencer), juce::dontSendNotification);
     midiLearnButton.setButtonText(learnArmed ? "ARM" : "MAP");
@@ -1865,7 +1867,7 @@ void RootFlowAudioProcessorEditor::updateAnimationTimerState()
     if (isShowing())
     {
         if (! isTimerRunning())
-            startTimerHz(30);
+            startTimerHz(24);
     }
     else
     {

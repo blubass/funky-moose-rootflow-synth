@@ -5,7 +5,7 @@
 #include <vector>
 #include "UI/Utils/DesignTokens.h"
 
-class PlantEnergyVisualizer : public juce::Component, public juce::Timer
+class MatrixEnergyVisualizer : public juce::Component, public juce::Timer
 {
 private:
     static constexpr int historySize = 144;
@@ -14,24 +14,24 @@ private:
 public:
     struct VisualizerState
     {
-        float plantEnergy = 0.0f;
+        float systemEnergy = 0.0f;
         float audioEnergy = 0.0f;
-        float rootDepth = 0.5f;
-        float rootSoil = 0.5f;
-        float rootAnchor = 0.5f;
-        float sapFlow = 0.5f;
-        float sapVitality = 0.5f;
-        float sapTexture = 0.5f;
-        float pulseRate = 0.5f;
-        float pulseBreath = 0.5f;
-        float pulseGrowth = 0.5f;
-        float canopy = 0.5f;
-        float atmosphere = 0.5f;
+        float sourceDepth = 0.5f;
+        float sourceCore = 0.5f;
+        float sourceAnchor = 0.5f;
+        float flowRate = 0.5f;
+        float flowEnergy = 0.5f;
+        float flowTexture = 0.5f;
+        float pulseFrequency = 0.5f;
+        float pulseWidth = 0.5f;
+        float pulseEnergy = 0.5f;
+        float fieldComplexity = 0.5f;
+        float fieldDepth = 0.5f;
         float instability = 0.5f;
-        float bloom = 0.0f;
-        float rain = 0.0f;
-        float sun = 0.0f;
-        float ecoSystem = 0.5f;
+        float radiance = 0.0f;
+        float charge = 0.0f;
+        float discharge = 0.0f;
+        float seasonMacro = 0.5f;
         int currentSequencerStep = -1;
         bool sequencerOn = false;
         std::array<bool, 16> sequencerStepActive {};
@@ -60,11 +60,11 @@ public:
     void cycleColorPalette()
     {
         currentColor = static_cast<GrowthColor>((static_cast<int>(currentColor) + 1) % 4);
-        rebuildMyceliumLayout(getGraphArea(getLocalBounds().toFloat()));
+        rebuildMatrixLayout(getGraphArea(getLocalBounds().toFloat()));
     }
 
 
-    PlantEnergyVisualizer (RootFlowAudioProcessor& p) : processor (p)
+    MatrixEnergyVisualizer (RootFlowAudioProcessor& p) : processor (p)
     {
         updateAnimationTimerState();
     }
@@ -87,7 +87,7 @@ public:
     {
         const float clampedIntensity = juce::jlimit(0.16f, 1.0f, intensity);
 
-        if (myceliumNodes.empty())
+        if (matrixNodes.empty())
         {
             queuedImpulseNote = noteNumber;
             queuedImpulseIntensity = clampedIntensity;
@@ -96,7 +96,7 @@ public:
             return;
         }
 
-        launchMyceliumImpulse(noteNumber, clampedIntensity, wasMapped);
+        launchMatrixImpulse(noteNumber, clampedIntensity, wasMapped);
     }
 
     void pushSpectrumData(const float* data, int size)
@@ -134,7 +134,7 @@ public:
 
         g.fillAll(juce::Colours::transparentBlack);
         ensureStaticLayer(bounds, graphArea);
-        ensureMyceliumLayout(graphArea);
+        ensureMatrixLayout(graphArea);
         drawCachedStaticLayer(g);
 
         drawAmbientField(g, graphArea, microBreath);
@@ -148,13 +148,13 @@ public:
         drawMirroredEnergySeed(g, graphArea, historyC, 0.44f * energyScale, phaseB, energySeedPhase * 0.82f);
         drawMirroredEnergySeed(g, graphArea, historyD, 0.22f * energyScale, phaseC, energySeedPhase * 1.45f);
 
-        drawMyceliumLinks(g);
-        drawMyceliumPulses(g);
-        drawMyceliumNodes(g);
-        drawSporeField(g);
+        drawMatrixLinks(g);
+        drawMatrixPulses(g);
+        drawMatrixNodes(g);
+        drawBurstField(g);
 
         drawSpectralFilaments(g, graphArea);
-        drawBioSequencer(g, bounds);
+        drawPulseMatrixSequencerVisuals(g, bounds);
 
         showGrid(g, graphArea);
     }
@@ -162,7 +162,7 @@ public:
     void resized() override
     {
         staticLayerDirty = true;
-        myceliumLayoutDirty = true;
+        matrixLayoutDirty = true;
     }
 
     void timerCallback() override
@@ -173,10 +173,10 @@ public:
     }
 
 private:
-    struct MycelNode { juce::Point<float> anchor; float radius; float swayPhase; float swayAmount; float depthBias; juce::Colour baseColour; };
-    struct MycelEdge { int from; int to; float length; float thickness; float stiffness; };
-    struct MycelPulse { int fromNode; int toNode; float progress; float speed; float intensity; bool accent; int hopsRemaining; };
-    struct SporeParticle { juce::Point<float> position; juce::Point<float> velocity; float life; float size; float brightness; int layer; bool accent; };
+    struct MatrixNode { juce::Point<float> anchor; float radius; float swayPhase; float swayAmount; float depthBias; juce::Colour baseColour; };
+    struct MatrixEdge { int from; int to; float length; float thickness; float stiffness; };
+    struct MatrixPulse { int fromNode; int toNode; float progress; float speed; float intensity; bool accent; int hopsRemaining; };
+    struct BurstParticle { juce::Point<float> position; juce::Point<float> velocity; float life; float size; float brightness; int layer; bool accent; };
 
     juce::Rectangle<float> getGraphArea(juce::Rectangle<float> bounds) const
     {
@@ -199,34 +199,34 @@ private:
         ambientEnergy += (smoothedEnergy * 0.75f - ambientEnergy) * 0.015f;
         glowEnergy += (currentState.audioEnergy * 0.85f - glowEnergy) * 0.08f;
 
-        energySeedPhase += 0.024f + smoothedEnergy * 0.052f + currentState.sapFlow * 0.035f;
-        ambientFieldPhase += 0.012f + currentState.atmosphere * 0.025f;
-        myceliumDriftPhase += 0.008f + currentState.instability * 0.012f;
+        energySeedPhase += 0.024f + smoothedEnergy * 0.052f + currentState.flowRate * 0.035f;
+        ambientFieldPhase += 0.012f + currentState.fieldDepth * 0.025f;
+        matrixDriftPhase += 0.008f + currentState.instability * 0.012f;
 
-        currentState.plantEnergy = smoothedEnergy;
+        currentState.systemEnergy = smoothedEnergy;
         currentState.audioEnergy = currentState.audioEnergy * 0.82f;
         currentState.currentSequencerStep = targetState.currentSequencerStep;
         currentState.sequencerOn = targetState.sequencerOn;
         currentState.sequencerStepActive = targetState.sequencerStepActive;
-        currentState.rootDepth = targetState.rootDepth;
-        currentState.rootSoil = targetState.rootSoil;
-        currentState.rootAnchor = targetState.rootAnchor;
-        currentState.sapFlow = targetState.sapFlow;
-        currentState.sapVitality = targetState.sapVitality;
-        currentState.sapTexture = targetState.sapTexture;
-        currentState.pulseRate = targetState.pulseRate;
-        currentState.pulseBreath = targetState.pulseBreath;
-        currentState.pulseGrowth = targetState.pulseGrowth;
-        currentState.canopy = targetState.canopy;
-        currentState.atmosphere = targetState.atmosphere;
+        currentState.sourceDepth = targetState.sourceDepth;
+        currentState.sourceCore = targetState.sourceCore;
+        currentState.sourceAnchor = targetState.sourceAnchor;
+        currentState.flowRate = targetState.flowRate;
+        currentState.flowEnergy = targetState.flowEnergy;
+        currentState.flowTexture = targetState.flowTexture;
+        currentState.pulseFrequency = targetState.pulseFrequency;
+        currentState.pulseWidth = targetState.pulseWidth;
+        currentState.pulseEnergy = targetState.pulseEnergy;
+        currentState.fieldComplexity = targetState.fieldComplexity;
+        currentState.fieldDepth = targetState.fieldDepth;
         currentState.instability = targetState.instability;
-        currentState.bloom = targetState.bloom;
-        currentState.rain = targetState.rain;
-        currentState.sun = targetState.sun;
+        currentState.radiance = targetState.radiance;
+        currentState.charge = targetState.charge;
+        currentState.discharge = targetState.discharge;
 
         const float time = (float) juce::Time::getMillisecondCounterHiRes() * 0.001f;
-        const float basePhaseA = time * (0.85f + currentState.pulseRate * 0.5f);
-        const float basePhaseB = time * (1.25f + currentState.sapFlow * 0.4f);
+        const float basePhaseA = time * (0.85f + currentState.pulseFrequency * 0.5f);
+        const float basePhaseB = time * (1.25f + currentState.flowRate * 0.4f);
 
         const float activity = 0.25f + smoothedEnergy * 0.75f;
         coreValueA = std::sin(basePhaseA) * activity;
@@ -235,23 +235,23 @@ private:
         coreValueD = std::cos(basePhaseA * 1.34f + 2.2f) * activity;
         coreValueE = std::sin(basePhaseB * 1.15f + 3.1f) * activity;
 
-        hazeValueA = std::sin(time * 0.32f) * (0.4f + currentState.atmosphere * 0.6f);
-        hazeValueB = std::cos(time * 0.44f + 0.7f) * (0.4f + currentState.atmosphere * 0.6f);
+        hazeValueA = std::sin(time * 0.32f) * (0.4f + currentState.fieldDepth * 0.6f);
+        hazeValueB = std::cos(time * 0.44f + 0.7f) * (0.4f + currentState.fieldDepth * 0.6f);
 
-        updateMyceliumPulses();
+        updateMatrixPulses();
 
-        if (random.nextFloat() < (0.008f + smoothedEnergy * 0.012f + currentState.pulseRate * 0.008f))
+        if (random.nextFloat() < (0.008f + smoothedEnergy * 0.012f + currentState.pulseFrequency * 0.008f))
         {
-            if (! myceliumNodes.empty())
+            if (! matrixNodes.empty())
             {
-                const int node = random.nextInt((int) myceliumNodes.size());
+                const int node = random.nextInt((int) matrixNodes.size());
                 const float intensity = 0.35f + random.nextFloat() * 0.55f;
-                launchMyceliumPulse(node, -1, intensity, false, 2 + random.nextInt(3));
+                launchMatrixPulse(node, -1, intensity, false, 2 + random.nextInt(3));
             }
         }
 
-        updateSporeField();
-        maybeSpawnAmbientSpores();
+        updateBurstField();
+        maybeSpawnAmbientBursts();
         processQueuedImpulseIfNeeded();
 
         writeHistorySample(historyA, coreValueA);
@@ -266,7 +266,7 @@ private:
         repaint();
     }
 
-    void drawBioSequencer(juce::Graphics& g, juce::Rectangle<float> area)
+    void drawPulseMatrixSequencerVisuals(juce::Graphics& g, juce::Rectangle<float> area)
     {
         if (! currentState.sequencerOn)
             return;
@@ -274,7 +274,7 @@ private:
         const int numSteps = 16;
         const float radius = juce::jmin(area.getWidth(), area.getHeight()) * 0.44f;
         const juce::Point<float> center = area.getCentre();
-        const float energy = currentState.plantEnergy;
+        const float energy = currentState.systemEnergy;
 
         for (int i = 0; i < numSteps; ++i)
         {
@@ -513,37 +513,37 @@ private:
     }
 
 
-    void ensureMyceliumLayout(juce::Rectangle<float> area)
+    void ensureMatrixLayout(juce::Rectangle<float> area)
     {
         const auto layoutBounds = area.getSmallestIntegerContainer();
 
-        if (! myceliumLayoutDirty && layoutBounds == myceliumLayoutBounds)
+        if (! matrixLayoutDirty && layoutBounds == matrixLayoutBounds)
             return;
 
-        rebuildMyceliumLayout(area);
+        rebuildMatrixLayout(area);
     }
 
-    void rebuildMyceliumLayout(juce::Rectangle<float> area)
+    void rebuildMatrixLayout(juce::Rectangle<float> area)
     {
-        myceliumLayoutBounds = area.getSmallestIntegerContainer();
-        myceliumLayoutDirty = false;
-        myceliumNodes.clear();
-        myceliumEdges.clear();
-        myceliumRowStarts.clear();
-        myceliumRowCounts.clear();
-        myceliumNodeCharge.clear();
+        matrixLayoutBounds = area.getSmallestIntegerContainer();
+        matrixLayoutDirty = false;
+        matrixNodes.clear();
+        matrixEdges.clear();
+        matrixRowStarts.clear();
+        matrixRowCounts.clear();
+        matrixNodeCharge.clear();
 
         if (area.isEmpty())
             return;
 
-        juce::Random layoutRandom(0x524f4f54);
+        juce::Random layoutRandom(0x54524f4e); // "TRON"
         constexpr std::array<int, 6> rowNodeCounts { 2, 3, 3, 2, 2, 1 };
 
         for (size_t row = 0; row < rowNodeCounts.size(); ++row)
         {
             const int rowCount = rowNodeCounts[row];
-            myceliumRowStarts.push_back((int) myceliumNodes.size());
-            myceliumRowCounts.push_back(rowCount);
+            matrixRowStarts.push_back((int) matrixNodes.size());
+            matrixRowCounts.push_back(rowCount);
 
             const float rowT = (float) row / (float) (rowNodeCounts.size() - 1);
             const float y = area.getBottom() - area.getHeight() * (0.10f + rowT * 0.72f);
@@ -560,23 +560,23 @@ private:
                                + (layoutRandom.nextFloat() - 0.5f) * area.getWidth() * 0.05f;
                 const float yJitter = (layoutRandom.nextFloat() - 0.5f) * area.getHeight() * 0.026f;
 
-                MycelNode node;
+                MatrixNode node;
                 node.anchor = { x, y + yJitter };
                 node.radius = 1.4f + rowT * 1.8f + layoutRandom.nextFloat() * 0.9f;
                 node.swayPhase = layoutRandom.nextFloat() * juce::MathConstants<float>::twoPi;
                 node.swayAmount = 0.8f + layoutRandom.nextFloat() * (1.8f + rowT * 1.2f);
                 node.depthBias = rowT;
                 node.baseColour = RootFlow::accent.interpolatedWith(juce::Colours::white, layoutRandom.nextFloat() * 0.3f);
-                myceliumNodes.push_back(node);
-                myceliumNodeCharge.push_back(0.0f);
+                matrixNodes.push_back(node);
+                matrixNodeCharge.push_back(0.0f);
             }
 
             if (row > 0)
             {
-                const int prevRowStart = myceliumRowStarts[row - 1];
-                const int prevRowCount = myceliumRowCounts[row - 1];
-                const int currentRowStart = myceliumRowStarts[row];
-                const int currentRowCount = myceliumRowCounts[row];
+                const int prevRowStart = matrixRowStarts[row - 1];
+                const int prevRowCount = matrixRowCounts[row - 1];
+                const int currentRowStart = matrixRowStarts[row];
+                const int currentRowCount = matrixRowCounts[row];
 
                 for (int i = 0; i < currentRowCount; ++i)
                 {
@@ -592,41 +592,41 @@ private:
 
     void addEdge(int from, int to, juce::Random& r)
     {
-        MycelEdge edge;
+        MatrixEdge edge;
         edge.from = from;
         edge.to = to;
-        edge.length = myceliumNodes[(size_t) from].anchor.getDistanceFrom(myceliumNodes[(size_t) to].anchor);
+        edge.length = matrixNodes[(size_t) from].anchor.getDistanceFrom(matrixNodes[(size_t) to].anchor);
         edge.thickness = 0.8f + r.nextFloat() * 1.4f;
         edge.stiffness = 0.45f + r.nextFloat() * 0.35f;
-        myceliumEdges.push_back(edge);
+        matrixEdges.push_back(edge);
     }
 
-    std::vector<juce::Point<float>> buildMyceliumPositions() const
+    std::vector<juce::Point<float>> buildMatrixPositions() const
     {
         std::vector<juce::Point<float>> positions;
-        positions.reserve(myceliumNodes.size());
+        positions.reserve(matrixNodes.size());
 
-        for (const auto& node : myceliumNodes)
+        for (const auto& node : matrixNodes)
         {
-            const float sway = std::sin(myceliumDriftPhase + node.swayPhase) * node.swayAmount * (0.85f + smoothedEnergy * 0.45f);
+            const float sway = std::sin(matrixDriftPhase + node.swayPhase) * node.swayAmount * (0.85f + smoothedEnergy * 0.45f);
             positions.push_back({ node.anchor.x + sway, node.anchor.y + sway * 0.35f });
         }
 
         return positions;
     }
 
-    void drawMyceliumLinks(juce::Graphics& g)
+    void drawMatrixLinks(juce::Graphics& g)
     {
-        if (myceliumEdges.empty()) return;
+        if (matrixEdges.empty()) return;
 
-        const auto positions = buildMyceliumPositions();
+        const auto positions = buildMatrixPositions();
         const float energy = smoothedEnergy;
 
-        for (const auto& edge : myceliumEdges)
+        for (const auto& edge : matrixEdges)
         {
             const auto p1 = positions[(size_t) edge.from];
             const auto p2 = positions[(size_t) edge.to];
-            const float charge = (myceliumNodeCharge[(size_t) edge.from] + myceliumNodeCharge[(size_t) edge.to]) * 0.5f;
+            const float charge = (matrixNodeCharge[(size_t) edge.from] + matrixNodeCharge[(size_t) edge.to]) * 0.5f;
 
             g.setColour(RootFlow::accent.withAlpha(0.08f + charge * 0.22f + energy * 0.06f));
             g.drawLine(p1.x, p1.y, p2.x, p2.y, edge.thickness * (0.92f + charge * 0.65f));
@@ -639,17 +639,17 @@ private:
         }
     }
 
-    void drawMyceliumNodes(juce::Graphics& g)
+    void drawMatrixNodes(juce::Graphics& g)
     {
-        const auto positions = buildMyceliumPositions();
+        const auto positions = buildMatrixPositions();
         const float energy = smoothedEnergy;
 
-        for (size_t i = 0; i < myceliumNodes.size(); ++i)
+        for (size_t i = 0; i < matrixNodes.size(); ++i)
         {
-            const auto& node = myceliumNodes[i];
+            const auto& node = matrixNodes[i];
             const auto pos = positions[i];
-            const float charge = myceliumNodeCharge[i];
-            const float pulse = 0.95f + 0.12f * std::sin(myceliumDriftPhase * 2.2f + node.swayPhase);
+            const float charge = matrixNodeCharge[i];
+            const float pulse = 0.95f + 0.12f * std::sin(matrixDriftPhase * 2.2f + node.swayPhase);
             const float r = node.radius * pulse * (1.0f + charge * 0.55f);
 
             g.setColour(node.baseColour.withAlpha(0.18f + charge * 0.35f + energy * 0.12f));
@@ -666,12 +666,12 @@ private:
         }
     }
 
-    void drawMyceliumPulses(juce::Graphics& g)
+    void drawMatrixPulses(juce::Graphics& g)
     {
-        if (myceliumPulses.empty()) return;
+        if (matrixPulses.empty()) return;
 
-        const auto positions = buildMyceliumPositions();
-        for (const auto& pulse : myceliumPulses)
+        const auto positions = buildMatrixPositions();
+        for (const auto& pulse : matrixPulses)
         {
             const auto p1 = positions[(size_t) pulse.fromNode];
             const auto p2 = positions[(size_t) pulse.toNode];
@@ -687,35 +687,35 @@ private:
         }
     }
 
-    void drawSporeField(juce::Graphics& g)
+    void drawBurstField(juce::Graphics& g)
     {
-        for (const auto& spore : spores)
+        for (const auto& burst : dataBursts)
         {
-            const float lifeFade = std::sin(juce::jlimit(0.0f, 1.0f, spore.life / 0.8f) * juce::MathConstants<float>::pi);
-            const float alpha = spore.brightness * lifeFade * (spore.layer == 0 ? 0.35f : (spore.layer == 2 ? 0.95f : 0.65f));
+            const float lifeFade = std::sin(juce::jlimit(0.0f, 1.0f, burst.life / 0.8f) * juce::MathConstants<float>::pi);
+            const float alpha = burst.brightness * lifeFade * (burst.layer == 0 ? 0.35f : (burst.layer == 2 ? 0.95f : 0.65f));
 
             juce::Colour col = RootFlow::accent;
-            if (spore.accent) col = juce::Colours::white;
+            if (burst.accent) col = juce::Colours::white;
 
             g.setColour(col.withAlpha(alpha));
-            const float size = spore.size * (0.85f + 0.35f * std::sin(myceliumDriftPhase * 1.4f + spore.position.x * 0.01f));
+            const float size = burst.size * (0.85f + 0.35f * std::sin(matrixDriftPhase * 1.4f + burst.position.x * 0.01f));
 
-            if (spore.layer == 2) {
+            if (burst.layer == 2) {
                 g.setColour(col.withAlpha(alpha * 0.32f));
-                g.fillEllipse(spore.position.x - size * 2.2f, spore.position.y - size * 2.2f, size * 4.4f, size * 4.4f);
+                g.fillEllipse(burst.position.x - size * 2.2f, burst.position.y - size * 2.2f, size * 4.4f, size * 4.4f);
             }
 
-            g.fillEllipse(spore.position.x - size * 0.5f, spore.position.y - size * 0.5f, size, size);
+            g.fillEllipse(burst.position.x - size * 0.5f, burst.position.y - size * 0.5f, size, size);
         }
     }
 
-    void launchMyceliumPulse(int fromNode, int excludeToNode, float intensity, bool accent, int hops)
+    void launchMatrixPulse(int fromNode, int excludeToNode, float intensity, bool accent, int hops)
     {
-        if (! juce::isPositiveAndBelow(fromNode, (int) myceliumNodes.size()) || myceliumPulses.size() >= maxMyceliumPulses)
+        if (! juce::isPositiveAndBelow(fromNode, (int) matrixNodes.size()) || matrixPulses.size() >= maxMatrixPulses)
             return;
 
         std::vector<int> targets;
-        for (const auto& edge : myceliumEdges)
+        for (const auto& edge : matrixEdges)
         {
             if (edge.from == fromNode && edge.to != excludeToNode) targets.push_back(edge.to);
             else if (edge.to == fromNode && edge.from != excludeToNode) targets.push_back(edge.from);
@@ -725,7 +725,7 @@ private:
 
         const int targetNode = targets[(size_t) random.nextInt((int) targets.size())];
 
-        MycelPulse pulse;
+        MatrixPulse pulse;
         pulse.fromNode = fromNode;
         pulse.toNode = targetNode;
         pulse.progress = 0.0f;
@@ -733,31 +733,31 @@ private:
         pulse.intensity = intensity;
         pulse.accent = accent;
         pulse.hopsRemaining = hops;
-        myceliumPulses.push_back(pulse);
+        matrixPulses.push_back(pulse);
 
         if (random.nextFloat() < 0.28f * intensity)
-            spawnSporesAtNode(fromNode, intensity * 0.72f, accent);
+            spawnBurstsAtNode(fromNode, intensity * 0.72f, accent);
     }
 
-    void propagateMyceliumPulse(int fromNode, int excludeToNode, float intensity, int hops, bool accent)
+    void propagateMatrixPulse(int fromNode, int excludeToNode, float intensity, int hops, bool accent)
     {
         if (hops <= 0 || intensity < 0.06f) return;
-        launchMyceliumPulse(fromNode, excludeToNode, intensity, accent, hops);
+        launchMatrixPulse(fromNode, excludeToNode, intensity, accent, hops);
     }
 
     void processQueuedImpulseIfNeeded()
     {
-        if (! hasQueuedImpulse || myceliumNodes.empty()) return;
-        launchMyceliumImpulse(queuedImpulseNote, queuedImpulseIntensity, queuedImpulseMapped);
+        if (! hasQueuedImpulse || matrixNodes.empty()) return;
+        launchMatrixImpulse(queuedImpulseNote, queuedImpulseIntensity, queuedImpulseMapped);
         hasQueuedImpulse = false;
     }
 
-    void launchMyceliumImpulse(int noteNumber, float intensity, bool wasMapped)
+    void launchMatrixImpulse(int noteNumber, float intensity, bool wasMapped)
     {
         juce::ignoreUnused(noteNumber);
-        const int nodeCount = (int) myceliumNodes.size();
+        const int nodeCount = (int) matrixNodes.size();
         const int startNode = random.nextInt(juce::jmin(nodeCount, 4)); // Start near bottom
-        launchMyceliumPulse(startNode, -1, intensity, wasMapped, 4 + random.nextInt(3));
+        launchMatrixPulse(startNode, -1, intensity, wasMapped, 4 + random.nextInt(3));
         globalBeatCharge = juce::jmax(globalBeatCharge, intensity);
     }
 
@@ -779,53 +779,53 @@ private:
             g.drawImageAt(staticLayer, 0, 0);
     }
 
-    void updateMyceliumPulses()
+    void updateMatrixPulses()
     {
-        if (! myceliumNodeCharge.empty())
-            for (auto& charge : myceliumNodeCharge)
+        if (! matrixNodeCharge.empty())
+            for (auto& charge : matrixNodeCharge)
             {
-                charge *= 0.90f + currentState.rootAnchor * 0.035f;
+                charge *= 0.90f + currentState.sourceAnchor * 0.035f;
                 if (charge < 0.001f)
                     charge = 0.0f;
             }
 
-        for (int i = (int) myceliumPulses.size() - 1; i >= 0; --i)
+        for (int i = (int) matrixPulses.size() - 1; i >= 0; --i)
         {
-            auto& pulse = myceliumPulses[(size_t) i];
-            pulse.progress += pulse.speed * (0.86f + currentState.pulseRate * 1.30f + currentState.sapFlow * 0.32f);
+            auto& pulse = matrixPulses[(size_t) i];
+            pulse.progress += pulse.speed * (0.86f + currentState.pulseFrequency * 1.30f + currentState.flowRate * 0.32f);
 
             if (pulse.progress < 1.0f)
                 continue;
 
-            if (juce::isPositiveAndBelow(pulse.toNode, (int) myceliumNodeCharge.size()))
-                myceliumNodeCharge[(size_t) pulse.toNode] = juce::jmax(myceliumNodeCharge[(size_t) pulse.toNode], pulse.intensity * 0.90f);
+            if (juce::isPositiveAndBelow(pulse.toNode, (int) matrixNodeCharge.size()))
+                matrixNodeCharge[(size_t) pulse.toNode] = juce::jmax(matrixNodeCharge[(size_t) pulse.toNode], pulse.intensity * 0.90f);
 
             if (pulse.hopsRemaining > 0)
-                propagateMyceliumPulse(pulse.toNode,
+                propagateMatrixPulse(pulse.toNode,
                                        pulse.fromNode,
                                        pulse.intensity * (0.68f + currentState.pulseGrowth * 0.10f),
                                        pulse.hopsRemaining - 1,
                                        pulse.accent);
 
-            myceliumPulses.erase(myceliumPulses.begin() + i);
+            matrixPulses.erase(matrixPulses.begin() + i);
         }
     }
 
-    void spawnSporesAtNode(int nodeIndex, float intensity, bool accent)
+    void spawnBurstsAtNode(int nodeIndex, float intensity, bool accent)
     {
-        if (! juce::isPositiveAndBelow(nodeIndex, (int) myceliumNodes.size()))
+        if (! juce::isPositiveAndBelow(nodeIndex, (int) matrixNodes.size()))
             return;
 
-        const auto positions = buildMyceliumPositions();
+        const auto positions = buildMatrixPositions();
         const auto origin = positions[(size_t) nodeIndex];
         const int particleCount = 3 + juce::roundToInt(intensity * 4.0f + currentState.bloom * 4.0f);
 
-        for (int i = 0; i < particleCount && spores.size() < maxSpores; ++i)
+        for (int i = 0; i < particleCount && dataBursts.size() < maxBursts; ++i)
         {
             const float angle = -juce::MathConstants<float>::halfPi + (random.nextFloat() - 0.5f) * 1.15f;
             const float speed = 0.22f + intensity * 0.78f + random.nextFloat() * 0.42f;
 
-            SporeParticle particle;
+            BurstParticle particle;
             particle.position = origin;
             particle.velocity = { std::cos(angle) * speed * (0.45f + currentState.rain * 0.16f),
                                   std::sin(angle) * speed * (0.88f + currentState.sun * 0.10f) };
@@ -845,31 +845,31 @@ private:
 
             particle.brightness = 0.36f + intensity * 0.42f + random.nextFloat() * 0.22f;
             particle.accent = accent;
-            spores.push_back(particle);
+            dataBursts.push_back(particle);
         }
     }
 
-    void updateSporeField()
+    void updateBurstField()
     {
-        const float horizontalWind = std::sin(myceliumDriftPhase * 0.82f) * (0.010f + currentState.rain * 0.020f);
+        const float horizontalWind = std::sin(matrixDriftPhase * 0.82f) * (0.010f + currentState.rain * 0.020f);
         const float upwardLift = 0.010f + currentState.bloom * 0.018f + currentState.sun * 0.006f;
 
-        for (int i = (int) spores.size() - 1; i >= 0; --i)
+        for (int i = (int) dataBursts.size() - 1; i >= 0; --i)
         {
-            auto& spore = spores[(size_t) i];
-            spore.velocity.x += (horizontalWind - spore.velocity.x * 0.08f) * 0.020f;
-            spore.velocity.y -= upwardLift * (0.22f + spore.brightness * 0.12f);
-            spore.position += spore.velocity;
-            spore.life -= 0.010f + currentState.sun * 0.002f + currentState.rain * 0.001f;
+            auto& burst = dataBursts[(size_t) i];
+            burst.velocity.x += (horizontalWind - burst.velocity.x * 0.08f) * 0.020f;
+            burst.velocity.y -= upwardLift * (0.22f + burst.brightness * 0.12f);
+            burst.position += burst.velocity;
+            burst.life -= 0.010f + currentState.sun * 0.002f + currentState.rain * 0.001f;
 
-            if (spore.life <= 0.0f)
-                spores.erase(spores.begin() + i);
+            if (burst.life <= 0.0f)
+                dataBursts.erase(dataBursts.begin() + i);
         }
     }
 
-    void maybeSpawnAmbientSpores()
+    void maybeSpawnAmbientBursts()
     {
-        if (myceliumNodes.empty() || spores.size() >= maxSpores)
+        if (matrixNodes.empty() || dataBursts.size() >= maxBursts)
             return;
 
         const float chance = 0.004f
@@ -879,21 +879,21 @@ private:
         if (random.nextFloat() >= chance)
             return;
 
-        const int rowIndex = juce::jlimit(0, (int) myceliumRowStarts.size() - 1,
-                                          juce::roundToInt((float) (myceliumRowStarts.size() - 1) * (0.45f + currentState.canopy * 0.40f)));
-        const int rowStart = myceliumRowStarts[(size_t) rowIndex];
-        const int rowCount = myceliumRowCounts[(size_t) rowIndex];
+        const int rowIndex = juce::jlimit(0, (int) matrixRowStarts.size() - 1,
+                                          juce::roundToInt((float) (matrixRowStarts.size() - 1) * (0.45f + currentState.canopy * 0.40f)));
+        const int rowStart = matrixRowStarts[(size_t) rowIndex];
+        const int rowCount = matrixRowCounts[(size_t) rowIndex];
         const int nodeIndex = rowStart + juce::jlimit(0, rowCount - 1, random.nextInt(juce::jmax(1, rowCount)));
 
-        spawnSporesAtNode(nodeIndex, 0.18f + ambientEnergy * 0.18f, false);
+        spawnBurstsAtNode(nodeIndex, 0.18f + ambientEnergy * 0.18f, false);
     }
 
-    int findMyceliumEdgeIndex(int fromNode, int toNode) const
+    int findMatrixEdgeIndex(int fromNode, int toNode) const
     {
         const int minNode = juce::jmin(fromNode, toNode);
         const int maxNode = juce::jmax(fromNode, toNode);
-        for (size_t i = 0; i < myceliumEdges.size(); ++i)
-            if (myceliumEdges[i].from == minNode && myceliumEdges[i].to == maxNode)
+        for (size_t i = 0; i < matrixEdges.size(); ++i)
+            if (matrixEdges[i].from == minNode && matrixEdges[i].to == maxNode)
                 return (int) i;
         return 0;
     }
@@ -920,27 +920,27 @@ private:
     juce::Image staticLayer;
     float staticLayerScale = 1.0f;
     bool staticLayerDirty = true;
-    juce::Rectangle<int> myceliumLayoutBounds;
-    bool myceliumLayoutDirty = true;
+    juce::Rectangle<int> matrixLayoutBounds;
+    bool matrixLayoutDirty = true;
     size_t historyWritePosition = 0;
     float targetEnergy = 0.0f, smoothedEnergy = 0.0f, ambientEnergy = 0.0f, glowEnergy = 0.0f;
     float phaseA = 0.0f, phaseB = 1.4f, phaseC = 2.6f;
     float coreValueA = 0.0f, coreValueB = 0.0f, coreValueC = 0.0f, coreValueD = 0.0f, coreValueE = 0.0f;
     float hazeValueA = 0.0f, hazeValueB = 0.0f;
-    float energySeedPhase = 0.0f, ambientFieldPhase = 0.0f, myceliumDriftPhase = 0.0f;
+    float energySeedPhase = 0.0f, ambientFieldPhase = 0.0f, matrixDriftPhase = 0.0f;
     VisualizerState targetState {}, currentState {};
-    std::vector<MycelNode> myceliumNodes;
-    std::vector<MycelEdge> myceliumEdges;
-    std::vector<int> myceliumRowStarts, myceliumRowCounts;
-    std::vector<float> myceliumNodeCharge;
-    std::vector<MycelPulse> myceliumPulses;
-    std::vector<SporeParticle> spores;
+    std::vector<MatrixNode> matrixNodes;
+    std::vector<MatrixEdge> matrixEdges;
+    std::vector<int> matrixRowStarts, matrixRowCounts;
+    std::vector<float> matrixNodeCharge;
+    std::vector<MatrixPulse> matrixPulses;
+    std::vector<BurstParticle> dataBursts;
     juce::Random random { 0x53504f52 };
     bool hasQueuedImpulse = false;
     int queuedImpulseNote = -1;
     float queuedImpulseIntensity = 0.0f;
     bool queuedImpulseMapped = false;
-    static constexpr size_t maxMyceliumPulses = 96, maxSpores = 480;
+    static constexpr size_t maxMatrixPulses = 96, maxBursts = 480;
 
     RootFlowAudioProcessor& processor;
     float globalBeatCharge = 0.0f;
