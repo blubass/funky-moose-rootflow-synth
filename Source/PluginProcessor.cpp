@@ -3465,19 +3465,17 @@ void RootFlowAudioProcessor::renderSynthAndVoices(juce::AudioBuffer<float>& proc
     const float chargeAmount   = applySeasonalFxScale(getBlockModulatedValue(13), seasonMorph, 0.08f, -0.02f, 0.38f, 0.12f, 0.85f);
     const float dischargeAmount = applySeasonalFxScale(getBlockModulatedValue(14), seasonMorph, 0.40f, 0.16f, 0.00f, -0.16f, 1.05f);
 
-    currentProcessingBlockState = {
-        .seasonMacro = systemMatrix,
-        .sourceDepth = sourceDepth,
-        sourceAnchor,
-        flowRate,
-        flowEnergy,
-        flowTexture,
-        pulseWidth,
-        fieldComplexity,
-        radianceAmount,
-        chargeAmount,
-        dischargeAmount
-    };
+    currentProcessingBlockState.seasonMacro = systemMatrix;
+    currentProcessingBlockState.sourceDepth = sourceDepth;
+    currentProcessingBlockState.sourceAnchor = sourceAnchor;
+    currentProcessingBlockState.flowRate = flowRate;
+    currentProcessingBlockState.flowEnergy = flowEnergy;
+    currentProcessingBlockState.flowTexture = flowTexture;
+    currentProcessingBlockState.pulseWidth = pulseWidth;
+    currentProcessingBlockState.fieldComplexity = fieldComplexity;
+    currentProcessingBlockState.radianceAmount = radianceAmount;
+    currentProcessingBlockState.chargeAmount = chargeAmount;
+    currentProcessingBlockState.dischargeAmount = dischargeAmount;
 
     for (int i = 0; i < synth.getNumVoices(); ++i)
     {
