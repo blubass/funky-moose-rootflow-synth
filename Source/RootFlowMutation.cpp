@@ -25,8 +25,6 @@ namespace RootFlow
         float mixFloat(float a, float b, float blend) noexcept { return a + (b - a) * blend; }
         int mixInt(int a, int b, float blend) noexcept { return juce::roundToInt((float)a + (float)(b - a) * blend); }
 
-        enum class PromptPatternArchetype { matrix, straight, club, breakbeat, halftime, swing, triplet, latin, afro, cinematic };
-
         struct MutationProfile 
         { 
             float continuousDepth = 0.08f;
