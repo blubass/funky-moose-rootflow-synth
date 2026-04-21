@@ -8,7 +8,7 @@
 ![AudioUnit](https://img.shields.io/badge/AudioUnit-supported-3A4E6A?style=for-the-badge)
 ![Standalone](https://img.shields.io/badge/Standalone-supported-3A4E6A?style=for-the-badge)
 ![Status](https://img.shields.io/badge/Status-Evolving-5FD1C7?style=for-the-badge)
-![Version](https://img.shields.io/badge/Version-1.3.1-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-1.3.2-blue?style=for-the-badge)
 
 **Funky Moose Rootflow Synth** ist ein organisch reagierendes Software-Instrument, gebaut mit **JUCE** und **C++17**.
 
@@ -42,11 +42,11 @@ Diese Bereiche formen den Klangkoerper des Instruments:
 - **Pulse Field**: Rate, Atem, Wachstum und Bewegung
 - **Ambient Field**: Luft, Boden und Raumanteil
 
-### Version 1.3.1 (Aktuell)
+### Version 1.3.2 (Aktuell)
+- **Windows-CI repariert**: Die doppelte `PromptPatternArchetype`-Definition in `RootFlowMutation.cpp` ist entfernt, sodass der MSVC-Build in GitHub Actions wieder sauber durchlaeuft.
 - **Preset-Wechsel stabilisiert**: `masterVolume` bleibt beim Umschalten von Factory- und User-Presets erhalten und springt nicht mehr auf stumm.
 - **Standalone-Start abgesichert**: Der Editor-Timer verwendet keine veraltete Parameter-ID mehr und laeuft ohne den Null-Deref aus dem alten Overlay-Pfad.
-- **Legacy-State-Migration**: Aeltere Sessions und User-Presets werden auf die neuen Parameter-IDs gemappt, statt still auf Defaults zurueckzufallen.
-- **Node- und Prompt-System repariert**: Die Modulations-Slots stimmen wieder mit den UI-Knoten ueberein, und Prompt-Memory aktualisiert gespeicherte Zielwerte sauber.
+- **State- und Prompt-Kompatibilitaet**: Legacy-Sessions, User-Presets, Node-Routing und Prompt-Memory-Ziele werden wieder konsistent auf das aktuelle Layout gehoben.
 
 ## Screenshot
 
@@ -100,6 +100,10 @@ Falls JUCE bei dir woanders liegt, gib beim Konfigurieren `-DJUCE_DIR=/path/to/J
 - verfeinerte Visuals und Release-Pakete
 
 ## Changelog
+
+### [1.3.2] - 2026-04-21
+- **Windows-Release-CI**: Doppelte `PromptPatternArchetype`-Deklaration in `RootFlowMutation.cpp` entfernt und damit den MSVC-Buildfehler in GitHub Actions beseitigt.
+- **Release-Abgleich**: Versionsangaben und Doku an den aktuellen Fix-Stand angepasst, damit der CI-Fix in einer sauberen Release-Version steckt.
 
 ### [1.3.1] - 2026-04-20
 - **Preset-Lautstaerke**: `masterVolume` bleibt beim Preset-Wechsel erhalten, statt auf `-48 dB` zu kippen.

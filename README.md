@@ -8,7 +8,7 @@
 ![AudioUnit](https://img.shields.io/badge/AudioUnit-supported-3A4E6A?style=for-the-badge)
 ![Standalone](https://img.shields.io/badge/Standalone-supported-3A4E6A?style=for-the-badge)
 ![Status](https://img.shields.io/badge/Status-Evolving-5FD1C7?style=for-the-badge)
-![Version](https://img.shields.io/badge/Version-1.3.0-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-1.3.2-blue?style=for-the-badge)
 
 **Funky Moose Rootflow Synth** is an organic, visually reactive software instrument built with **JUCE** and **C++17**.
 
@@ -42,11 +42,11 @@ These sections shape the body of the instrument:
 - **Pulse Field**: rate, breath, growth and movement
 - **Ambient Field**: air, ground and space balance
 
-### Version 1.3.0 (Latest)
-- **AU Build Restored**: Audio Unit is enabled again in the default macOS build presets.
-- **Mac Compatibility**: Release builds now target macOS 12 Monterey and ship as universal `arm64` and `x86_64` binaries.
-- **Processor Stability**: Restored keyboard injection, bio-feedback updates, master section routing and oversampling-safe beat timing after the recent audio-path refactor.
-- **Small-Screen Sizing**: The editor now chooses a safer initial size for smaller displays such as 13-inch MacBooks.
+### Version 1.3.2 (Latest)
+- **Windows CI Fixed**: Removed the duplicate `PromptPatternArchetype` shadow enum in `RootFlowMutation.cpp`, resolving the MSVC ambiguity that broke GitHub Actions Windows builds.
+- **Preset Switching Stable**: `masterVolume` now stays intact when switching factory and user presets instead of dropping to silence.
+- **Standalone Startup Hardened**: The editor overlay timer no longer touches the stale parameter path that caused the standalone null-deref crash.
+- **State Compatibility**: Legacy sessions, user presets, node routing and prompt-memory targets are restored consistently on the current parameter layout.
 
 ## Screenshot
 
@@ -100,6 +100,16 @@ If your JUCE install lives elsewhere, pass `-DJUCE_DIR=/path/to/JUCE/lib/cmake/J
 - refined visual polish and release packaging
 
 ## Changelog
+
+### [1.3.2] - 2026-04-21
+- **Windows Release CI**: Removed the duplicate `PromptPatternArchetype` declaration in `RootFlowMutation.cpp`, fixing the MSVC compile failure on GitHub Actions.
+- **Release Alignment**: Synced version metadata and documentation so the CI fix is included in a tagged release.
+
+### [1.3.1] - 2026-04-20
+- **Preset Volume**: `masterVolume` now persists across preset changes instead of collapsing to `-48 dB`.
+- **Standalone Crash Fix**: Hardened the editor overlay timer against stale parameter access on startup.
+- **State Migration**: Legacy parameter IDs for sessions and user presets are migrated into the current layout.
+- **Prompt and Node Fixes**: Corrected node-slot mapping and prompt-memory read/write behavior.
 
 ### [1.3.0] - 2026-04-01
 - **Audio Unit Build**: Re-enabled AU output in the standard CMake presets and validated the installed component with `auval`.
