@@ -1,4 +1,3 @@
-
 cmake_minimum_required(VERSION 3.22)
 
 if(APPLE)
@@ -10,6 +9,7 @@ project(RootFlow VERSION 1.3.2)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 option(ROOTFLOW_COPY_PLUGIN_AFTER_BUILD "Install plugin artifacts after building." ON)
 option(ROOTFLOW_BUILD_AU "Build AU on macOS" ON)
 
@@ -20,6 +20,7 @@ else()
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION FALSE)
 endif()
 
+# Find JUCE
 find_package(JUCE CONFIG QUIET)
 if(NOT TARGET juce::juce_audio_utils)
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/JUCE/CMakeLists.txt")
@@ -30,6 +31,7 @@ if(NOT TARGET juce::juce_audio_utils)
     endif()
 endif()
 
+# Required Assets check
 set(ROOTFLOW_REQUIRED_ASSETS
     Assets/rootflow_icon.png
     Assets/wood_texture.png
@@ -47,6 +49,7 @@ foreach(asset IN LISTS ROOTFLOW_REQUIRED_ASSETS)
     endif()
 endforeach()
 
+# Plugin Formats
 set(ROOTFLOW_FORMATS VST3 Standalone)
 set(ROOTFLOW_PLATFORM_PLUGIN_ARGS)
 
@@ -58,7 +61,7 @@ if(APPLE AND ROOTFLOW_BUILD_AU)
     )
 endif()
 
-
+# Main Plugin Target
 juce_add_plugin(RootFlow
     COMPANY_NAME "Funky Moose Audio"
     BUNDLE_ID at.uwefelchle.rootflow.synth
@@ -84,6 +87,7 @@ target_compile_definitions(RootFlow PUBLIC
 
 juce_generate_juce_header(RootFlow)
 
+# Source Files
 target_sources(RootFlow PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
@@ -92,9 +96,9 @@ target_sources(RootFlow PRIVATE
     Source/UI/EnergyDisplay.cpp
     Source/RootFlowMutation.cpp
     Source/RootFlowPresets.cpp
-    # NodeSystem and BioSequencerComponent are header-only
 )
 
+# Binary Data (Assets)
 juce_add_binary_data(RootFlowAssets
     SOURCES
         Assets/wood_texture.png
@@ -106,6 +110,7 @@ juce_add_binary_data(RootFlowAssets
         Assets/moose_logo.png
 )
 
+# Link Libraries
 target_link_libraries(RootFlow PRIVATE
     juce::juce_audio_utils
     juce::juce_dsp
