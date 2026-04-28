@@ -27,17 +27,13 @@ It blends ambient synthesis, bio-inspired sequencing, evolving modulation and a 
 ## Interface
 
 ### Bio-Sequencer
-
 Controls evolving step activity, rhythmic motion and the internal pulse of a patch.
 
 ### Center Panel
-
 The living visual field. It reflects movement, modulation and interaction in real time.
 
 ### Root Field / Pulse Field / Ambient Field
-
 These sections shape the body of the instrument:
-
 - **Root Field**: depth, soil, anchor and tonal grounding
 - **Pulse Field**: rate, breath, growth and movement
 - **Ambient Field**: air, ground and space balance
@@ -58,27 +54,23 @@ These sections shape the body of the instrument:
 ## Installation
 
 ### macOS
-
-- **Audio Unit**: copy the `.component` bundle to `~/Library/Audio/Plug-Ins/Components` or `/Library/Audio/Plug-Ins/Components`
-- **VST3**: copy the `.vst3` bundle to `~/Library/Audio/Plug-Ins/VST3` or `/Library/Audio/Plug-Ins/VST3`
+- **Audio Unit**: copy the `.component` bundle to `~/Library/Audio/Plug-Ins/Components`
+- **VST3**: copy the `.vst3` bundle to `~/Library/Audio/Plug-Ins/VST3`
 - **Standalone**: move the `.app` bundle to `Applications`
 
 ### Notes
-
-- Unsigned builds may need to be opened once via Finder or allowed in `System Settings > Privacy & Security`
-- If you are replacing an older `RootFlow` build, rescan your DAW after installing `Funky Moose Rootflow Synth`
+- Unsigned builds may need to be opened once via Finder or allowed in `System Settings > Privacy & Security`.
+- If you are replacing an older `RootFlow` build, rescan your DAW after installing `Funky Moose Rootflow Synth`.
 
 ## Build from Source
 
 ### Requirements
-
 - CMake 3.22 or newer
 - JUCE 8.0.10
 - C++17 compatible compiler
 - Xcode or Xcode Command Line Tools on macOS
 
 ### Quick Build
-
 ```bash
 git clone https://github.com/blubass/funky-moose-rootflow-synth.git
 cd funky-moose-rootflow-synth
@@ -87,15 +79,11 @@ cmake --build --preset default
 ```
 
 The included preset expects JUCE here:
-
-```text
-$HOME/Developer/JUCE/install/lib/cmake/JUCE-8.0.10
-```
+`$HOME/Developer/JUCE/install/lib/cmake/JUCE-8.0.10`
 
 If your JUCE install lives elsewhere, pass `-DJUCE_DIR=/path/to/JUCE/lib/cmake/JUCE-8.0.10` when configuring.
 
 ## Roadmap
-
 - deeper modulation routing
 - richer voice architecture
 - expanded sequencer behaviors
@@ -111,33 +99,25 @@ If your JUCE install lives elsewhere, pass `-DJUCE_DIR=/path/to/JUCE/lib/cmake/J
 - **Bugfixes**: Resolved Windows CI failures and stabilized unison voice management.
 
 ### [1.3.1] - 2026-04-20
-- **Preset Volume**: `masterVolume` now persists across preset changes instead of collapsing to `-48 dB`.
+- **Preset Volume**: `masterVolume` now persists across preset changes.
 - **Standalone Crash Fix**: Hardened the editor overlay timer against stale parameter access on startup.
 - **State Migration**: Legacy parameter IDs for sessions and user presets are migrated into the current layout.
 - **Prompt and Node Fixes**: Corrected node-slot mapping and prompt-memory read/write behavior.
 
 ### [1.3.0] - 2026-04-01
-- **Audio Unit Build**: Re-enabled AU output in the standard CMake presets and validated the installed component with `auval`.
-- **macOS Packaging**: Locked release builds to universal `arm64` and `x86_64` binaries with a Monterey deployment target.
-- **Audio Path Fixes**: Restored keyboard MIDI injection, modulation feedback updates, master mix and mono maker routing, and oversampling-safe beat timing.
-- **UI Sizing**: Improved the initial editor size selection for smaller MacBook displays.
+- **Audio Unit Build**: Re-enabled AU output in standard CMake presets.
+- **macOS Packaging**: Universal `arm64/x86_64` binaries with Monterey deployment target.
+- **Audio Path Fixes**: Restored keyboard MIDI, modulation feedback, and master mix routing.
 
 ### [1.2.0] - 2026-03-30
-- **32-Voice Polyphony**: Increased voice count from 16 to 32 for massive chord textures.
-- **Sequencer Stability**: Completely rewritten gate logic and note-off handling for rock-solid timing.
-- **MUTATE System**: New organic mutation engine for evolving patch "DNA" with one click.
-- **Mutation Visuals**: Integrated "Spore Burst" visual feedback for parameter mutations.
-- **Performance**: Cached modulation indices to reduce CPU load in the audio thread.
-- **Meta**: Added Release CMake presets and updated version badges.
+- **32-Voice Polyphony**: Increased voice count for massive textures.
+- **Sequencer Stability**: New gate logic and note-off handling.
+- **MUTATE System**: Organic mutation engine for patch "DNA".
 
 ## Author
-
 Uwe Arthur Felchle
-
 Musician, composer, producer and developer
-
-https://uwefelchle.at
+[uwefelchle.at](https://uwefelchle.at)
 
 ## License
-
 This project is released under the MIT License. See [LICENSE](LICENSE).

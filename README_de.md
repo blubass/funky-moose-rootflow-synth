@@ -12,41 +12,37 @@
 
 **Funky Moose Rootflow Synth** ist ein organisch reagierendes Software-Instrument, gebaut mit **JUCE** und **C++17**.
 
-Es verbindet Ambient-Synthese, bio-inspirierte Sequenzen, lebendige Modulation und eine atmende Benutzeroberflaeche zu einem Instrument, das sich eher gewachsen als zusammengeschraubt anfuehlt. Rootflow soll nicht steril oder technisch wirken. Es soll atmen, pulsieren, driften und sich entwickeln.
+Es verbindet Ambient-Synthese, bio-inspirierte Sequenzen, lebendige Modulation und eine atmende Benutzeroberfläche zu einem Instrument, das sich eher gewachsen als zusammengeschraubt anfühlt. Rootflow soll nicht steril oder technisch wirken. Es soll atmen, pulsieren, driften und sich entwickeln.
 
 ## Features
 
-- Organische Synth-Engine fuer Texturen, Drones, Pulse und atmosphaerische Sounds
-- Bio-Sequencer fuer lebendige rhythmische Bewegung und mutationsgetriebene Pattern
-- Reaktives Center Panel mit knotiger, organismischer Bewegung und visueller Rueckmeldung
-- Root-, Pulse- und Ambient-Felder fuer tonale Basis, Bewegung und Raumanteil
+- Organische Synth-Engine für Texturen, Drones, Pulse und atmosphärische Sounds
+- Bio-Sequencer für lebendige rhythmische Bewegung und mutationsgetriebene Pattern
+- Reaktives Center Panel mit knotiger, organismischer Bewegung und visueller Rückmeldung
+- Root-, Pulse- und Ambient-Felder für tonale Basis, Bewegung und Raumanteil
 - Patch-Workflow mit Save-, Delete- und Mutate-Aktionen direkt im Hauptfenster
-- Spielbare Keyboard-Oberflaeche und direkte Performance-Kontrolle
-- Verfuegbar als **Audio Unit**, **VST3** und **Standalone** auf macOS
+- Spielbare Keyboard-Oberfläche und direkte Performance-Kontrolle
+- Verfügbar als **Audio Unit**, **VST3** und **Standalone** auf macOS
 
 ## Interface
 
 ### Bio-Sequencer
-
-Steuert Step-Aktivitaet, rhythmische Bewegung und die innere Lebendigkeit eines Patches.
+Steuert Step-Aktivität, rhythmische Bewegung und die innere Lebendigkeit eines Patches.
 
 ### Center Panel
-
 Das lebendige visuelle Feld. Es macht Bewegung, Modulation und Interaktion in Echtzeit sichtbar.
 
 ### Root Field / Pulse Field / Ambient Field
-
-Diese Bereiche formen den Klangkoerper des Instruments:
-
+Diese Bereiche formen den Klangkörper des Instruments:
 - **Root Field**: Tiefe, Boden, Anker und tonale Erdung
 - **Pulse Field**: Rate, Atem, Wachstum und Bewegung
 - **Ambient Field**: Luft, Boden und Raumanteil
 
 ### Version 1.3.2 (Aktuell)
-- **DSP Parameter Smoothing**: Per-Sample-Interpolation fuer alle kritischen Effekt-Parameter (Mix, Delay, Feedback, Resonanz) zur Vermeidung von "Zipper Noise" und Artefakten.
+- **DSP Parameter Smoothing**: Per-Sample-Interpolation für alle kritischen Effekt-Parameter (Mix, Delay, Feedback, Resonanz) zur Vermeidung von "Zipper Noise".
 - **Musikalische ADSR-Kurven**: Exponentielle Formgebung der Hüllkurven für einen perkussiveren, analogen Charakter.
 - **Filter Bite**: Dynamische Hüllkurven-Modulation auf den Filter-Cutoff für lebendigere Artikulation.
-- **Unisono-Stabilität**: Stimmenanzahl wird jetzt beim Note-On fixiert, um Knackser bei Parameter-Modulationen zu vermeiden.
+- **Unisono-Stabilität**: Stimmenanzahl wird jetzt beim Note-On fixiert, um Knackser bei Modulationen zu vermeiden.
 - **Windows-CI repariert**: MSVC-Ambiguität in GitHub Actions behoben.
 - **Preset-Wechsel stabil**: `masterVolume` bleibt beim Umschalten von Presets erhalten.
 - **Standalone-Start abgesichert**: Null-Deref-Crash beim App-Start behoben.
@@ -58,27 +54,23 @@ Diese Bereiche formen den Klangkoerper des Instruments:
 ## Installation
 
 ### macOS
-
-- **Audio Unit**: das `.component`-Bundle nach `~/Library/Audio/Plug-Ins/Components` oder `/Library/Audio/Plug-Ins/Components` kopieren
-- **VST3**: das `.vst3`-Bundle nach `~/Library/Audio/Plug-Ins/VST3` oder `/Library/Audio/Plug-Ins/VST3` kopieren
+- **Audio Unit**: das `.component`-Bundle nach `~/Library/Audio/Plug-Ins/Components` kopieren
+- **VST3**: das `.vst3`-Bundle nach `~/Library/Audio/Plug-Ins/VST3` kopieren
 - **Standalone**: das `.app`-Bundle in `Applications` verschieben
 
 ### Hinweise
-
-- Unsigned Builds muessen unter Umstaenden einmal ueber Finder geoeffnet oder in `System Settings > Privacy & Security` erlaubt werden
-- Wenn du einen aelteren `RootFlow`-Build ersetzt, sollte die DAW nach der Installation von `Funky Moose Rootflow Synth` neu gescannt werden
+- Unsigned Builds müssen evtl. einmal über Finder geöffnet oder in `System Settings > Privacy & Security` erlaubt werden.
+- Wenn du einen älteren `RootFlow`-Build ersetzt, sollte die DAW nach der Installation neu gescannt werden.
 
 ## Build from Source
 
 ### Voraussetzungen
-
 - CMake 3.22 oder neuer
 - JUCE 8.0.10
 - C++17 kompatibler Compiler
 - Xcode oder Xcode Command Line Tools auf macOS
 
 ### Schnellstart
-
 ```bash
 git clone https://github.com/blubass/funky-moose-rootflow-synth.git
 cd funky-moose-rootflow-synth
@@ -87,15 +79,11 @@ cmake --build --preset default
 ```
 
 Das mitgelieferte Preset erwartet JUCE hier:
+`$HOME/Developer/JUCE/install/lib/cmake/JUCE-8.0.10`
 
-```text
-$HOME/Developer/JUCE/install/lib/cmake/JUCE-8.0.10
-```
-
-Falls JUCE bei dir woanders liegt, gib beim Konfigurieren `-DJUCE_DIR=/path/to/JUCE/lib/cmake/JUCE-8.0.10` an.
+Falls JUCE woanders liegt, gib beim Konfigurieren `-DJUCE_DIR=/path/to/JUCE/lib/cmake/JUCE-8.0.10` an.
 
 ## Roadmap
-
 - tiefere Modulationsverschaltung
 - reichere Voice-Architektur
 - erweitertes Sequencer-Verhalten
@@ -105,39 +93,24 @@ Falls JUCE bei dir woanders liegt, gib beim Konfigurieren `-DJUCE_DIR=/path/to/J
 ## Changelog
 
 ### [1.3.2] - 2026-04-28
-- **Smooth Interaction**: Robuste Per-Sample-Parameter-Glättung für alle globalen Effekte zur Beseitigung von "holprigem" Verhalten.
+- **Smooth Interaction**: Robuste Per-Sample-Parameter-Glättung für alle globalen Effekte.
 - **Analog ADSR**: Hüllkurven auf exponentielle Charakteristik umgestellt für perkussivere Artikulation.
 - **VCF Drive**: Hüllkurven-zu-Filter-Modulation integriert.
 - **Bugfixes**: Windows-CI repariert und Unisono-Stimmverwaltung stabilisiert.
 
 ### [1.3.1] - 2026-04-20
-- **Preset-Lautstaerke**: `masterVolume` bleibt beim Preset-Wechsel erhalten, statt auf `-48 dB` zu kippen.
+- **Preset-Lautstärke**: `masterVolume` bleibt beim Preset-Wechsel erhalten.
 - **Standalone-Crashfix**: Overlay-Update im Editor-Timer gegen veraltete Parameterzugriffe abgesichert.
-- **Kompatibilitaet**: Legacy-Parameter-IDs fuer Sessions und User-Presets werden in das neue Layout migriert.
-- **Modulations- und Prompt-Fixes**: Node-Slot-Mapping sowie Prompt-Memory-Read/Write-Pfad konsistent gemacht.
+- **Kompatibilität**: Legacy-Parameter-IDs werden in das neue Layout migriert.
 
 ### [1.3.0] - 2026-04-01
-- **Audio Unit Build**: AU in den Standard-Presets wieder aktiviert und lokal per `auval` validiert.
-- **macOS Packaging**: Universal-Build fuer Apple Silicon und Intel mit Monterey als Mindestziel.
-- **Audio-Pfad-Fixes**: Keyboard-MIDI, Modulations-Feedback, Master-Sektion und Oversampling-Timing nach dem Refactor repariert.
-- **UI-Skalierung**: Sicherere Startgroesse fuer kleinere MacBook-Displays.
-
-### [1.2.0] - 2026-03-30
-- **32-fache Polyphonie**: Erhöhung der Stimmenanzahl von 16 auf 32 für massivere Akkord-Texturen.
-- **Sequencer-Stabilität**: Komplett überarbeitete Gate-Logik und Note-Off-Handling für absolut präzises Timing.
-- **MUTATE-System**: Neue organische Mutations-Engine, um das Patch-"Erbgut" mit einem Klick zu verändern.
-- **Mutations-Visuals**: Integration von "Spore Burst" visuellem Feedback bei Parameter-Mutationen.
-- **Performance**: Zwischenspeicherung der Modulations-Indizes zur Reduzierung der CPU-Last im Audio-Thread.
-- **Meta**: Release-CMake-Presets hinzugefügt und Versions-Badges aktualisiert.
+- **Audio Unit Build**: AU in den Standard-Presets wieder aktiviert.
+- **macOS Packaging**: Universal-Build für Apple Silicon und Intel (Monterey+).
 
 ## Autor
-
 Uwe Arthur Felchle
-
 Musiker, Komponist, Produzent und Entwickler
-
-https://uwefelchle.at
+[uwefelchle.at](https://uwefelchle.at)
 
 ## Lizenz
-
 Dieses Projekt steht unter der MIT-Lizenz. Siehe [LICENSE](LICENSE).
