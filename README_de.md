@@ -86,16 +86,20 @@ Automatisierte CI-Builds für macOS und Windows werden über GitHub Actions erst
 
 ### Schnellstart
 ```bash
-git clone https://github.com/blubass/funky-moose-rootflow-synth.git
+git clone --recursive https://github.com/blubass/funky-moose-rootflow-synth.git
 cd funky-moose-rootflow-synth
-cmake --preset default
-cmake --build --preset default
+
+# Optional: JUCE klonen, falls es nicht global installiert ist
+git clone --depth 1 --branch 8.0.10 https://github.com/juce-framework/JUCE.git external/JUCE
+
+cmake -S . -B build-release -DCMAKE_BUILD_TYPE=Release
+cmake --build build-release --parallel
 ```
 
-Das mitgelieferte Preset erwartet JUCE hier:
+Standardmäßig sucht das Projekt JUCE auch hier:
 `$HOME/Developer/JUCE/install/lib/cmake/JUCE-8.0.10`
 
-Falls JUCE woanders liegt, gib beim Konfigurieren `-DJUCE_DIR=/path/to/JUCE/lib/cmake/JUCE-8.0.10` an.
+Falls JUCE woanders liegt und du nicht den `external/JUCE`-Weg nutzt, gib beim Konfigurieren `-DJUCE_DIR=/path/to/JUCE/lib/cmake/JUCE-8.0.10` an.
 
 ## Roadmap
 
