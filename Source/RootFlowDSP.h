@@ -60,6 +60,7 @@ public:
 
         smoothedMix.reset(sampleRate, 0.05);
         smoothedSize.reset(sampleRate, 0.05);
+        smoothedDamp.reset(sampleRate, 0.05);
 
         prevL = 0.0f;
         prevR = 0.0f;
@@ -81,30 +82,23 @@ public:
                    float sourceAnchor)
     {
         smoothedMix.setTargetValue(clamp01(resonanceAmount));
-
-        // Size linked to System Energy
         smoothedSize.setTargetValue(0.45f + systemEnergy * 0.45f);
 
-        juce::dsp::Reverb::Parameters params;
-        params.roomSize = smoothedSize.getTargetValue();
-        params.damping  = 0.72f; // Very dark
-        params.width    = 0.65f;
-        params.wetLevel = 1.0f;
-        params.dryLevel = 0.0f;
-        reverb.setParameters(params);
-
         // Lowpass damping factor based on flow energy
-        targetDamp = 0.82f - (flowEnergy * 0.28f); // More damping (softer)
+        float targetD = 0.82f - (flowEnergy * 0.28f);
+        smoothedDamp.setTargetValue(targetD);
     }
 
     void process(juce::AudioBuffer<float>& buffer)
     {
         const int numSamples = buffer.getNumSamples();
-        const float mix = smoothedMix.getNextValue();
-        smoothedMix.skip(numSamples - 1);
-
-        if (mix < 0.001f)
+        if (smoothedMix.getCurrentValue() < 0.001f && smoothedMix.getTargetValue() < 0.001f)
+        {
+            smoothedMix.skip(numSamples);
+            smoothedSize.skip(numSamples);
+            smoothedDamp.skip(numSamples);
             return;
+        }
 
         jassert(wetBuffer.getNumChannels() >= buffer.getNumChannels());
         jassert(wetBuffer.getNumSamples() >= numSamples);
@@ -112,26 +106,45 @@ public:
         for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
             wetBuffer.copyFrom(ch, 0, buffer, ch, 0, numSamples);
 
+        juce::dsp::Reverb::Parameters params;
+        params.roomSize = smoothedSize.getNextValue();
+        smoothedSize.skip(numSamples - 1);
+        params.damping  = 0.72f; 
+        params.width    = 0.65f;
+        params.wetLevel = 1.0f;
+        params.dryLevel = 0.0f;
+        reverb.setParameters(params);
+
         auto block = juce::dsp::AudioBlock<float>(wetBuffer)
                          .getSubsetChannelBlock(0, (size_t) buffer.getNumChannels())
                          .getSubBlock(0, (size_t) numSamples);
         juce::dsp::ProcessContextReplacing<float> context(block);
         reverb.process(context);
 
-        for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+        // handle both channels and smoothing correctly
+        auto* leftDry = buffer.getWritePointer(0);
+        auto* rightDry = buffer.getNumChannels() > 1 ? buffer.getWritePointer(1) : nullptr;
+        auto* leftWet = wetBuffer.getReadPointer(0);
+        auto* rightWet = buffer.getNumChannels() > 1 ? wetBuffer.getReadPointer(1) : nullptr;
+
+        for (int i = 0; i < numSamples; ++i)
         {
-            auto* dryPtr = buffer.getWritePointer(ch);
-            auto* wetPtr = wetBuffer.getReadPointer(ch);
-            float& last = (ch == 0) ? prevL : prevR;
+            float mix = smoothedMix.getNextValue();
+            float damp = smoothedDamp.getNextValue();
 
-            for (int i = 0; i < numSamples; ++i)
+            // Left
+            float sL = leftWet[i];
+            sL = sL * (1.0f - damp) + prevL * damp;
+            prevL = sL;
+            leftDry[i] = leftDry[i] * (1.0f - mix) + sL * mix;
+
+            // Right
+            if (rightDry)
             {
-                // Simple Low-Pass on the Reverb Tail (Matrix effect)
-                float s = wetPtr[i];
-                s = s * (1.0f - targetDamp) + last * targetDamp;
-                last = s;
-
-                dryPtr[i] = dryPtr[i] * (1.0f - mix) + s * mix;
+                float sR = rightWet[i];
+                sR = sR * (1.0f - damp) + prevR * damp;
+                prevR = sR;
+                rightDry[i] = rightDry[i] * (1.0f - mix) + sR * mix;
             }
         }
     }
@@ -142,8 +155,8 @@ private:
     double sampleRate = 44100.0;
     juce::LinearSmoothedValue<float> smoothedMix;
     juce::LinearSmoothedValue<float> smoothedSize;
+    juce::LinearSmoothedValue<float> smoothedDamp;
     float prevL = 0.0f, prevR = 0.0f;
-    float targetDamp = 0.94f;
 };
 
 /**
@@ -165,6 +178,11 @@ public:
         }
 
         smoothedMix.reset(sampleRate, 0.08);
+        smoothedDelayMs.reset(sampleRate, 0.1);
+        smoothedFeedback.reset(sampleRate, 0.05);
+        smoothedModDepth.reset(sampleRate, 0.05);
+        smoothedModSpeed.reset(sampleRate, 0.05);
+        
         modPhase = 0.0f;
     }
 
@@ -184,25 +202,37 @@ public:
         smoothedMix.setTargetValue(clamp01(fieldAmount));
 
         // Speed of field movement linked to Pulse & Energy
-        modSpeed = 0.0001f + (pulseWidth * 0.0008f) + (systemEnergy * 0.0004f);
+        smoothedModSpeed.setTargetValue(0.0001f + (pulseWidth * 0.0008f) + (systemEnergy * 0.0004f));
 
         // Base delay time
-        baseDelayMs = 220.0f + (flowRate * 380.0f);
-        feedback = 0.18f + (flowTexture * 0.32f); 
-        modDepth = 35.0f + (fieldComplexity * 65.0f);
+        smoothedDelayMs.setTargetValue(220.0f + (flowRate * 380.0f));
+        smoothedFeedback.setTargetValue(0.18f + (flowTexture * 0.32f)); 
+        smoothedModDepth.setTargetValue(35.0f + (fieldComplexity * 65.0f));
     }
 
     void process(juce::AudioBuffer<float>& buffer)
     {
         const int numSamples = buffer.getNumSamples();
         const int numChannels = buffer.getNumChannels();
-        const float mix = smoothedMix.getNextValue();
-        smoothedMix.skip(numSamples - 1);
-
-        if (mix < 0.001f) return;
+        
+        if (smoothedMix.getCurrentValue() < 0.001f && smoothedMix.getTargetValue() < 0.001f)
+        {
+            smoothedMix.skip(numSamples);
+            smoothedDelayMs.skip(numSamples);
+            smoothedFeedback.skip(numSamples);
+            smoothedModDepth.skip(numSamples);
+            smoothedModSpeed.skip(numSamples);
+            return;
+        }
 
         for (int i = 0; i < numSamples; ++i)
         {
+            float mix = smoothedMix.getNextValue();
+            float feedback = smoothedFeedback.getNextValue();
+            float baseDelayMs = smoothedDelayMs.getNextValue();
+            float modDepth = smoothedModDepth.getNextValue();
+            float modSpeed = smoothedModSpeed.getNextValue();
+
             modPhase += modSpeed;
             if (modPhase > 1.0f) modPhase -= 1.0f;
 
@@ -232,12 +262,12 @@ private:
     double sampleRate = 44100.0;
     juce::dsp::ProcessSpec specInternal;
     juce::LinearSmoothedValue<float> smoothedMix;
+    juce::LinearSmoothedValue<float> smoothedDelayMs;
+    juce::LinearSmoothedValue<float> smoothedFeedback;
+    juce::LinearSmoothedValue<float> smoothedModDepth;
+    juce::LinearSmoothedValue<float> smoothedModSpeed;
 
     float modPhase = 0.0f;
-    float modSpeed = 0.0005f;
-    float modDepth = 50.0f;
-    float baseDelayMs = 200.0f;
-    float feedback = 0.5f;
     float tapeLp[2] = {0.0f, 0.0f};
 };
 
@@ -275,6 +305,8 @@ public:
     {
         smoothedMix.setTargetValue(clamp01(radianceAmount));
 
+        // Update reverb parameters based on latest values.
+        // These will be applied at the start of the next process block.
         auto params = reverb.getParameters();
         params.roomSize = 0.75f + fieldComplexity * 0.22f;
         params.damping  = 0.92f - (systemEnergy * 0.35f); 
@@ -287,28 +319,31 @@ public:
     void process(juce::AudioBuffer<float>& buffer)
     {
         const int numSamples = buffer.getNumSamples();
-        const float mix = smoothedMix.getNextValue();
-        smoothedMix.skip(numSamples - 1);
+        const int numChannels = buffer.getNumChannels();
+        
+        float startMix = smoothedMix.getNextValue();
+        smoothedMix.skip(numSamples - 2);
+        float endMix = smoothedMix.getNextValue();
 
-        if (mix < 0.001f)
+        if (startMix < 0.001f && endMix < 0.001f && smoothedMix.getTargetValue() < 0.001f)
             return;
 
-        jassert(wetBuffer.getNumChannels() >= buffer.getNumChannels());
+        jassert(wetBuffer.getNumChannels() >= numChannels);
         jassert(wetBuffer.getNumSamples() >= numSamples);
 
-        for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+        for (int ch = 0; ch < numChannels; ++ch)
             wetBuffer.copyFrom(ch, 0, buffer, ch, 0, numSamples);
 
         auto block = juce::dsp::AudioBlock<float>(wetBuffer)
-                         .getSubsetChannelBlock(0, (size_t) buffer.getNumChannels())
+                         .getSubsetChannelBlock(0, (size_t) numChannels)
                          .getSubBlock(0, (size_t) numSamples);
         juce::dsp::ProcessContextReplacing<float> context(block);
         reverb.process(context);
 
-        for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+        for (int ch = 0; ch < numChannels; ++ch)
         {
-            buffer.applyGainRamp(ch, 0, numSamples, 1.0f - mix, 1.0f - mix);
-            buffer.addFrom(ch, 0, wetBuffer.getReadPointer(ch), numSamples, mix);
+            buffer.applyGainRamp(ch, 0, numSamples, 1.0f - startMix, 1.0f - endMix);
+            buffer.addFromWithRamp(ch, 0, wetBuffer.getReadPointer(ch), numSamples, startMix, endMix);
         }
     }
 

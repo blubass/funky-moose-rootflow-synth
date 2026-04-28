@@ -258,6 +258,7 @@ private:
     void resetRuntimeState();
 
     bool handleOversamplingChangeIfNeeded(juce::AudioBuffer<float>& buffer);
+    void applyPendingOversamplingReconfigure();
     void clearUnusedOutputChannels(juce::AudioBuffer<float>& buffer);
     void renderSynthAndVoices(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages);
     void applyGlobalFx(juce::AudioBuffer<float>& buffer);
@@ -267,6 +268,7 @@ private:
     std::atomic<int> currentPresetDirty { 0 };
     std::atomic<int> presetLoadInProgress { 0 };
     std::atomic<int> processingStateResetPending { 0 };
+    std::atomic<int> oversamplingReconfigurePending { 0 };
     std::atomic<int> mutationMode { (int) MutationMode::balanced };
     std::atomic<int> growLockMask { 0 };
     std::atomic<float> lastSystemEnergy { 0.0f };
@@ -341,6 +343,7 @@ private:
     std::atomic<bool> monoMakerEnabled { false };
 
     // Final Master FX
+    mutable juce::CriticalSection processingLock;
     std::unique_ptr<juce::dsp::Oversampling<float>> oversampling;
     int currentOversamplingFactor = 0;
 

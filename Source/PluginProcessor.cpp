@@ -12,7 +12,7 @@ namespace
     using GrowLockGroup = RootFlow::GrowLockGroup;
     using SequencerStep = RootFlow::SequencerStep;
 
-    constexpr std::array<const char*, 27> managedParameterIDs {
+    constexpr std::array<const char*, 30> managedParameterIDs {
         "sourceDepth", "sourceCore", "sourceAnchor",
         "flowRate", "flowEnergy", "flowTexture",
         "pulseFrequency", "pulseWidth", "pulseEnergy",
@@ -21,9 +21,10 @@ namespace
         "radiance", "charge", "discharge",
         "systemMatrix",
         "sequencerOn", "sequencerRate", "sequencerSteps", "sequencerGate",
+        "sequencerProbOn", "sequencerJitterOn",
         "oscWave",
         "masterVolume", "masterCompressor", "masterMix", "monoMakerToggle", "monoMakerFreq",
-        "evolution"
+        "evolution", "oversampling"
     };
 
     struct LegacyParameterMapping
@@ -861,6 +862,7 @@ bool RootFlowAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts)
 
 void RootFlowAudioProcessor::prepareToPlay(double sr, int bs)
 {
+    const juce::CriticalSection::ScopedLockType processLock(processingLock);
     const auto safeSampleRateBase = sr > 0.0 ? sr : 44100.0;
 
     prepareOversampling(bs);
@@ -999,11 +1001,17 @@ void RootFlowAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     if (buffer.getNumSamples() <= 0 || buffer.getNumChannels() <= 0)
         return;
 
+    const juce::CriticalSection::ScopedTryLockType processLock(processingLock);
+    if (! processLock.isLocked())
+    {
+        buffer.clear();
+        return;
+    }
+
     if (handleOversamplingChangeIfNeeded(buffer))
         return;
 
     clearUnusedOutputChannels(buffer);
-    performPendingProcessingStateReset();
     const bool sequencerActive = *tree.getRawParameterValue("sequencerOn") > 0.5f;
     const bool sequencerStateChanged = sequencerActive != sequencerWasEnabled;
     handleIncomingMidiMessages(midiMessages);
@@ -1902,10 +1910,12 @@ void RootFlowAudioProcessor::hiResTimerCallback()
     applyPendingMidiLearnBinding();
     flushPendingMappedParameterChanges();
 
-    nodeSystem.update(getRMS(), (float)juce::Time::getMillisecondCounterHiRes() * 0.001f, beatPhase.load());
+    applyPendingOversamplingReconfigure();
 
     if (processingStateResetPending.load(std::memory_order_acquire) != 0)
         performPendingProcessingStateReset();
+
+    nodeSystem.update(getRMS(), (float)juce::Time::getMillisecondCounterHiRes() * 0.001f, beatPhase.load());
 }
 
 juce::String RootFlowAudioProcessor::getMappedParameterIDForSlot(int parameterSlot) const
@@ -2786,7 +2796,10 @@ void RootFlowAudioProcessor::pushNextFFTBlockIntoQueue() noexcept
 
 void RootFlowAudioProcessor::parameterChanged(const juce::String& parameterID, float newValue)
 {
-    juce::ignoreUnused(parameterID, newValue);
+    juce::ignoreUnused(newValue);
+
+    if (parameterID == "oversampling")
+        oversamplingReconfigurePending.store(1, std::memory_order_release);
 
     if (presetLoadInProgress.load(std::memory_order_acquire) != 0)
         return;
@@ -2804,6 +2817,7 @@ void RootFlowAudioProcessor::performPendingProcessingStateReset() noexcept
     if (processingStateResetPending.exchange(0, std::memory_order_acq_rel) == 0)
         return;
 
+    const juce::CriticalSection::ScopedLockType processLock(processingLock);
     const double safeSampleRate = getSampleRate() > 0.0 ? getSampleRate() : 44100.0;
     const int safeBlockSize = juce::jmax(getBlockSize(), 1);
 
@@ -3342,13 +3356,28 @@ bool RootFlowAudioProcessor::handleOversamplingChangeIfNeeded(juce::AudioBuffer<
 
         if (targetOversamplingFactor != currentOversamplingFactor)
         {
-            prepareToPlay(getSampleRate(), getBlockSize());
+            oversamplingReconfigurePending.store(1, std::memory_order_release);
             buffer.clear();
             return true;
         }
     }
 
     return false;
+}
+
+void RootFlowAudioProcessor::applyPendingOversamplingReconfigure()
+{
+    if (oversamplingReconfigurePending.exchange(0, std::memory_order_acq_rel) == 0)
+        return;
+
+    const int targetOversamplingFactor = tree.getRawParameterValue("oversampling") != nullptr
+        ? (int) tree.getRawParameterValue("oversampling")->load()
+        : 0;
+
+    if (targetOversamplingFactor == currentOversamplingFactor)
+        return;
+
+    prepareToPlay(getSampleRate(), getBlockSize());
 }
 
 void RootFlowAudioProcessor::clearUnusedOutputChannels(juce::AudioBuffer<float>& buffer)
@@ -3488,17 +3517,9 @@ void RootFlowAudioProcessor::renderSynthAndVoices(juce::AudioBuffer<float>& proc
         }
     }
 
-    // Internal voice unison handled via setUnison in the voice loop.
-    for (int i = 0; i < synth.getNumVoices(); ++i)
-    {
-        if (auto* voice = dynamic_cast<RootFlowVoice*>(synth.getVoice(i)))
-        {
-            int voiceVoices = 3; // Default internal unison
-            if (systemMatrix > 0.45f) voiceVoices = 6;
-            if (systemMatrix > 0.85f) voiceVoices = 8;
-            voice->setUnison(voiceVoices);
-        }
-    }
+    // Internal voice unison count is determined by the system matrix at the time of note-on
+    // to avoid clicks from dynamically changing voice counts.
+    // (Handled inside RootFlowVoice::startNote now)
 
     juce::MidiBuffer oversampledMidi;
     const int oversamplingMultiplier = 1 << currentOversamplingFactor;
@@ -3627,8 +3648,12 @@ void RootFlowAudioProcessor::applyGlobalFx(juce::AudioBuffer<float>& procBuffer)
 
         if (monoEnabled)
         {
-            monoMakerFilters[0].setCutoffFrequency(clampStateVariableCutoff(monoFreq, fxSampleRate));
-            monoMakerFilters[1].setCutoffFrequency(clampStateVariableCutoff(monoFreq, fxSampleRate));
+            if ((i & 15) == 0)
+            {
+                const float clampedFreq = clampStateVariableCutoff(monoFreq, fxSampleRate);
+                monoMakerFilters[0].setCutoffFrequency(clampedFreq);
+                monoMakerFilters[1].setCutoffFrequency(clampedFreq);
+            }
 
             const float lowLeft = monoMakerFilters[0].processSample(0, wetLeft);
             const float lowRight = monoMakerFilters[1].processSample(0, wetRight);

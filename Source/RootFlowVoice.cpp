@@ -108,6 +108,16 @@ void RootFlowVoice::startNote(int midiNoteNumber, float velocity,
     driftLfo.setFrequency(0.05f + r.nextFloat() * 0.25f);
     vibratoLfo.setFrequency(4.6f + r.nextFloat() * 0.9f);
 
+    // Determine Unison count at note-on to avoid clicks
+    if (engine != nullptr)
+    {
+        float energy = engine->getSystemEnergy();
+        int voiceVoices = 3;
+        if (energy > 0.45f) voiceVoices = 6;
+        if (energy > 0.85f) voiceVoices = 8;
+        setUnison(voiceVoices);
+    }
+
     level = velocity;
     adsr.noteOn();
 }
@@ -199,6 +209,8 @@ void RootFlowVoice::renderNextBlock(juce::AudioBuffer<float>& buffer,
     float macroDetuneAmt = (sourceDepth * sourceDepth * 0.165f) + (pulseEnergy * pulseEnergy * 0.225f);
     float macroDriftAmt = (0.0030f) + (pulseEnergy * 0.0085f);
     float macroSpreadAmt = (sourceDepth * 0.94f) + (pulseEnergy * 0.82f);
+    float envCutoffMod = 0.0f;
+    float env = 0.0f;
 
     lfo.setFrequency(juce::jmap(pulseFreq, 0.05f, 15.0f));
 
@@ -228,7 +240,11 @@ void RootFlowVoice::renderNextBlock(juce::AudioBuffer<float>& buffer,
             float velMod = juce::jmap(level * level, 0.0f, 1.0f, 0.0f, 12800.0f); 
             // Analog Filter Instability Jitter (VCF Drift)
             float filterJitter = (noiseGen.nextFloat() - 0.5f) * 15.0f * currentInstability;
-            float finalCutoff = clampStateVariableCutoff(baseCutoff + modWheelLift + velMod + filterJitter, sampleRate);
+            
+            // Add the new Envelope Modulation (envCutoffMod is calculated in the sample loop)
+            // Note: Since this is in the 16-sample block, we use the value from the previous sample loop iteration
+            // which is perfectly fine for filter modulation.
+            float finalCutoff = clampStateVariableCutoff(baseCutoff + modWheelLift + velMod + filterJitter + envCutoffMod, sampleRate);
 
             // Resonance Limitation (Slightly dampened for analog warmth)
             float maxRes = 0.92f - (pulseEnergy * 0.1f);
@@ -238,14 +254,24 @@ void RootFlowVoice::renderNextBlock(juce::AudioBuffer<float>& buffer,
             filterL.setResonance(res);
             filterR.setCutoffFrequency(finalCutoff);
             filterR.setResonance(res);
+
+            // Update LFO frequencies smoothly
+            lfo.setFrequency(juce::jmap(pulseFreq, 0.05f, 15.0f));
+            const float vibratoRateHz = 4.2f + pulseFreq * 2.4f;
+            vibratoLfo.setFrequency(vibratoRateHz);
         }     // Osc Frequency Update (Heavy Math)
         float lfoVal = lfo.processSample(0.0f);
-        const float vibratoRateHz = 4.2f + pulseFreq * 2.4f;
-        vibratoLfo.setFrequency(vibratoRateHz);
         const float vibratoLfoValue = vibratoLfo.processSample(0.0f);
         const float vibratoDepthSemitones = currentModWheel * (0.08f + flowEnergy * 0.42f + pulseEnergy * 0.18f);
         const float expressivePitchSemitones = currentPitchBendSemitones + vibratoLfoValue * vibratoDepthSemitones;
-        float env = adsr.getNextSample();
+        
+        // --- ADSR SHAPING (Musical Snapping) ---
+        // We apply a power curve to the linear ADSR to get exponential-like decay/release.
+        float rawEnv = adsr.getNextSample();
+        float env = std::pow(rawEnv, 1.55f); 
+        
+        // Filter Envelope Modulation (makes the 'bite' much more musical)
+        float envCutoffMod = std::pow(rawEnv, 2.2f) * (flowEnergy * 6500.0f);
 
         float leftSum = 0.0f;
         float rightSum = 0.0f;
