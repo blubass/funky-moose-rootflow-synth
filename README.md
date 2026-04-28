@@ -31,7 +31,7 @@ Latest release: **v1.3.2**
 - Root, Pulse and Ambient field layout for stable tone, animated motion and spatial shaping
 - Patch workflow with save, delete and mutate actions directly in the main interface
 - Playable keyboard and direct performance controls
-- Available as **Audio Unit**, **VST3** and **Standalone** on macOS
+- Available as **VST3** and **Standalone** on Windows, and **Audio Unit**, **VST3** and **Standalone** on macOS
 
 ## Interface
 

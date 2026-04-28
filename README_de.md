@@ -31,7 +31,7 @@ Aktuelle Version: **v1.3.2**
 - Root-, Pulse- und Ambient-Felder für tonale Basis, Bewegung und Raumanteil
 - Patch-Workflow mit Save-, Delete- und Mutate-Aktionen direkt im Hauptfenster
 - Spielbare Keyboard-Oberfläche und direkte Performance-Kontrolle
-- Verfügbar als **Audio Unit**, **VST3** und **Standalone** auf macOS
+- Verfügbar als **VST3** und **Standalone** auf Windows sowie als **Audio Unit**, **VST3** und **Standalone** auf macOS
 
 ## Interface
 
