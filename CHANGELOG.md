@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **DSP Parameter Smoothing**: Implemented per-sample interpolation for all critical effect parameters (Mix, Delay, Feedback, Resonance).
 - **Musical ADSR Shaping**: Applied exponential power curves to the envelope output.
 - **Filter Bite**: Added dynamic envelope modulation to the filter cutoff.
-- **Audio Safety**: Added ScopedNoDenormals and safety clamps to DSP components.
+- **Audio Safety**: Added ScopedNoDenormals, safety clamps, and a transparent **softLimit** master stage.
+- **PolyBLEP Waveforms**: Anti-aliased oscillators for saw and pulse waves.
 
 ### Changed
 - **Roadmap**: Updated to a release-oriented roadmap.
