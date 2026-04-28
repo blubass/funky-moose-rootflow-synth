@@ -27,9 +27,12 @@ build-release/
 # OS generated files
 .DS_Store
 
-# Logs and debug files
+# Logs and internal artifacts
 /*.log
 /build_errors*.txt
 /build_log.txt
 /editor_errors.log
 /rootflow_debug.log
+.git_actions_jobs.json
+.git_actions_runs.json
+.git_mac_log.txt
