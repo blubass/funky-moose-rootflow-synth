@@ -71,7 +71,7 @@ Steuert Raumanteil, Luftigkeit, den Charakter von Reverb/Delay und die Stereobre
 - **Standalone**: das `.app`-Bundle in `Applications` verschieben
 
 ### Hinweise
-- Unsigned Builds müssen evtl. einmal über Finder geöffnet oder in `System Settings > Privacy & Security` erlaubt werden.
+- Unsigned Builds müssen eventuell einmal über Finder geöffnet oder in den **Systemeinstellungen > Datenschutz & Sicherheit** erlaubt werden.
 - Wenn du einen älteren `RootFlow`-Build ersetzt, sollte die DAW nach der Installation neu gescannt werden.
 
 ## Build from Source
