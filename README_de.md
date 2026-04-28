@@ -43,10 +43,13 @@ Diese Bereiche formen den Klangkoerper des Instruments:
 - **Ambient Field**: Luft, Boden und Raumanteil
 
 ### Version 1.3.2 (Aktuell)
-- **Windows-CI repariert**: Die doppelte `PromptPatternArchetype`-Definition in `RootFlowMutation.cpp` ist entfernt, sodass der MSVC-Build in GitHub Actions wieder sauber durchlaeuft.
-- **Preset-Wechsel stabilisiert**: `masterVolume` bleibt beim Umschalten von Factory- und User-Presets erhalten und springt nicht mehr auf stumm.
-- **Standalone-Start abgesichert**: Der Editor-Timer verwendet keine veraltete Parameter-ID mehr und laeuft ohne den Null-Deref aus dem alten Overlay-Pfad.
-- **State- und Prompt-Kompatibilitaet**: Legacy-Sessions, User-Presets, Node-Routing und Prompt-Memory-Ziele werden wieder konsistent auf das aktuelle Layout gehoben.
+- **DSP Parameter Smoothing**: Per-Sample-Interpolation fuer alle kritischen Effekt-Parameter (Mix, Delay, Feedback, Resonanz) zur Vermeidung von "Zipper Noise" und Artefakten.
+- **Musikalische ADSR-Kurven**: Exponentielle Formgebung der Hüllkurven für einen perkussiveren, analogen Charakter.
+- **Filter Bite**: Dynamische Hüllkurven-Modulation auf den Filter-Cutoff für lebendigere Artikulation.
+- **Unisono-Stabilität**: Stimmenanzahl wird jetzt beim Note-On fixiert, um Knackser bei Parameter-Modulationen zu vermeiden.
+- **Windows-CI repariert**: MSVC-Ambiguität in GitHub Actions behoben.
+- **Preset-Wechsel stabil**: `masterVolume` bleibt beim Umschalten von Presets erhalten.
+- **Standalone-Start abgesichert**: Null-Deref-Crash beim App-Start behoben.
 
 ## Screenshot
 
@@ -101,9 +104,11 @@ Falls JUCE bei dir woanders liegt, gib beim Konfigurieren `-DJUCE_DIR=/path/to/J
 
 ## Changelog
 
-### [1.3.2] - 2026-04-21
-- **Windows-Release-CI**: Doppelte `PromptPatternArchetype`-Deklaration in `RootFlowMutation.cpp` entfernt und damit den MSVC-Buildfehler in GitHub Actions beseitigt.
-- **Release-Abgleich**: Versionsangaben und Doku an den aktuellen Fix-Stand angepasst, damit der CI-Fix in einer sauberen Release-Version steckt.
+### [1.3.2] - 2026-04-28
+- **Smooth Interaction**: Robuste Per-Sample-Parameter-Glättung für alle globalen Effekte zur Beseitigung von "holprigem" Verhalten.
+- **Analog ADSR**: Hüllkurven auf exponentielle Charakteristik umgestellt für perkussivere Artikulation.
+- **VCF Drive**: Hüllkurven-zu-Filter-Modulation integriert.
+- **Bugfixes**: Windows-CI repariert und Unisono-Stimmverwaltung stabilisiert.
 
 ### [1.3.1] - 2026-04-20
 - **Preset-Lautstaerke**: `masterVolume` bleibt beim Preset-Wechsel erhalten, statt auf `-48 dB` zu kippen.

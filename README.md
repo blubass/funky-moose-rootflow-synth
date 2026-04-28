@@ -43,10 +43,13 @@ These sections shape the body of the instrument:
 - **Ambient Field**: air, ground and space balance
 
 ### Version 1.3.2 (Latest)
-- **Windows CI Fixed**: Removed the duplicate `PromptPatternArchetype` shadow enum in `RootFlowMutation.cpp`, resolving the MSVC ambiguity that broke GitHub Actions Windows builds.
-- **Preset Switching Stable**: `masterVolume` now stays intact when switching factory and user presets instead of dropping to silence.
-- **Standalone Startup Hardened**: The editor overlay timer no longer touches the stale parameter path that caused the standalone null-deref crash.
-- **State Compatibility**: Legacy sessions, user presets, node routing and prompt-memory targets are restored consistently on the current parameter layout.
+- **DSP Parameter Smoothing**: Implemented per-sample interpolation for all critical effect parameters (Mix, Delay, Feedback, Resonance) to eliminate zipper noise and artifacts.
+- **Musical ADSR Shaping**: Applied exponential power curves to the envelope output for a punchier, more analog response.
+- **Filter Bite**: Added dynamic envelope modulation to the filter cutoff for more expressive performance.
+- **Unison Stability**: Voice counts are now stabilized at note-on to prevent clicking during parameter modulation.
+- **Windows CI Fixed**: Resolved MSVC ambiguity in GitHub Actions.
+- **Preset Switching Stable**: `masterVolume` now persists across preset changes.
+- **Standalone Startup Hardened**: Fixed null-deref crash on app startup.
 
 ## Screenshot
 
@@ -101,9 +104,11 @@ If your JUCE install lives elsewhere, pass `-DJUCE_DIR=/path/to/JUCE/lib/cmake/J
 
 ## Changelog
 
-### [1.3.2] - 2026-04-21
-- **Windows Release CI**: Removed the duplicate `PromptPatternArchetype` declaration in `RootFlowMutation.cpp`, fixing the MSVC compile failure on GitHub Actions.
-- **Release Alignment**: Synced version metadata and documentation so the CI fix is included in a tagged release.
+### [1.3.2] - 2026-04-28
+- **Smooth Interaction**: Implemented robust per-sample parameter smoothing for all global effects to eliminate "holprige" behavior.
+- **Analog ADSR**: Retuned envelope curves to exponential for punchier, more musical articulation.
+- **VCF Drive**: Added envelope-to-filter modulation depth scaling.
+- **Bugfixes**: Resolved Windows CI failures and stabilized unison voice management.
 
 ### [1.3.1] - 2026-04-20
 - **Preset Volume**: `masterVolume` now persists across preset changes instead of collapsing to `-48 dB`.
