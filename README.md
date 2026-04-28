@@ -50,6 +50,16 @@ Controls movement, rate, breath and animated modulation.
 ### Ambient Field
 Controls space, air, reverb/delay character and stereo depth.
 
+## Technical Highlights
+
+- **MIDI Learn**: Flexible controller mapping and default support for popular hardware.
+- **Preset System**: Robust factory and user preset management.
+- **Bio-Sequencer**: Advanced step engine with per-step probability and velocity.
+- **FFT Visuals**: Real-time spectral analysis for the reative visualizer.
+- **High Performance**: Oversampling-ready processing path and voice optimization.
+- **Audio Safety**: DC blocking and output monitoring ("Watchdogs") for system stability.
+- **MPE Foundation**: MPE-aware MIDI expression groundwork for future-proof playing.
+
 ### Version 1.3.2 (Latest)
 - **DSP Parameter Smoothing**: Implemented per-sample interpolation for all critical effect parameters (Mix, Delay, Feedback, Resonance) to eliminate zipper noise and artifacts.
 - **Musical ADSR Shaping**: Applied exponential power curves to the envelope output for a punchier, more analog response.

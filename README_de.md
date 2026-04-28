@@ -50,6 +50,16 @@ Steuert Bewegung, Rate, Atem und animierte Modulationen.
 ### Ambient Field
 Steuert Raumanteil, Luftigkeit, den Charakter von Reverb/Delay und die Stereobreite.
 
+## Technische Highlights
+
+- **MIDI-Learn**: Flexibles Controller-Mapping und Standard-Unterstützung für gängige Hardware.
+- **Preset-System**: Robustes Factory- und User-Preset-Management.
+- **Bio-Sequencer**: Fortschrittliche Step-Engine mit Step-Wahrscheinlichkeit und Velocity.
+- **FFT-Visualisierung**: Echtzeit-Spektralanalyse für die reaktiven Visuals.
+- **High Performance**: Oversampling-fähiger Processing-Pfad und Voice-Optimierung.
+- **Audio-Sicherheit**: DC-Blocking und Output-Überwachung ("Watchdogs") für maximale Systemstabilität.
+- **MPE-Vorbereitung**: MPE-fähige MIDI-Expression-Basis für zukunftssicheres Spielgefühl.
+
 ### Version 1.3.2 (Aktuell)
 - **DSP Parameter Smoothing**: Per-Sample-Interpolation für alle kritischen Effekt-Parameter (Mix, Delay, Feedback, Resonanz) zur Vermeidung von "Zipper Noise".
 - **Musikalische ADSR-Kurven**: Exponentielle Formgebung der Hüllkurven für einen perkussiveren, analogen Charakter.
