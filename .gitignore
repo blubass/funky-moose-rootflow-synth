@@ -1,11 +1,16 @@
 # Build artifacts
 /build/
+/build-*/
+/build_*/
+/build-release/
+build-release/
 /Binaries/
 /Builds/
 /DerivedData/
 /Intermediate/
 /obj/
 /*.artefacts/
+/*_artefacts/
 
 # JUCE/Projucer files
 /JuceLibraryCode/
@@ -24,6 +29,7 @@
 
 # Logs and debug files
 /*.log
-/build_errors.txt
-build/
-build_release/
+/build_errors*.txt
+/build_log.txt
+/editor_errors.log
+/rootflow_debug.log

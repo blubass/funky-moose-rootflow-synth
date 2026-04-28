@@ -3,6 +3,25 @@
 
 namespace
 {
+constexpr int editorMinWidth = 960;
+constexpr int editorMinHeight = 690;
+constexpr int editorDefaultWidth = 1240;
+constexpr int editorDefaultHeight = 820;
+
+juce::Rectangle<int> getInitialEditorBounds()
+{
+    auto bounds = juce::Rectangle<int>(editorDefaultWidth, editorDefaultHeight);
+
+    if (auto* display = juce::Desktop::getInstance().getDisplays().getPrimaryDisplay())
+    {
+        const auto availableArea = display->userArea.reduced(32, 32);
+        bounds.setSize(juce::jmin(editorDefaultWidth, juce::jmax(editorMinWidth, availableArea.getWidth())),
+                       juce::jmin(editorDefaultHeight, juce::jmax(editorMinHeight, availableArea.getHeight())));
+    }
+
+    return bounds;
+}
+
 int getHeaderHeightForSize(int editorHeight)
 {
     return juce::jlimit(72, 80, juce::roundToInt((float) editorHeight * 0.095f));
@@ -25,8 +44,8 @@ void styleKeyboardDrawer(juce::MidiKeyboardComponent& keyboardDrawer)
 {
     keyboardDrawer.setColour(juce::MidiKeyboardComponent::whiteNoteColourId, juce::Colour(0xff1a2620));
     keyboardDrawer.setColour(juce::MidiKeyboardComponent::blackNoteColourId, juce::Colour(0xff050a08));
-    keyboardDrawer.setColour(juce::MidiKeyboardComponent::keyDownOverlayColourId, RootFlow::accent.withAlpha(0.48f));
-    keyboardDrawer.setColour(juce::MidiKeyboardComponent::keySeparatorLineColourId, RootFlow::accent.withAlpha(0.08f));
+    keyboardDrawer.setColour(juce::MidiKeyboardComponent::keyDownOverlayColourId, RootFlow::accent.withAlpha(0.28f));
+    keyboardDrawer.setColour(juce::MidiKeyboardComponent::keySeparatorLineColourId, RootFlow::accent.withAlpha(0.04f));
 }
 
 juce::Path makeKeyboardCradle(juce::Rectangle<float> r)
@@ -54,23 +73,23 @@ void drawHeaderChip(juce::Graphics& g,
                     juce::Colour tint,
                     bool emphasise = false)
 {
-    RootFlow::drawGlassPanel(g, area, area.getHeight() * 0.5f, emphasise ? 0.72f : 0.56f);
+    RootFlow::drawGlassPanel(g, area, area.getHeight() * 0.5f, emphasise ? 0.58f : 0.44f);
     
-    g.setColour(tint.withAlpha(emphasise ? 0.055f : 0.030f));
+    g.setColour(tint.withAlpha(emphasise ? 0.038f : 0.020f));
     g.fillRoundedRectangle(area.reduced(2.0f), area.getHeight() * 0.44f);
 
     auto inner = area.reduced(12.0f, 5.0f);
     auto labelArea = inner.removeFromTop(area.getHeight() * 0.34f);
 
-    g.setColour(RootFlow::textMuted.withAlpha(emphasise ? 0.76f : 0.68f));
+    g.setColour(RootFlow::textMuted.withAlpha(emphasise ? 0.70f : 0.62f));
     g.setFont(RootFlow::getFont(9.1f));
     g.drawText(label.toUpperCase(), labelArea, juce::Justification::centredLeft, false);
 
-    g.setColour((emphasise ? tint.brighter(0.12f) : RootFlow::text).withAlpha(emphasise ? 0.94f : 0.88f));
+    g.setColour((emphasise ? tint.brighter(0.08f) : RootFlow::text).withAlpha(emphasise ? 0.90f : 0.84f));
     g.setFont(RootFlow::getFont(12.2f).boldened());
     g.drawFittedText(value, inner.toNearestInt(), juce::Justification::centredLeft, 1);
 
-    RootFlow::drawGlowOrb(g, { area.getRight() - 14.0f, area.getCentreY() }, 2.7f, tint, emphasise ? 0.44f : 0.26f);
+    RootFlow::drawGlowOrb(g, { area.getRight() - 14.0f, area.getCentreY() }, 2.7f, tint, emphasise ? 0.28f : 0.18f);
 }
 
 void drawHeaderFocusBubble(juce::Graphics& g,
@@ -80,9 +99,9 @@ void drawHeaderFocusBubble(juce::Graphics& g,
                            juce::Colour tint,
                            bool emphasise = false)
 {
-    RootFlow::drawGlassPanel(g, area, area.getHeight() * 0.5f, emphasise ? 0.78f : 0.66f);
+    RootFlow::drawGlassPanel(g, area, area.getHeight() * 0.5f, emphasise ? 0.64f : 0.54f);
 
-    g.setColour(tint.withAlpha(emphasise ? 0.10f : 0.06f));
+    g.setColour(tint.withAlpha(emphasise ? 0.06f : 0.035f));
     g.fillRoundedRectangle(area.reduced(2.0f), area.getHeight() * 0.44f);
 
     auto inner = area.reduced(10.0f, 4.0f);
@@ -92,11 +111,11 @@ void drawHeaderFocusBubble(juce::Graphics& g,
     g.setFont(RootFlow::getFont(7.8f).boldened());
     g.drawText(section.toUpperCase(), sectionArea, juce::Justification::centredLeft, false);
 
-    g.setColour((emphasise ? tint.brighter(0.20f) : RootFlow::text).withAlpha(0.96f));
+    g.setColour((emphasise ? tint.brighter(0.12f) : RootFlow::text).withAlpha(0.90f));
     g.setFont(RootFlow::getFont(10.2f).boldened());
     g.drawFittedText(value.toUpperCase(), inner.toNearestInt(), juce::Justification::centredLeft, 1);
 
-    RootFlow::drawGlowOrb(g, { area.getRight() - 10.0f, area.getCentreY() }, 2.5f, tint, emphasise ? 0.54f : 0.34f);
+    RootFlow::drawGlowOrb(g, { area.getRight() - 10.0f, area.getCentreY() }, 2.5f, tint, emphasise ? 0.34f : 0.22f);
 }
 
 void drawToolbarCaption(juce::Graphics& g,
@@ -105,16 +124,16 @@ void drawToolbarCaption(juce::Graphics& g,
                         juce::Colour tint,
                         juce::Justification justification = juce::Justification::centred)
 {
-    RootFlow::drawGlassPanel(g, area, area.getHeight() * 0.5f, 0.42f);
-    g.setColour(tint.withAlpha(0.08f));
+    RootFlow::drawGlassPanel(g, area, area.getHeight() * 0.5f, 0.34f);
+    g.setColour(tint.withAlpha(0.05f));
     g.fillRoundedRectangle(area.reduced(2.0f), area.getHeight() * 0.42f);
 
     auto textArea = area.toNearestInt().reduced(8, 0);
     g.setFont(RootFlow::getFont(8.8f).boldened());
-    g.setColour(juce::Colours::black.withAlpha(0.30f));
+    g.setColour(juce::Colours::black.withAlpha(0.22f));
     g.drawFittedText(text, textArea.translated(0, 1), justification, 1);
 
-    g.setColour(RootFlow::text.interpolatedWith(tint, 0.30f).withAlpha(0.98f));
+    g.setColour(RootFlow::text.interpolatedWith(tint, 0.22f).withAlpha(0.88f));
     g.drawFittedText(text, textArea, justification, 1);
 }
 
@@ -122,9 +141,9 @@ void drawClusterDivider(juce::Graphics& g, float x, juce::Rectangle<float> clust
 {
     const float top = cluster.getY() + 7.0f;
     const float bottom = cluster.getBottom() - 7.0f;
-    g.setColour(tint.withAlpha(0.08f));
+    g.setColour(tint.withAlpha(0.05f));
     g.drawLine(x, top, x, bottom, 1.0f);
-    g.setColour(juce::Colours::white.withAlpha(0.03f));
+    g.setColour(juce::Colours::white.withAlpha(0.02f));
     g.drawLine(x + 1.0f, top + 2.0f, x + 1.0f, bottom - 2.0f, 1.0f);
 }
 
@@ -228,6 +247,82 @@ juce::Colour getMidiActivityTint(const RootFlowAudioProcessor::MidiActivitySnaps
         default:               return RootFlow::textMuted;
     }
 }
+
+juce::String makeSeedMemoryButtonLabel(const juce::String& prompt)
+{
+    auto cleaned = prompt.trim().replaceCharacters("\r\n\t", "   ");
+    cleaned = cleaned.replaceCharacters("|", "/").trim();
+
+    if (cleaned.isEmpty())
+        return {};
+
+    constexpr int maxLabelLength = 18;
+    if (cleaned.length() <= maxLabelLength)
+        return cleaned;
+
+    return cleaned.substring(0, maxLabelLength - 3).trimEnd() + "...";
+}
+
+juce::String makeUtilitySummaryText(bool hoverEffectsEnabled,
+                                    bool idleEffectsEnabled,
+                                    bool popupOverlaysEnabled,
+                                    bool testToneEnabled,
+                                    const RootFlowAudioProcessor& audioProcessor)
+{
+    juce::StringArray parts;
+    juce::StringArray locks;
+    if (audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::core))       locks.add("Core");
+    if (audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::motion))     locks.add("Move");
+    if (audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::spectral))   locks.add("Spectral");
+    if (audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::fx))         locks.add("FX");
+    if (audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::sequencer))  locks.add("Seq");
+
+    parts.add(locks.isEmpty() ? juce::String("Locks Off")
+                              : juce::String("Locks ") + locks.joinIntoString("/"));
+    parts.add("Midi " + juce::String(audioProcessor.isMidiLearnArmed() ? "Armed" : "Off"));
+    parts.add("Hover " + juce::String(hoverEffectsEnabled ? "On" : "Off"));
+    parts.add("Idle " + juce::String(idleEffectsEnabled ? "On" : "Off"));
+    parts.add("Popups " + juce::String(popupOverlaysEnabled ? "On" : "Off"));
+    parts.add("Tone " + juce::String(testToneEnabled ? "On" : "Off"));
+    return parts.joinIntoString(" / ");
+}
+
+struct StylePromptRecipe
+{
+    const char* menuLabel;
+    const char* seedA;
+    const char* seedB;
+    float morphAmount;
+    const char* tooltip;
+};
+
+constexpr std::array<StylePromptRecipe, 5> stylePromptRecipes {{
+    { "Techno Bass",
+      "warehouse techno bass, dark mono sub, punchy 4-on-the-floor, tight machine groove",
+      "acid pulse, hypnotic motion, industrial edge, straight grid",
+      0.32f,
+      "Dark club low-end with tight mono focus and machine drive" },
+    { "Neo-Soul Keys",
+      "neo-soul keys, warm electric piano pad, soft jazzy chords, humanized swing",
+      "velvet soul texture, airy shimmer, intimate stereo, mellow groove",
+      0.46f,
+      "Warm, musical, humanized keys/pad territory" },
+    { "Afro Pulse",
+      "afrobeat groove, percussive pluck, warm organic tone, polyrhythmic motion",
+      "amapiano log drum bounce, human timing, sunny air, dancefloor pocket",
+      0.54f,
+      "Polyrhythmic, warm pulse with organic motion and bounce" },
+    { "Trap Sub",
+      "trap sub bass, dark 808, halftime bounce, mono center, punchy transient",
+      "drill tension, ominous texture, sliding low-end, sparse pocket",
+      0.42f,
+      "Heavy halftime sub with dark urban tension" },
+    { "DnB Motion",
+      "drum and bass motion, broken beat energy, tight low-end, fast nervous groove",
+      "neurofunk texture, glitch detail, bright attack, restless movement",
+      0.58f,
+      "Fast broken rhythm with animated bass motion" }
+}};
 }
 
 RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcessor& p)
@@ -238,13 +333,13 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
     setLookAndFeel(&look);
     setOpaque(true);
     setResizable(true, true);
-    setResizeLimits(960, 690, 1800, 1300);
+    setResizeLimits(editorMinWidth, editorMinHeight, 1800, 1300);
 
     styleKeyboardDrawer(keyboardDrawer);
 
     // Anchoring Glow (Soft Upward Radiance)
     auto* kbdGlow = new juce::GlowEffect();
-    kbdGlow->setGlowProperties(4.0f, RootFlow::accent.withAlpha(0.16f));
+    kbdGlow->setGlowProperties(2.4f, RootFlow::accent.withAlpha(0.08f));
     keyboardDrawer.setComponentEffect(kbdGlow);
 
     // Main Layout components are added and initialized
@@ -252,68 +347,153 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
     mainLayout->setOpaque(false); // Let the Editor's backdrop shine through
     addAndMakeVisible(*mainLayout);
 
-    startTimerHz(30); // Global UI Animation Pulse
-
     // --- ACTUAL ATTACHMENTS FOR SUB-PANELS ---
-    auto& rp = mainLayout->getRootPanel();
-    rootDepthAtt  = std::make_unique<Attachment>(p.tree, "rootDepth", rp.getDepthSlider());
-    rootSoilAtt   = std::make_unique<Attachment>(p.tree, "rootSoil",  rp.getSoilSlider());
-    rootAnchorAtt = std::make_unique<Attachment>(p.tree, "rootAnchor", rp.getAnchorSlider());
+    auto& sp = mainLayout->getSourcePanel();
+    sourceDepthAtt  = std::make_unique<Attachment>(p.tree, "sourceDepth", sp.getDepthSlider());
+    sourceCoreAtt   = std::make_unique<Attachment>(p.tree, "sourceCore",  sp.getCoreSlider());
+    sourceAnchorAtt = std::make_unique<Attachment>(p.tree, "sourceAnchor", sp.getAnchorSlider());
 
     auto& pp = mainLayout->getPulsePanel();
-    pulseRateAtt   = std::make_unique<Attachment>(p.tree, "pulseRate",   pp.getRateSlider());
-    pulseBreathAtt = std::make_unique<Attachment>(p.tree, "pulseBreath", pp.getBreathSlider());
-    pulseGrowthAtt = std::make_unique<Attachment>(p.tree, "pulseGrowth", pp.getGrowthSlider());
+    pulseFrequencyAtt = std::make_unique<Attachment>(p.tree, "pulseFrequency", pp.getFrequencySlider());
+    pulseWidthAtt     = std::make_unique<Attachment>(p.tree, "pulseWidth",     pp.getWidthSlider());
+    pulseEnergyAtt    = std::make_unique<Attachment>(p.tree, "pulseEnergy",    pp.getEnergySlider());
 
     auto& cc = mainLayout->getCenterComponent();
-    sapFlowAtt      = std::make_unique<Attachment>(p.tree, "sapFlow",      cc.getFlowSlider());
-    sapVitalityAtt  = std::make_unique<Attachment>(p.tree, "sapVitality",  cc.getVitalitySlider());
-    sapTextureAtt   = std::make_unique<Attachment>(p.tree, "sapTexture",   cc.getTextureSlider());
-    canopyAtt       = std::make_unique<Attachment>(p.tree, "canopy",       cc.getCanopySlider());
-    instabilityAtt  = std::make_unique<Attachment>(p.tree, "instability",  cc.getInstabilitySlider());
-    atmosAtt        = std::make_unique<Attachment>(p.tree, "atmosphere",   cc.getAtmosSlider());
-    seasonsAtt      = std::make_unique<Attachment>(p.tree, "ecoSystem",    cc.getSeasonsSlider());
+    flowRateAtt       = std::make_unique<Attachment>(p.tree, "flowRate",      cc.getFlowSlider());
+    flowEnergyAtt     = std::make_unique<Attachment>(p.tree, "flowEnergy",  cc.getVitalitySlider());
+    flowTextureAtt    = std::make_unique<Attachment>(p.tree, "flowTexture",   cc.getTextureSlider());
+    fieldComplexityAtt = std::make_unique<Attachment>(p.tree, "fieldComplexity", cc.getCanopySlider());
+    instabilityAtt    = std::make_unique<Attachment>(p.tree, "instability",  cc.getInstabilitySlider());
+    fieldDepthAtt     = std::make_unique<Attachment>(p.tree, "fieldDepth",   cc.getAtmosSlider());
+    systemMatrixAtt   = std::make_unique<Attachment>(p.tree, "systemMatrix",    cc.getSeasonsSlider());
 
     // Connect the Visualizer to the Processor
     cc.getEnergyDisplay().setProcessor(&audioProcessor);
 
     auto& bp = mainLayout->getBottomPanel();
-    bloomAtt = std::make_unique<Attachment>(audioProcessor.tree, "bloom", bp.getBloomSlider());
-    rainAtt = std::make_unique<Attachment>(audioProcessor.tree, "rain", bp.getRainSlider());
-    sunAtt = std::make_unique<Attachment>(audioProcessor.tree, "sun", bp.getSunSlider());
+    radianceAtt = std::make_unique<Attachment>(audioProcessor.tree, "radiance", bp.getRadianceSlider());
+    chargeAtt = std::make_unique<Attachment>(audioProcessor.tree, "charge", bp.getChargeSlider());
+    dischargeAtt = std::make_unique<Attachment>(audioProcessor.tree, "discharge", bp.getDischargeSlider());
     evolutionAtt = std::make_unique<Attachment>(audioProcessor.tree, "evolution", cc.getEvolution());
 
     // --- GLOBAL HEADER UI ---
     addAndMakeVisible(presetBox);
+    addAndMakeVisible(patchMenuButton);
     addAndMakeVisible(presetSaveButton);
     addAndMakeVisible(presetDeleteButton);
     addAndMakeVisible(midiLearnButton);
+    addAndMakeVisible(utilityMenuButton);
     addAndMakeVisible(testToneButton);
     addAndMakeVisible(hoverToggleButton);
     addAndMakeVisible(idleToggleButton);
     addAndMakeVisible(popupToggleButton);
+    addAndMakeVisible(mutateModeButton);
     addAndMakeVisible(mutateButton);
+    addAndMakeVisible(growLockCoreButton);
+    addAndMakeVisible(growLockMotionButton);
+    addAndMakeVisible(growLockSpectralButton);
+    addAndMakeVisible(growLockFxButton);
+    addAndMakeVisible(growLockSeqButton);
+    addAndMakeVisible(promptEditor);
+    addAndMakeVisible(morphPromptEditor);
+    addAndMakeVisible(promptMorphSlider);
+    addAndMakeVisible(promptApplyButton);
+    for (auto& seedMemoryButton : seedMemoryButtons)
+        addAndMakeVisible(seedMemoryButton);
     addAndMakeVisible(waveSelector);
     addAndMakeVisible(keyboardDrawer);
 
     presetBox.setText("FACTORY SEED");
+    patchMenuButton.setButtonText("EDIT");
     presetSaveButton.setButtonText("SAVE");
     presetDeleteButton.setButtonText("DEL");
     midiLearnButton.setButtonText("MAP");
+    utilityMenuButton.setButtonText("TOOLS");
     testToneButton.setButtonText("TONE");
     hoverToggleButton.setButtonText("HOVER");
     idleToggleButton.setButtonText("IDLE");
     popupToggleButton.setButtonText("POPUP");
+    mutateModeButton.setButtonText(audioProcessor.getMutationModeShortLabel());
     mutateButton.setButtonText("MUTATE");
+    growLockCoreButton.setButtonText("SOURCE");
+    growLockMotionButton.setButtonText("FLOW");
+    growLockSpectralButton.setButtonText("FIELD");
+    growLockFxButton.setButtonText("FX");
+    growLockSeqButton.setButtonText("SEQ");
+    promptApplyButton.setButtonText("GROW");
     presetBox.setTextWhenNothingSelected("PRESET");
     midiLearnButton.setClickingTogglesState(true);
     testToneButton.setClickingTogglesState(true);
     hoverToggleButton.setClickingTogglesState(true);
     idleToggleButton.setClickingTogglesState(true);
     popupToggleButton.setClickingTogglesState(true);
+    growLockCoreButton.setClickingTogglesState(true);
+    growLockMotionButton.setClickingTogglesState(true);
+    growLockSpectralButton.setClickingTogglesState(true);
+    growLockFxButton.setClickingTogglesState(true);
+    growLockSeqButton.setClickingTogglesState(true);
     hoverToggleButton.setToggleState(RootFlow::areHoverEffectsEnabled(), juce::dontSendNotification);
     idleToggleButton.setToggleState(RootFlow::areIdleEffectsEnabled(), juce::dontSendNotification);
     popupToggleButton.setToggleState(RootFlow::arePopupOverlaysEnabled(), juce::dontSendNotification);
+    patchMenuButton.setVisible(true);
+    presetSaveButton.setVisible(false);
+    presetDeleteButton.setVisible(false);
+    midiLearnButton.setVisible(false);
+    mutateModeButton.setVisible(false);
+    growLockCoreButton.setVisible(false);
+    growLockMotionButton.setVisible(false);
+    growLockSpectralButton.setVisible(false);
+    growLockFxButton.setVisible(false);
+    growLockSeqButton.setVisible(false);
+    hoverToggleButton.setVisible(false);
+    idleToggleButton.setVisible(false);
+    popupToggleButton.setVisible(false);
+    testToneButton.setVisible(false);
+    promptEditor.setMultiLine(false);
+    promptEditor.setReturnKeyStartsNewLine(false);
+    promptEditor.setScrollbarsShown(false);
+    promptEditor.setIndents(10, 8);
+    promptEditor.setFont(RootFlow::getFont(12.0f));
+    promptEditor.setTextToShowWhenEmpty("A: techno pulse / neo-soul pad", RootFlow::textMuted.withAlpha(0.55f));
+    promptEditor.setColour(juce::TextEditor::backgroundColourId, juce::Colour(0x00000000));
+    promptEditor.setColour(juce::TextEditor::outlineColourId, RootFlow::accent.withAlpha(0.07f));
+    promptEditor.setColour(juce::TextEditor::focusedOutlineColourId, RootFlow::amber.withAlpha(0.20f));
+    promptEditor.setColour(juce::TextEditor::textColourId, RootFlow::text.withAlpha(0.95f));
+    promptEditor.setColour(juce::TextEditor::highlightColourId, RootFlow::accent.withAlpha(0.12f));
+    promptEditor.setColour(juce::TextEditor::highlightedTextColourId, juce::Colours::white);
+    promptEditor.setColour(juce::CaretComponent::caretColourId, RootFlow::accentSoft);
+    morphPromptEditor.setMultiLine(false);
+    morphPromptEditor.setReturnKeyStartsNewLine(false);
+    morphPromptEditor.setScrollbarsShown(false);
+    morphPromptEditor.setIndents(10, 8);
+    morphPromptEditor.setFont(RootFlow::getFont(12.0f));
+    morphPromptEditor.setTextToShowWhenEmpty("+ B: afro groove / trap bass", RootFlow::textMuted.withAlpha(0.55f));
+    morphPromptEditor.setColour(juce::TextEditor::backgroundColourId, juce::Colour(0x00000000));
+    morphPromptEditor.setColour(juce::TextEditor::outlineColourId, RootFlow::accent.withAlpha(0.07f));
+    morphPromptEditor.setColour(juce::TextEditor::focusedOutlineColourId, RootFlow::amber.withAlpha(0.20f));
+    morphPromptEditor.setColour(juce::TextEditor::textColourId, RootFlow::text.withAlpha(0.95f));
+    morphPromptEditor.setColour(juce::TextEditor::highlightColourId, RootFlow::accent.withAlpha(0.12f));
+    morphPromptEditor.setColour(juce::TextEditor::highlightedTextColourId, juce::Colours::white);
+    morphPromptEditor.setColour(juce::CaretComponent::caretColourId, RootFlow::amber);
+    promptMorphSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    promptMorphSlider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
+    promptMorphSlider.setRange(0.0, 1.0, 0.01);
+    promptMorphSlider.setDoubleClickReturnValue(true, 0.5);
+    promptMorphSlider.setValue(0.5, juce::dontSendNotification);
+    promptMorphSlider.setName("Prompt Morph");
+    promptMorphSlider.getProperties().set("rootflowStyle", "core-horizontal");
+    promptMorphSlider.setTooltip("Blend between Seed A and Seed B");
+    promptApplyButton.getProperties().set("rootflowStyle", "header-flat");
+    promptApplyButton.setTooltip("Apply the current seed pair or use EDIT for style recipes");
+    mutateButton.getProperties().set("rootflowStyle", "cyber-core");
+    mutateButton.setTooltip("Reconfigure the system matrix based on current settings");
+    for (size_t i = 0; i < seedMemoryButtons.size(); ++i)
+    {
+        auto& button = seedMemoryButtons[i];
+        button.setButtonText("MEM");
+        button.setTooltip("Load a remembered seed");
+        button.setVisible(false);
+    }
 
     waveSelector.addItemList({"SINE", "SAW", "PULSE"}, 1);
     waveAttachment = std::make_unique<ComboAttachment>(p.tree, "oscWave", waveSelector);
@@ -327,6 +507,11 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
         const int presetIndex = presetBox.getSelectedId() - 1;
         if (presetIndex >= 0)
             audioProcessor.applyCombinedPreset(presetIndex);
+    };
+
+    patchMenuButton.onClick = [this]
+    {
+        showPatchMenu();
     };
 
     presetSaveButton.onClick = [this]
@@ -343,61 +528,147 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
 
     midiLearnButton.onClick = [this]
     {
-        audioProcessor.setMidiLearnArmed(midiLearnButton.getToggleState());
-        refreshHeaderControlState();
+        setMidiLearnEnabled(midiLearnButton.getToggleState());
+    };
+
+    utilityMenuButton.onClick = [this]
+    {
+        showUtilityMenu();
     };
 
     testToneButton.onClick = [this]
     {
-        audioProcessor.setTestToneEnabled(testToneButton.getToggleState());
-        refreshHeaderControlState();
+        setToneProbeEnabled(testToneButton.getToggleState());
     };
 
     hoverToggleButton.onClick = [this]
     {
-        RootFlow::setHoverEffectsEnabled(hoverToggleButton.getToggleState());
-        if (! hoverToggleButton.getToggleState())
-            headerFocusedControl = nullptr;
-
-        repaint();
-        if (mainLayout != nullptr)
-            mainLayout->repaint();
-        keyboardDrawer.repaint();
+        setHoverEffectsEnabled(hoverToggleButton.getToggleState());
     };
 
     idleToggleButton.onClick = [this]
     {
-        RootFlow::setIdleEffectsEnabled(idleToggleButton.getToggleState());
-        repaint();
-        if (mainLayout != nullptr)
-            mainLayout->repaint();
+        setIdleEffectsEnabled(idleToggleButton.getToggleState());
     };
 
     popupToggleButton.onClick = [this]
     {
-        RootFlow::setPopupOverlaysEnabled(popupToggleButton.getToggleState());
-        repaint();
-        if (mainLayout != nullptr)
-            mainLayout->repaint();
-        keyboardDrawer.repaint();
+        setPopupOverlaysEnabled(popupToggleButton.getToggleState());
     };
 
+    mutateModeButton.onClick = [this]
+    {
+        audioProcessor.cycleMutationMode();
+        refreshHeaderControlState();
+        repaint();
+    };
+
+    growLockCoreButton.onClick = [this]
+    {
+        audioProcessor.setGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::core,
+                                          growLockCoreButton.getToggleState());
+        refreshHeaderControlState();
+        repaint();
+    };
+
+    growLockMotionButton.onClick = [this]
+    {
+        audioProcessor.setGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::motion,
+                                          growLockMotionButton.getToggleState());
+        refreshHeaderControlState();
+        repaint();
+    };
+
+    growLockSpectralButton.onClick = [this]
+    {
+        audioProcessor.setGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::spectral,
+                                          growLockSpectralButton.getToggleState());
+        refreshHeaderControlState();
+        repaint();
+    };
+
+    growLockFxButton.onClick = [this]
+    {
+        audioProcessor.setGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::fx,
+                                          growLockFxButton.getToggleState());
+        refreshHeaderControlState();
+        repaint();
+    };
+
+    growLockSeqButton.onClick = [this]
+    {
+        audioProcessor.setGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::sequencer,
+                                          growLockSeqButton.getToggleState());
+        refreshHeaderControlState();
+        repaint();
+    };
+
+    promptEditor.onReturnKey = [this]
+    {
+        applyPromptSeed();
+    };
+
+    promptEditor.onTextChange = [this]
+    {
+        refreshHeaderControlState();
+        repaint();
+    };
+
+    morphPromptEditor.onReturnKey = [this]
+    {
+        applyPromptSeed();
+    };
+
+    morphPromptEditor.onTextChange = [this]
+    {
+        refreshHeaderControlState();
+        repaint();
+    };
+
+    promptMorphSlider.onValueChange = [this]
+    {
+        refreshHeaderControlState();
+        repaint();
+    };
+
+    promptApplyButton.onClick = [this]
+    {
+        applyPromptSeed();
+    };
+
+    for (size_t i = 0; i < seedMemoryButtons.size(); ++i)
+    {
+        seedMemoryButtons[i].onClick = [] {};
+    }
+
     mutateButton.onClick = [this] {
-        audioProcessor.mutatePlant();
-        mainLayout->getCenterComponent().getEnergyDisplay().triggerSporeBurst();
+        audioProcessor.mutateSystem();
+        mainLayout->getCenterComponent().getEnergyDisplay().triggerCoreBurst();
+        refreshHeaderControlState();
     };
 
     for (auto* headerControl : { static_cast<juce::Component*>(&waveSelector),
                                  static_cast<juce::Component*>(&oversamplingSelector),
                                  static_cast<juce::Component*>(&presetBox),
+                                 static_cast<juce::Component*>(&patchMenuButton),
                                  static_cast<juce::Component*>(&presetSaveButton),
                                  static_cast<juce::Component*>(&presetDeleteButton),
+                                 static_cast<juce::Component*>(&utilityMenuButton),
+                                 static_cast<juce::Component*>(&mutateModeButton),
                                  static_cast<juce::Component*>(&mutateButton),
-                                 static_cast<juce::Component*>(&hoverToggleButton),
-                                 static_cast<juce::Component*>(&idleToggleButton),
-                                 static_cast<juce::Component*>(&popupToggleButton),
-                                 static_cast<juce::Component*>(&midiLearnButton),
-                                 static_cast<juce::Component*>(&testToneButton) })
+                                 static_cast<juce::Component*>(&growLockCoreButton),
+                                 static_cast<juce::Component*>(&growLockMotionButton),
+                                 static_cast<juce::Component*>(&growLockSpectralButton),
+                                 static_cast<juce::Component*>(&growLockFxButton),
+                                 static_cast<juce::Component*>(&growLockSeqButton),
+                                 static_cast<juce::Component*>(&promptEditor),
+                                 static_cast<juce::Component*>(&morphPromptEditor),
+                                 static_cast<juce::Component*>(&promptMorphSlider),
+                                 static_cast<juce::Component*>(&promptApplyButton),
+                                 static_cast<juce::Component*>(&seedMemoryButtons[0]),
+                                 static_cast<juce::Component*>(&seedMemoryButtons[1]),
+                                 static_cast<juce::Component*>(&seedMemoryButtons[2]),
+                                 static_cast<juce::Component*>(&midiLearnButton) })
     {
         if (headerControl != nullptr)
             registerHeaderControl(*headerControl);
@@ -405,12 +676,13 @@ RootFlowAudioProcessorEditor::RootFlowAudioProcessorEditor(RootFlowAudioProcesso
 
     refreshHeaderControlState();
     updateAnimationTimerState();
-    setSize(1240, 820);
+    const auto initialBounds = getInitialEditorBounds();
+    setSize(initialBounds.getWidth(), initialBounds.getHeight());
 
     // Overlay MUST be added LAST so it sits on top of every other child in Z-order
     addAndMakeVisible(atmosphericOverlay);
 
-    startTimerHz(60); // Faster refresh for smoother bioluminescent glow & dust
+    startTimerHz(24); // Keep motion present without making the UI feel busy
 }
 
 RootFlowAudioProcessorEditor::~RootFlowAudioProcessorEditor()
@@ -418,14 +690,25 @@ RootFlowAudioProcessorEditor::~RootFlowAudioProcessorEditor()
     for (auto* headerControl : { static_cast<juce::Component*>(&waveSelector),
                                  static_cast<juce::Component*>(&oversamplingSelector),
                                  static_cast<juce::Component*>(&presetBox),
+                                 static_cast<juce::Component*>(&patchMenuButton),
                                  static_cast<juce::Component*>(&presetSaveButton),
                                  static_cast<juce::Component*>(&presetDeleteButton),
+                                 static_cast<juce::Component*>(&utilityMenuButton),
+                                 static_cast<juce::Component*>(&mutateModeButton),
                                  static_cast<juce::Component*>(&mutateButton),
-                                 static_cast<juce::Component*>(&hoverToggleButton),
-                                 static_cast<juce::Component*>(&idleToggleButton),
-                                 static_cast<juce::Component*>(&popupToggleButton),
-                                 static_cast<juce::Component*>(&midiLearnButton),
-                                 static_cast<juce::Component*>(&testToneButton) })
+                                 static_cast<juce::Component*>(&growLockCoreButton),
+                                 static_cast<juce::Component*>(&growLockMotionButton),
+                                 static_cast<juce::Component*>(&growLockSpectralButton),
+                                 static_cast<juce::Component*>(&growLockFxButton),
+                                 static_cast<juce::Component*>(&growLockSeqButton),
+                                 static_cast<juce::Component*>(&promptEditor),
+                                 static_cast<juce::Component*>(&morphPromptEditor),
+                                 static_cast<juce::Component*>(&promptMorphSlider),
+                                 static_cast<juce::Component*>(&promptApplyButton),
+                                 static_cast<juce::Component*>(&seedMemoryButtons[0]),
+                                 static_cast<juce::Component*>(&seedMemoryButtons[1]),
+                                 static_cast<juce::Component*>(&seedMemoryButtons[2]),
+                                 static_cast<juce::Component*>(&midiLearnButton) })
     {
         if (headerControl != nullptr)
             headerControl->removeMouseListener(this);
@@ -461,22 +744,35 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
     const bool midiArmed = audioProcessor.isMidiLearnArmed();
     const bool testToneEnabled = audioProcessor.isTestToneEnabled();
     const bool hasUserPreset = audioProcessor.getCurrentUserPresetIndex() >= 0;
+    const auto promptSummary = audioProcessor.getLastPromptSummary();
     auto* focusControl = headerFocusedControl;
     if (! hoverEffectsEnabled && focusControl != nullptr && ! focusControl->isMouseButtonDown())
         focusControl = nullptr;
     const bool focusWave = focusControl == &waveSelector;
     const bool focusOversampling = focusControl == &oversamplingSelector;
     const bool focusPreset = focusControl == &presetBox;
-    const bool focusSave = focusControl == &presetSaveButton;
-    const bool focusDelete = focusControl == &presetDeleteButton;
+    const bool focusPatchMenu = focusControl == &patchMenuButton;
     const bool focusMutate = focusControl == &mutateButton;
-    const bool focusHoverToggle = focusControl == &hoverToggleButton;
-    const bool focusIdleToggle = focusControl == &idleToggleButton;
-    const bool focusPopupToggle = focusControl == &popupToggleButton;
-    const bool focusMidi = focusControl == &midiLearnButton;
-    const bool focusTone = focusControl == &testToneButton;
-    const bool focusLeftCluster = focusWave || focusOversampling || focusPreset || focusSave || focusDelete || focusMutate;
-    const bool focusRightCluster = focusHoverToggle || focusIdleToggle || focusPopupToggle || focusMidi || focusTone;
+    const bool focusLockCore = focusControl == &growLockCoreButton;
+    const bool focusLockMotion = focusControl == &growLockMotionButton;
+    const bool focusLockSpectral = focusControl == &growLockSpectralButton;
+    const bool focusLockFx = focusControl == &growLockFxButton;
+    const bool focusLockSeq = focusControl == &growLockSeqButton;
+    const bool focusPrompt = focusControl == &promptEditor;
+    const bool focusPromptB = focusControl == &morphPromptEditor;
+    const bool focusPromptMorph = focusControl == &promptMorphSlider;
+    const bool focusGrow = focusControl == &promptApplyButton;
+    const bool focusSeedMemoryA = focusControl == &seedMemoryButtons[0];
+    const bool focusSeedMemoryB = focusControl == &seedMemoryButtons[1];
+    const bool focusSeedMemoryC = focusControl == &seedMemoryButtons[2];
+    const bool focusUtilityMenu = focusControl == &utilityMenuButton;
+    const bool anyGrowLockEnabled = audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::core)
+                                 || audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::motion)
+                                 || audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::spectral)
+                                 || audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::fx)
+                                 || audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::sequencer);
+    const bool focusLeftCluster = focusWave || focusOversampling || focusPreset || focusPatchMenu || focusMutate;
+    const bool focusRightCluster = focusUtilityMenu;
 
     juce::String focusSection;
     juce::String focusValue;
@@ -501,138 +797,178 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
                                                       : juce::String("Factory Seed");
         focusTint = RootFlow::accent;
     }
-    else if (focusSave)
+    else if (focusPatchMenu)
     {
-        focusSection = "Store Patch";
-        focusValue = presetDirty ? juce::String("Write User Snapshot")
-                                 : juce::String("Patch Synced");
-        focusTint = RootFlow::violet;
-    }
-    else if (focusDelete)
-    {
-        focusSection = "Delete Patch";
-        focusValue = hasUserPreset ? juce::String("Remove User Variant")
-                                   : juce::String("Factory Patch Locked");
-        focusTint = RootFlow::violet;
+        focusSection = "Patch Menu";
+        focusValue = (presetDirty ? juce::String("Unsaved / ") : juce::String())
+                   + (hasUserPreset ? juce::String("User Patch / ") : juce::String("Factory Patch / "))
+                   + audioProcessor.getMutationModeDisplayName();
+        focusTint = presetDirty ? RootFlow::violet
+                                : RootFlow::accent.interpolatedWith(RootFlow::amber, 0.20f);
     }
     else if (focusMutate)
     {
         focusSection = "Evolve DNA";
-        focusValue = juce::String("Mutate Current Patch");
+        focusValue = audioProcessor.getMutationModeDisplayName() + " Mutation";
         focusTint = RootFlow::amber;
     }
-    else if (focusHoverToggle)
+    else if (focusLockCore)
     {
-        focusSection = "Hover Field";
-        focusValue = hoverEffectsEnabled ? juce::String("Visual Hover Enabled")
-                                         : juce::String("Hover Visuals Disabled");
-        focusTint = hoverEffectsEnabled ? RootFlow::accentSoft : RootFlow::textMuted;
-    }
-    else if (focusIdleToggle)
-    {
-        focusSection = "Idle Field";
-        focusValue = idleEffectsEnabled ? juce::String("Organic Idle Enabled")
-                                        : juce::String("Idle Visuals Paused");
-        focusTint = idleEffectsEnabled ? RootFlow::accent : RootFlow::textMuted;
-    }
-    else if (focusPopupToggle)
-    {
-        focusSection = "Popup Field";
-        focusValue = popupOverlaysEnabled ? juce::String("Inspector Popups Enabled")
-                                          : juce::String("Inspector Popups Hidden");
-        focusTint = popupOverlaysEnabled ? RootFlow::amber : RootFlow::textMuted;
-    }
-    else if (focusMidi)
-    {
-        focusSection = "Midi Learn";
-        auto targetParameterID = audioProcessor.getMidiLearnTargetParameterID();
-        focusValue = midiArmed
-            ? (targetParameterID.isNotEmpty() ? audioProcessor.getParameterDisplayName(targetParameterID)
-                                              : juce::String("Awaiting Target"))
-            : juce::String("Arm Controller Map");
-        focusTint = getStatusMapColour();
-    }
-    else if (focusTone)
-    {
-        focusSection = "Tone Probe";
-        focusValue = testToneEnabled ? juce::String("Osc Probe Enabled")
-                                     : juce::String("Trigger Test Osc");
+        focusSection = "System Lock";
+        focusValue = "Core / Matrix";
         focusTint = RootFlow::accentSoft;
     }
+    else if (focusLockMotion)
+    {
+        focusSection = "System Lock";
+        focusValue = "Motion / Pulse";
+        focusTint = RootFlow::violet;
+    }
+    else if (focusLockSpectral)
+    {
+        focusSection = "System Lock";
+        focusValue = "Spectral / Space";
+        focusTint = RootFlow::accent;
+    }
+    else if (focusLockFx)
+    {
+        focusSection = "Grow Lock";
+        focusValue = "FX / Instability";
+        focusTint = RootFlow::amber;
+    }
+    else if (focusLockSeq)
+    {
+        focusSection = "Grow Lock";
+        focusValue = "Sequencer Pattern";
+        focusTint = RootFlow::amber.interpolatedWith(RootFlow::violet, 0.35f);
+    }
+    else if (focusPrompt)
+    {
+        focusSection = "Prompt Seed A";
+        focusValue = promptEditor.getText().trim().isNotEmpty() ? promptEditor.getText().trim()
+                                                                : juce::String("Describe a patch");
+        focusTint = RootFlow::accent;
+    }
+    else if (focusPromptB)
+    {
+        focusSection = "Prompt Seed B";
+        focusValue = morphPromptEditor.getText().trim().isNotEmpty() ? morphPromptEditor.getText().trim()
+                                                                     : juce::String("Describe a second patch");
+        focusTint = RootFlow::amber;
+    }
+    else if (focusPromptMorph)
+    {
+        focusSection = "Morph";
+        focusValue = juce::String(juce::roundToInt((float) promptMorphSlider.getValue() * 100.0f)) + "% Seed B";
+        focusTint = RootFlow::violet;
+    }
+    else if (focusGrow)
+    {
+        focusSection = morphPromptEditor.getText().trim().isNotEmpty() ? juce::String("Morph Patch")
+                                                                       : juce::String("Grow Patch");
+        focusValue = promptSummary;
+        focusTint = RootFlow::amber;
+    }
+    else if (focusSeedMemoryA || focusSeedMemoryB || focusSeedMemoryC)
+    {
+        int memoryIndex = 0;
+        if (focusSeedMemoryB)
+            memoryIndex = 1;
+        else if (focusSeedMemoryC)
+            memoryIndex = 2;
 
+        focusSection = "Seed Memory";
+        focusValue = seedMemoryPrompts[(size_t) memoryIndex].isNotEmpty() ? seedMemoryPrompts[(size_t) memoryIndex]
+                                                                          : juce::String("Remembered Seed");
+        if (seedMemorySummaries[(size_t) memoryIndex].isNotEmpty())
+            focusValue << " / " << seedMemorySummaries[(size_t) memoryIndex];
+        focusTint = RootFlow::violet.interpolatedWith(RootFlow::accent, 0.25f);
+    }
+    else if (focusUtilityMenu)
+    {
+        focusSection = "Utility Menu";
+        focusValue = makeUtilitySummaryText(hoverEffectsEnabled, idleEffectsEnabled, popupOverlaysEnabled, testToneEnabled, audioProcessor);
+        focusTint = testToneEnabled ? RootFlow::amber
+                                    : RootFlow::accentSoft.interpolatedWith(RootFlow::accent, 0.25f);
+    }
     auto leftCluster = waveSelector.getBounds().getUnion(oversamplingSelector.getBounds())
                                       .getUnion(presetBox.getBounds())
-                                      .getUnion(presetSaveButton.getBounds())
-                                      .getUnion(presetDeleteButton.getBounds())
+                                      .getUnion(patchMenuButton.getBounds())
                                       .getUnion(mutateButton.getBounds())
                                       .toFloat()
                                       .expanded(12.0f, 8.0f);
-    auto rightCluster = hoverToggleButton.getBounds()
-                                       .getUnion(idleToggleButton.getBounds())
-                                       .getUnion(popupToggleButton.getBounds())
-                                       .getUnion(midiLearnButton.getBounds())
-                                       .getUnion(testToneButton.getBounds())
-                                       .toFloat()
-                                       .expanded(12.0f, 8.0f);
+    auto rightCluster = utilityMenuButton.getBounds().toFloat().expanded(12.0f, 8.0f);
 
     if (! leftCluster.isEmpty())
     {
-        RootFlow::drawGlassPanel(g, leftCluster, 16.0f, focusLeftCluster ? 0.66f : 0.50f);
-        g.setColour((focusLeftCluster ? focusTint : juce::Colours::white).withAlpha(focusLeftCluster ? 0.022f : 0.012f));
+        RootFlow::drawGlassPanel(g, leftCluster, 16.0f, focusLeftCluster ? 0.56f : 0.42f);
+        g.setColour((focusLeftCluster ? focusTint : juce::Colours::white).withAlpha(focusLeftCluster ? 0.016f : 0.009f));
         g.fillRoundedRectangle(leftCluster.withHeight(leftCluster.getHeight() * 0.46f), 16.0f);
     }
 
     if (! rightCluster.isEmpty())
     {
-        RootFlow::drawGlassPanel(g, rightCluster, 16.0f, focusRightCluster ? 0.64f : 0.48f);
-        g.setColour((focusRightCluster ? focusTint : juce::Colours::white).withAlpha(focusRightCluster ? 0.022f : 0.012f));
+        RootFlow::drawGlassPanel(g, rightCluster, 16.0f, focusRightCluster ? 0.54f : 0.40f);
+        g.setColour((focusRightCluster ? focusTint : juce::Colours::white).withAlpha(focusRightCluster ? 0.016f : 0.009f));
         g.fillRoundedRectangle(rightCluster.withHeight(rightCluster.getHeight() * 0.46f), 16.0f);
     }
 
-    const auto leftCaptionBand = juce::Rectangle<float>(leftCluster.getX() + 8.0f,
-                                                        leftCluster.getY() - 7.0f,
-                                                        leftCluster.getWidth() - 16.0f,
-                                                        14.0f);
-    const auto rightCaptionBand = juce::Rectangle<float>(rightCluster.getX() + 8.0f,
-                                                         rightCluster.getY() - 7.0f,
-                                                         rightCluster.getWidth() - 16.0f,
-                                                         14.0f);
-    auto makeCaptionArea = [] (juce::Rectangle<float> anchor, juce::Rectangle<float> band, float targetWidth)
+    auto seedCluster = promptEditor.getBounds()
+                         .getUnion(morphPromptEditor.getBounds())
+                         .getUnion(promptMorphSlider.getBounds())
+                         .getUnion(promptApplyButton.getBounds())
+                         .toFloat()
+                         .expanded(promptEditor.getY() > getHeaderHeightForSize(getHeight()) ? 4.0f : 8.0f,
+                                   promptEditor.getY() > getHeaderHeightForSize(getHeight()) ? 4.0f : 8.0f);
+    if (seedCluster.getWidth() > 120.0f)
     {
-        const float width = juce::jlimit(46.0f, anchor.getWidth(), targetWidth);
-        return juce::Rectangle<float>(width, band.getHeight()).withCentre({ anchor.getCentreX(), band.getCentreY() });
-    };
+        const bool dockedInTitle = promptEditor.getY() > getHeaderHeightForSize(getHeight());
+        const bool promptFocused = focusPrompt || focusPromptB || focusPromptMorph || focusGrow;
+        const auto promptTint = promptFocused ? focusTint : RootFlow::accent.interpolatedWith(RootFlow::amber, 0.18f);
+        RootFlow::drawGlassPanel(g, seedCluster, dockedInTitle ? 12.0f : 15.0f, promptFocused ? 0.56f : (dockedInTitle ? 0.40f : 0.46f));
+        g.setColour(promptTint.withAlpha(promptFocused ? (dockedInTitle ? 0.020f : 0.026f)
+                                                       : (dockedInTitle ? 0.008f : 0.012f)));
+        g.fillRoundedRectangle(seedCluster.reduced(1.0f), dockedInTitle ? 11.0f : 14.0f);
+        if (! dockedInTitle)
+        {
+            auto promptCaption = juce::Rectangle<float>(72.0f, 14.0f)
+                                     .withCentre({ seedCluster.getX() + 46.0f, seedCluster.getY() - 1.0f });
+            drawToolbarCaption(g, promptCaption, "SEEDS", promptTint);
+        }
+    }
 
-    auto waveCaptionArea = makeCaptionArea(waveSelector.getBounds().toFloat().expanded(2.0f, 0.0f), leftCaptionBand, 60.0f);
-    auto oversamplingCaptionArea = makeCaptionArea(oversamplingSelector.getBounds().toFloat().expanded(2.0f, 0.0f), leftCaptionBand, 46.0f);
-    auto presetCaptionArea = makeCaptionArea(presetBox.getBounds().toFloat().expanded(2.0f, 0.0f), leftCaptionBand, 74.0f);
-    auto actionsCaptionAnchor = presetSaveButton.getBounds()
-                                .getUnion(presetDeleteButton.getBounds())
-                                .getUnion(mutateButton.getBounds())
-                                .toFloat();
-    auto actionsCaptionArea = makeCaptionArea(actionsCaptionAnchor, leftCaptionBand, 88.0f);
-    auto visualsCaptionAnchor = hoverToggleButton.getBounds()
-                                .getUnion(idleToggleButton.getBounds())
-                                .getUnion(popupToggleButton.getBounds())
-                                .toFloat();
-    auto visualsCaptionArea = makeCaptionArea(visualsCaptionAnchor, rightCaptionBand, 86.0f);
-    auto midiCaptionArea = makeCaptionArea(midiLearnButton.getBounds().toFloat().expanded(2.0f, 0.0f), rightCaptionBand, 60.0f);
-    auto toneCaptionArea = makeCaptionArea(testToneButton.getBounds().toFloat().expanded(2.0f, 0.0f), rightCaptionBand, 60.0f);
+    auto memoryCluster = seedMemoryButtons[0].getBounds()
+                           .getUnion(seedMemoryButtons[1].getBounds())
+                           .getUnion(seedMemoryButtons[2].getBounds())
+                           .toFloat()
+                           .expanded(seedMemoryButtons[0].getY() > getHeaderHeightForSize(getHeight()) ? 3.0f : 7.0f,
+                                     seedMemoryButtons[0].getY() > getHeaderHeightForSize(getHeight()) ? 3.0f : 6.0f);
+    if (memoryCluster.getWidth() > 70.0f)
+    {
+        const bool dockedInTitle = seedMemoryButtons[0].getY() > getHeaderHeightForSize(getHeight());
+        const bool memoryFocused = focusSeedMemoryA || focusSeedMemoryB || focusSeedMemoryC;
+        const auto memoryTint = memoryFocused ? focusTint : RootFlow::violet.interpolatedWith(RootFlow::accentSoft, 0.22f);
+        RootFlow::drawGlassPanel(g, memoryCluster, dockedInTitle ? 10.0f : 13.0f, memoryFocused ? 0.52f : (dockedInTitle ? 0.34f : 0.42f));
+        g.setColour(memoryTint.withAlpha(memoryFocused ? (dockedInTitle ? 0.018f : 0.024f)
+                                                       : (dockedInTitle ? 0.007f : 0.010f)));
+        g.fillRoundedRectangle(memoryCluster.reduced(1.0f), dockedInTitle ? 9.0f : 12.0f);
+        if (! dockedInTitle)
+        {
+            auto memoryCaption = juce::Rectangle<float>(80.0f, 14.0f)
+                                     .withCentre({ memoryCluster.getX() + 50.0f, memoryCluster.getY() - 1.0f });
+            drawToolbarCaption(g, memoryCaption, "MEMORY", memoryTint);
+        }
+    }
+
     const auto actionTint = focusMutate ? RootFlow::amber
-                          : (focusSave || focusDelete || presetDirty) ? RootFlow::violet
-                                                                      : RootFlow::violet.interpolatedWith(RootFlow::amber, 0.45f);
-
-    drawToolbarCaption(g, waveCaptionArea, "OSC", RootFlow::accentSoft);
-    drawToolbarCaption(g, oversamplingCaptionArea, "HD", RootFlow::accentSoft);
-    drawToolbarCaption(g, presetCaptionArea, "PATCH", RootFlow::accent);
-    drawToolbarCaption(g, actionsCaptionArea, "ACTIONS", actionTint);
-    const auto visualsTint = popupOverlaysEnabled ? RootFlow::amber
-                           : hoverEffectsEnabled ? RootFlow::accentSoft
-                                                 : idleEffectsEnabled ? RootFlow::accent
-                                                                      : RootFlow::textMuted;
-    drawToolbarCaption(g, visualsCaptionArea, "VISUALS", visualsTint);
-    drawToolbarCaption(g, midiCaptionArea, "MIDI", getStatusMapColour());
-    drawToolbarCaption(g, toneCaptionArea, "TONE", RootFlow::accentSoft);
+                          : focusPatchMenu ? RootFlow::violet.interpolatedWith(RootFlow::amber, 0.35f)
+                                           : presetDirty ? RootFlow::violet
+                                                         : RootFlow::violet.interpolatedWith(RootFlow::amber, 0.22f);
+    const bool utilityCustomised = midiArmed || anyGrowLockEnabled || testToneEnabled || ! hoverEffectsEnabled || ! idleEffectsEnabled || ! popupOverlaysEnabled;
+    const auto utilityTint = focusUtilityMenu ? focusTint
+                           : testToneEnabled ? RootFlow::amber
+                                             : utilityCustomised ? RootFlow::accent
+                                                                 : RootFlow::textMuted.interpolatedWith(RootFlow::accentSoft, 0.35f);
 
     auto wavePreviewArea = waveSelector.getBounds().toFloat().reduced(14.0f, 7.0f);
     wavePreviewArea = wavePreviewArea.withTrimmedTop(wavePreviewArea.getHeight() * 0.56f).withTrimmedRight(22.0f);
@@ -641,11 +977,11 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
         const float previewPhase = std::fmod((float) juce::Time::getMillisecondCounterHiRes() * 0.00018f, 1.0f);
         auto wavePreview = makeWavePreviewPath(wavePreviewArea, waveSelector.getSelectedId(), previewPhase);
 
-        g.setColour(RootFlow::accentSoft.withAlpha(focusWave ? 0.07f : 0.025f));
+        g.setColour(RootFlow::accentSoft.withAlpha(focusWave ? 0.05f : 0.018f));
         g.strokePath(wavePreview, juce::PathStrokeType(focusWave ? 2.4f : 1.6f,
                                                        juce::PathStrokeType::curved,
                                                        juce::PathStrokeType::rounded));
-        g.setColour(RootFlow::accentSoft.withAlpha(focusWave ? 0.22f : 0.10f));
+        g.setColour(RootFlow::accentSoft.withAlpha(focusWave ? 0.14f : 0.06f));
         g.strokePath(wavePreview, juce::PathStrokeType(focusWave ? 1.1f : 0.8f,
                                                        juce::PathStrokeType::curved,
                                                        juce::PathStrokeType::rounded));
@@ -653,19 +989,18 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
 
     if (! leftCluster.isEmpty())
     {
-        auto actionsArea = presetSaveButton.getBounds()
-                         .getUnion(presetDeleteButton.getBounds())
+        auto actionsArea = patchMenuButton.getBounds()
                          .getUnion(mutateButton.getBounds())
                          .toFloat()
                          .expanded(4.0f, 3.0f);
-        g.setColour(actionTint.withAlpha((focusSave || focusDelete || focusMutate) ? 0.05f : 0.022f));
+        g.setColour(actionTint.withAlpha((focusPatchMenu || focusMutate) ? 0.034f : 0.016f));
         g.fillRoundedRectangle(actionsArea, 10.0f);
-        g.setColour(juce::Colours::white.withAlpha(0.06f));
+        g.setColour(juce::Colours::white.withAlpha(0.04f));
         g.drawRoundedRectangle(actionsArea, 10.0f, 0.8f);
 
         const float divider1 = ((float) waveSelector.getRight() + (float) presetBox.getX()) * 0.5f;
-        const float divider2 = ((float) presetBox.getRight() + (float) presetSaveButton.getX()) * 0.5f;
-        const float divider3 = ((float) presetDeleteButton.getRight() + (float) mutateButton.getX()) * 0.5f;
+        const float divider2 = ((float) presetBox.getRight() + (float) patchMenuButton.getX()) * 0.5f;
+        const float divider3 = ((float) patchMenuButton.getRight() + (float) mutateButton.getX()) * 0.5f;
         drawClusterDivider(g, divider1, leftCluster, RootFlow::accentSoft);
         drawClusterDivider(g, divider2, leftCluster, RootFlow::accent);
         drawClusterDivider(g, divider3, leftCluster, RootFlow::amber);
@@ -673,95 +1008,28 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
 
     if (! rightCluster.isEmpty())
     {
-        auto visualsArea = hoverToggleButton.getBounds()
-                         .getUnion(idleToggleButton.getBounds())
-                         .getUnion(popupToggleButton.getBounds())
-                         .toFloat()
-                         .expanded(4.0f, 3.0f);
-        g.setColour(visualsTint.withAlpha((focusHoverToggle || focusIdleToggle || focusPopupToggle) ? 0.05f : 0.022f));
-        g.fillRoundedRectangle(visualsArea, 10.0f);
-        g.setColour(juce::Colours::white.withAlpha(0.06f));
-        g.drawRoundedRectangle(visualsArea, 10.0f, 0.8f);
+        auto utilityArea = utilityMenuButton.getBounds().toFloat().expanded(4.0f, 3.0f);
+        g.setColour(utilityTint.withAlpha(focusUtilityMenu ? 0.034f : (utilityCustomised ? 0.022f : 0.012f)));
+        g.fillRoundedRectangle(utilityArea, 10.0f);
+        g.setColour(juce::Colours::white.withAlpha(0.04f));
+        g.drawRoundedRectangle(utilityArea, 10.0f, 0.8f);
 
-        const float divider1 = ((float) hoverToggleButton.getRight() + (float) idleToggleButton.getX()) * 0.5f;
-        const float divider2 = ((float) idleToggleButton.getRight() + (float) popupToggleButton.getX()) * 0.5f;
-        const float divider3 = ((float) popupToggleButton.getRight() + (float) midiLearnButton.getX()) * 0.5f;
-        const float divider4 = ((float) midiLearnButton.getRight() + (float) testToneButton.getX()) * 0.5f;
-        drawClusterDivider(g, divider1, rightCluster, hoverEffectsEnabled ? RootFlow::accentSoft : RootFlow::textMuted);
-        drawClusterDivider(g, divider2, rightCluster, idleEffectsEnabled ? RootFlow::accent : RootFlow::textMuted);
-        drawClusterDivider(g, divider3, rightCluster, popupOverlaysEnabled ? RootFlow::amber : RootFlow::textMuted);
-        drawClusterDivider(g, divider4, rightCluster, getStatusMapColour());
     }
 
     if (popupOverlaysEnabled && focusControl != nullptr)
     {
         auto focusArea = focusControl->getBounds().toFloat().expanded(4.0f, 4.0f);
-        g.setColour(focusTint.withAlpha(0.045f));
+        g.setColour(focusTint.withAlpha(0.032f));
         g.fillRoundedRectangle(focusArea, 11.0f);
-        g.setColour(juce::Colours::white.withAlpha(0.08f));
+        g.setColour(juce::Colours::white.withAlpha(0.05f));
         g.drawRoundedRectangle(focusArea, 11.0f, 0.8f);
-        g.setColour(focusTint.withAlpha(0.14f));
+        g.setColour(focusTint.withAlpha(0.10f));
         g.drawRoundedRectangle(focusArea.reduced(1.0f), 10.0f, 0.9f);
 
         auto focusBubble = juce::Rectangle<float>(juce::jlimit(126.0f, 196.0f, 116.0f + (float) focusValue.length() * 4.2f), 24.0f)
                                .withCentre({ focusArea.getCentreX(), 21.0f });
         focusBubble.setX(juce::jlimit(18.0f, (float) getWidth() - focusBubble.getWidth() - 18.0f, focusBubble.getX()));
         drawHeaderFocusBubble(g, focusBubble, focusSection, focusValue, focusTint, focusControl->isMouseButtonDown());
-    }
-
-    auto brandArea = juce::Rectangle<float>(leftCluster.getRight() + 18.0f,
-                                            7.0f,
-                                            rightCluster.getX() - leftCluster.getRight() - 36.0f,
-                                            14.0f);
-    if (brandArea.getWidth() > 220.0f)
-    {
-        drawToolbarCaption(g,
-                           brandArea,
-                           focusControl != nullptr ? (focusSection + " / " + focusValue).toUpperCase()
-                                                   : juce::String("FUNKY MOOSE / ROOT FLOW"),
-                           focusControl != nullptr ? focusTint : RootFlow::textMuted);
-    }
-
-    auto centerBand = juce::Rectangle<float>(leftCluster.getRight() + 18.0f,
-                                             32.0f,
-                                             rightCluster.getX() - leftCluster.getRight() - 36.0f,
-                                             36.0f);
-
-    if (centerBand.getWidth() > 260.0f)
-    {
-        const auto presetName = presetBox.getText().isNotEmpty() ? presetBox.getText().toUpperCase()
-                                                                 : juce::String("FACTORY SEED");
-        const auto presetState = presetDirty ? juce::String("UNSAVED")
-                                             : (audioProcessor.getCurrentUserPresetIndex() >= 0 ? juce::String("USER")
-                                                                                                 : juce::String("FACTORY"));
-
-        juce::String monitorState = "LIVE";
-        if (midiArmed && testToneEnabled)
-            monitorState = "ARM + OSC";
-        else if (midiArmed)
-            monitorState = "MIDI ARM";
-        else if (testToneEnabled)
-            monitorState = "TEST OSC";
-
-        const float chipGap = 8.0f;
-        const float stateWidth = 106.0f;
-        const float monitorWidth = 124.0f;
-        const float patchWidth = centerBand.getWidth() - stateWidth - monitorWidth - chipGap * 2.0f;
-
-        if (patchWidth > 120.0f)
-        {
-            auto patchChip = centerBand.removeFromLeft(patchWidth);
-            centerBand.removeFromLeft(chipGap);
-            auto stateChip = centerBand.removeFromLeft(stateWidth);
-            centerBand.removeFromLeft(chipGap);
-            auto monitorChip = centerBand.removeFromLeft(monitorWidth);
-
-            drawHeaderChip(g, patchChip, "Patch", presetName, RootFlow::accentSoft, presetDirty || focusWave || focusPreset);
-            drawHeaderChip(g, stateChip, "State", presetState, presetDirty ? getStatusMapColour() : RootFlow::accent,
-                           presetDirty || focusSave || focusDelete || focusMutate);
-            drawHeaderChip(g, monitorChip, "Monitor", monitorState, midiArmed ? getStatusMapColour() : getStatusReadyColour(),
-                           midiArmed || testToneEnabled || focusMidi || focusTone);
-        }
     }
 
     auto keyboardArea = juce::Rectangle<float>(20.0f, (float) getHeight() - 124.0f, (float) getWidth() - 40.0f, 108.0f);
@@ -800,8 +1068,8 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
                               keyboardFocused);
     }
 
-    RootFlow::drawGlassPanel(g, keyboardBadge, keyboardBadge.getHeight() * 0.5f, keyboardFocused ? 0.56f : 0.36f);
-    g.setColour((keyboardFocused ? RootFlow::accentSoft : RootFlow::accent).withAlpha(keyboardFocused ? 0.06f : 0.035f));
+    RootFlow::drawGlassPanel(g, keyboardBadge, keyboardBadge.getHeight() * 0.5f, keyboardFocused ? 0.46f : 0.30f);
+    g.setColour((keyboardFocused ? RootFlow::accentSoft : RootFlow::accent).withAlpha(keyboardFocused ? 0.04f : 0.022f));
     g.fillRoundedRectangle(keyboardBadge.reduced(2.0f), keyboardBadge.getHeight() * 0.42f);
     g.setFont(RootFlow::getFont(9.2f).boldened());
     g.setColour((keyboardFocused ? RootFlow::text : RootFlow::textMuted).withAlpha(0.90f));
@@ -826,7 +1094,7 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
 
     auto drawCabinetFoot = [&g](juce::Rectangle<float> area, juce::Colour tint)
     {
-        g.setColour(juce::Colours::black.withAlpha(0.28f));
+        g.setColour(juce::Colours::black.withAlpha(0.22f));
         g.fillRoundedRectangle(area.translated(0.0f, 3.0f), area.getHeight() * 0.54f);
         juce::ColourGradient footGrad(RootFlow::panelSoft.brighter(0.12f).interpolatedWith(tint, 0.06f),
                                       area.getCentreX(), area.getY(),
@@ -834,31 +1102,31 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
                                       area.getCentreX(), area.getBottom(), false);
         g.setGradientFill(footGrad);
         g.fillRoundedRectangle(area, area.getHeight() * 0.50f);
-        g.setColour(juce::Colours::white.withAlpha(0.12f));
+        g.setColour(juce::Colours::white.withAlpha(0.08f));
         g.drawRoundedRectangle(area.reduced(0.8f), area.getHeight() * 0.44f, 0.8f);
     };
 
-    g.setColour(juce::Colours::black.withAlpha(0.30f));
+    g.setColour(juce::Colours::black.withAlpha(0.24f));
     g.fillRoundedRectangle(cabinetBase.translated(0.0f, 10.0f), 28.0f);
-    g.setColour(juce::Colours::black.withAlpha(0.16f));
+    g.setColour(juce::Colours::black.withAlpha(0.10f));
     g.fillRoundedRectangle(cabinetBase.translated(0.0f, 4.0f), 27.0f);
 
     juce::ColourGradient cabinetBaseGrad(RootFlow::panelSoft.brighter(0.06f), cabinetBase.getCentreX(), cabinetBase.getY(),
                                          RootFlow::bg.darker(0.24f), cabinetBase.getCentreX(), cabinetBase.getBottom(), false);
     g.setGradientFill(cabinetBaseGrad);
     g.fillRoundedRectangle(cabinetBase, 26.0f);
-    g.setColour(juce::Colours::white.withAlpha(0.10f));
+    g.setColour(juce::Colours::white.withAlpha(0.07f));
     g.drawRoundedRectangle(cabinetBase.reduced(1.0f), 25.0f, 0.9f);
 
-    g.setColour(juce::Colours::black.withAlpha(0.26f));
+    g.setColour(juce::Colours::black.withAlpha(0.20f));
     g.fillRoundedRectangle(keyFrontApron.translated(0.0f, 5.0f), 16.0f);
     juce::ColourGradient keyApronGrad(RootFlow::panelSoft.brighter(0.10f), keyFrontApron.getCentreX(), keyFrontApron.getY(),
                                       RootFlow::bg.darker(0.28f), keyFrontApron.getCentreX(), keyFrontApron.getBottom(), false);
     g.setGradientFill(keyApronGrad);
     g.fillRoundedRectangle(keyFrontApron, 15.0f);
-    g.setColour(juce::Colours::white.withAlpha(0.10f));
+    g.setColour(juce::Colours::white.withAlpha(0.07f));
     g.drawRoundedRectangle(keyFrontApron.reduced(1.0f), 14.0f, 0.8f);
-    g.setColour(RootFlow::accent.withAlpha(0.10f));
+    g.setColour(RootFlow::accent.withAlpha(0.06f));
     g.drawRoundedRectangle(keyFrontApron, 15.0f, 1.0f);
 
     drawCabinetFoot(leftFoot, RootFlow::accentSoft);
@@ -869,9 +1137,9 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
     g.setGradientFill(cradleGrad);
     g.fillPath(cradle);
 
-    g.setColour((keyboardFocused ? RootFlow::accentSoft : RootFlow::accent).withAlpha(keyboardFocused ? 0.06f : 0.04f));
+    g.setColour((keyboardFocused ? RootFlow::accentSoft : RootFlow::accent).withAlpha(keyboardFocused ? 0.04f : 0.025f));
     g.strokePath(cradle, juce::PathStrokeType(1.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-    g.setColour(juce::Colours::white.withAlpha(0.05f));
+    g.setColour(juce::Colours::white.withAlpha(0.03f));
     g.strokePath(cradle, juce::PathStrokeType(0.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
     juce::Path stem;
@@ -879,13 +1147,13 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
     stem.cubicTo(keyboardArea.getCentreX() - 10.0f, keyboardArea.getY() - 92.0f,
                  keyboardArea.getCentreX() + 8.0f, keyboardArea.getY() - 34.0f,
                  keyboardArea.getCentreX(), keyboardArea.getY() + 10.0f);
-    g.setColour((keyboardFocused ? RootFlow::accentSoft : RootFlow::accent).withAlpha(keyboardFocused ? 0.05f : 0.035f));
+    g.setColour((keyboardFocused ? RootFlow::accentSoft : RootFlow::accent).withAlpha(keyboardFocused ? 0.032f : 0.022f));
     g.strokePath(stem, juce::PathStrokeType(15.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-    g.setColour((keyboardFocused ? RootFlow::accentSoft : RootFlow::accent).withAlpha(keyboardFocused ? 0.18f : 0.14f));
+    g.setColour((keyboardFocused ? RootFlow::accentSoft : RootFlow::accent).withAlpha(keyboardFocused ? 0.10f : 0.07f));
     g.strokePath(stem, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
-    RootFlow::drawGlassPanel(g, keyboardArea, 24.0f, keyboardFocused ? 0.86f : 0.76f);
-    juce::ColourGradient centerGlow((keyboardFocused ? RootFlow::accentSoft : RootFlow::accent).withAlpha(keyboardFocused ? 0.10f : 0.06f),
+    RootFlow::drawGlassPanel(g, keyboardArea, 24.0f, keyboardFocused ? 0.72f : 0.64f);
+    juce::ColourGradient centerGlow((keyboardFocused ? RootFlow::accentSoft : RootFlow::accent).withAlpha(keyboardFocused ? 0.06f : 0.035f),
                                     keyboardArea.getCentreX(), keyboardArea.getY(),
                                     juce::Colours::transparentBlack, keyboardArea.getCentreX(), keyboardArea.getBottom(), true);
     g.setGradientFill(centerGlow);
@@ -893,12 +1161,12 @@ void RootFlowAudioProcessorEditor::paint(juce::Graphics& g)
 
     if (keyboardFocused)
     {
-        g.setColour((keyboardActive ? RootFlow::accentSoft : midiTint).withAlpha(0.07f));
+        g.setColour((keyboardActive ? RootFlow::accentSoft : midiTint).withAlpha(0.05f));
         g.drawRoundedRectangle(keyboardArea.expanded(4.0f, 3.0f), 27.0f, 0.9f);
     }
 
-    RootFlow::drawGlowOrb(g, { keyboardArea.getX() + 34.0f, keyboardArea.getY() + 18.0f }, 4.6f, RootFlow::violet, 0.16f);
-    RootFlow::drawGlowOrb(g, { keyboardArea.getRight() - 34.0f, keyboardArea.getY() + 18.0f }, 4.6f, RootFlow::accentSoft, 0.16f);
+    RootFlow::drawGlowOrb(g, { keyboardArea.getX() + 34.0f, keyboardArea.getY() + 18.0f }, 4.6f, RootFlow::violet, 0.09f);
+    RootFlow::drawGlowOrb(g, { keyboardArea.getRight() - 34.0f, keyboardArea.getY() + 18.0f }, 4.6f, RootFlow::accentSoft, 0.09f);
 }
 
 void RootFlowAudioProcessorEditor::resized()
@@ -920,30 +1188,196 @@ void RootFlowAudioProcessorEditor::resized()
     controlRow.removeFromLeft(microGap);
     oversamplingSelector.setBounds(controlRow.removeFromLeft(compactHeaderLayout ? 54 : 64));
     controlRow.removeFromLeft(clusterGap);
-    presetBox.setBounds(controlRow.removeFromLeft(compactHeaderLayout ? 190 : 228));
+    presetBox.setBounds(controlRow.removeFromLeft(compactHeaderLayout ? 204 : 248));
     controlRow.removeFromLeft(clusterGap);
-    presetSaveButton.setBounds(controlRow.removeFromLeft(compactHeaderLayout ? 50 : 54));
+    patchMenuButton.setBounds(controlRow.removeFromLeft(compactHeaderLayout ? 52 : 60));
     controlRow.removeFromLeft(microGap);
-    presetDeleteButton.setBounds(controlRow.removeFromLeft(compactHeaderLayout ? 40 : 42));
-    controlRow.removeFromLeft(clusterGap);
-    mutateButton.setBounds(controlRow.removeFromLeft(compactHeaderLayout ? 72 : 80));
+    mutateButton.setBounds(controlRow.removeFromLeft(compactHeaderLayout ? 64 : 78));
 
-    testToneButton.setBounds(controlRow.removeFromRight(compactHeaderLayout ? 64 : 76));
-    controlRow.removeFromRight(microGap);
-    midiLearnButton.setBounds(controlRow.removeFromRight(compactHeaderLayout ? 62 : 70));
-    controlRow.removeFromRight(microGap);
-    popupToggleButton.setBounds(controlRow.removeFromRight(compactHeaderLayout ? 68 : 78));
-    controlRow.removeFromRight(microGap);
-    idleToggleButton.setBounds(controlRow.removeFromRight(compactHeaderLayout ? 62 : 68));
-    controlRow.removeFromRight(microGap);
-    hoverToggleButton.setBounds(controlRow.removeFromRight(compactHeaderLayout ? 68 : 76));
+    utilityMenuButton.setBounds(controlRow.removeFromRight(compactHeaderLayout ? 72 : 84));
+    presetSaveButton.setBounds({});
+    presetDeleteButton.setBounds({});
+    mutateModeButton.setBounds({});
+    midiLearnButton.setBounds({});
+    testToneButton.setBounds({});
+    popupToggleButton.setBounds({});
+    idleToggleButton.setBounds({});
+    hoverToggleButton.setBounds({});
 
-    keyboardDrawer.setBounds(bounds.removeFromBottom(keyboardHeight)
-                                   .reduced(compactHeaderLayout ? 20 : 28,
-                                            compactHeaderLayout ? 12 : 16));
+    auto keyboardBounds = bounds.removeFromBottom(keyboardHeight)
+                               .reduced(compactHeaderLayout ? 20 : 28,
+                                        compactHeaderLayout ? 12 : 16);
 
     if (mainLayout != nullptr)
         mainLayout->setBounds(bounds.reduced(compactHeaderLayout ? 8 : 10, 0));
+
+    for (auto& seedMemoryButton : seedMemoryButtons)
+        seedMemoryButton.setBounds({});
+
+    const int promptRowX = mutateButton.getRight() + clusterGap + 10;
+    const int promptRowRight = utilityMenuButton.getX() - clusterGap - 10;
+    const int minimumSingleSeedWidth = compactHeaderLayout ? 148 : 168;
+
+    int activeSeedMemoryCount = 0;
+    for (const auto& prompt : seedMemoryPrompts)
+        if (prompt.isNotEmpty())
+            ++activeSeedMemoryCount;
+
+    auto promptDock = juce::Rectangle<int>();
+    if (mainLayout != nullptr)
+    {
+        promptDock = mainLayout->getTitleSeedDockBounds()
+                         .translated(mainLayout->getX(), mainLayout->getY())
+                         .reduced(compactHeaderLayout ? 4 : 6, 0);
+    }
+
+    if (promptDock.getWidth() > minimumSingleSeedWidth)
+    {
+        auto promptRow = promptDock;
+        const int memoryGap = compactHeaderLayout ? 4 : 5;
+        const int memoryToSeedGap = compactHeaderLayout ? 6 : 8;
+        const int minimumPromptWidth = minimumSingleSeedWidth + (compactHeaderLayout ? 54 : 62);
+        int visibleMemoryCount = juce::jmin(activeSeedMemoryCount, 1);
+
+        while (visibleMemoryCount > 0)
+        {
+            const int idealMemoryWidth = compactHeaderLayout ? 64 : 74;
+            const int totalMemoryWidth = visibleMemoryCount * idealMemoryWidth + (visibleMemoryCount - 1) * memoryGap;
+            const int remainingWidth = promptRow.getWidth() - totalMemoryWidth - memoryToSeedGap;
+            if (remainingWidth >= minimumPromptWidth)
+                break;
+
+            --visibleMemoryCount;
+        }
+
+        if (visibleMemoryCount > 0)
+        {
+            const int maxMemoryWidth = juce::jmax(0, promptRow.getWidth() - minimumPromptWidth - memoryToSeedGap);
+            const int buttonWidth = juce::jlimit(compactHeaderLayout ? 48 : 56,
+                                                 compactHeaderLayout ? 76 : 88,
+                                                 (maxMemoryWidth - memoryGap * (visibleMemoryCount - 1)) / visibleMemoryCount);
+            const int totalMemoryWidth = buttonWidth * visibleMemoryCount + memoryGap * (visibleMemoryCount - 1);
+            auto memoryRow = promptRow.removeFromLeft(totalMemoryWidth);
+            promptRow.removeFromLeft(memoryToSeedGap);
+            const int memoryButtonHeight = compactHeaderLayout ? 14 : 16;
+
+            for (int i = 0; i < visibleMemoryCount; ++i)
+            {
+                auto memoryButtonArea = memoryRow.removeFromLeft(buttonWidth);
+                seedMemoryButtons[(size_t) i].setBounds(memoryButtonArea.withSizeKeepingCentre(buttonWidth, memoryButtonHeight));
+                if (! memoryRow.isEmpty())
+                    memoryRow.removeFromLeft(memoryGap);
+            }
+        }
+
+        const bool morphExpanded = morphPromptEditor.getText().trim().isNotEmpty()
+                                || morphPromptEditor.hasKeyboardFocus(true);
+        const int actionWidth = compactHeaderLayout ? 50 : 56;
+        const int compactMorphWidth = compactHeaderLayout ? 52 : 58;
+        const int minimumDualSeedWidth = compactHeaderLayout ? 220 : 248;
+
+        if (morphExpanded && promptRow.getWidth() >= minimumDualSeedWidth)
+        {
+            const int sliderWidth = juce::jlimit(compactHeaderLayout ? 20 : 24,
+                                                 compactHeaderLayout ? 30 : 36,
+                                                 promptRow.getWidth() / 8);
+            const int secondSeedWidth = juce::jmax(compactHeaderLayout ? 90 : 104,
+                                                   (promptRow.getWidth() - actionWidth - sliderWidth - microGap * 3) / 3);
+            const int firstSeedWidth = juce::jmax(compactHeaderLayout ? 104 : 132,
+                                                  promptRow.getWidth() - actionWidth - sliderWidth - secondSeedWidth - microGap * 3);
+
+            promptEditor.setBounds(promptRow.removeFromLeft(firstSeedWidth));
+            promptRow.removeFromLeft(microGap);
+            promptApplyButton.setBounds(promptRow.removeFromLeft(actionWidth));
+            promptRow.removeFromLeft(microGap);
+            promptMorphSlider.setBounds(promptRow.removeFromLeft(sliderWidth));
+            promptRow.removeFromLeft(microGap);
+            morphPromptEditor.setBounds(promptRow.removeFromLeft(juce::jmax(0, secondSeedWidth)));
+        }
+        else
+        {
+            const int promptWidth = juce::jmax(compactHeaderLayout ? 164 : 196,
+                                               promptRow.getWidth() - actionWidth - compactMorphWidth - microGap * 2);
+            promptEditor.setBounds(promptRow.removeFromLeft(promptWidth));
+            promptRow.removeFromLeft(microGap);
+            promptApplyButton.setBounds(promptRow.removeFromLeft(actionWidth));
+            promptRow.removeFromLeft(microGap);
+            morphPromptEditor.setBounds(promptRow.removeFromLeft(juce::jmax(0, compactMorphWidth)));
+            promptMorphSlider.setBounds({});
+        }
+    }
+    else if (promptRowRight > promptRowX + 90)
+    {
+        const int promptLaneGap = compactHeaderLayout ? 8 : 10;
+        const int stateChipWidth = compactHeaderLayout ? 96 : 106;
+        const int monitorChipWidth = compactHeaderLayout ? 112 : 124;
+        int patchLaneWidth = promptRowRight - promptRowX - stateChipWidth - monitorChipWidth - promptLaneGap * 2;
+        if (patchLaneWidth < minimumSingleSeedWidth + (compactHeaderLayout ? 64 : 72))
+            patchLaneWidth = promptRowRight - promptRowX;
+
+        auto promptRow = juce::Rectangle<int>(promptRowX,
+                                              outerInsetY + (compactHeaderLayout ? 22 : 23),
+                                              juce::jmax(0, patchLaneWidth),
+                                              compactHeaderLayout ? 22 : 24);
+        const bool morphExpanded = morphPromptEditor.getText().trim().isNotEmpty()
+                                || morphPromptEditor.hasKeyboardFocus(true);
+        const int actionWidth = compactHeaderLayout ? 50 : 56;
+        const int compactMorphWidth = compactHeaderLayout ? 52 : 58;
+        const int minimumDualSeedWidth = compactHeaderLayout ? 182 : 208;
+
+        if (morphExpanded && promptRow.getWidth() >= minimumDualSeedWidth)
+        {
+            const int sliderWidth = juce::jlimit(compactHeaderLayout ? 22 : 26,
+                                                 compactHeaderLayout ? 34 : 40,
+                                                 promptRow.getWidth() / 6);
+            const int secondSeedWidth = juce::jmax(compactHeaderLayout ? 82 : 96,
+                                                   (promptRow.getWidth() - actionWidth - sliderWidth - microGap * 3) / 3);
+            const int firstSeedWidth = juce::jmax(compactHeaderLayout ? 92 : 110,
+                                                  promptRow.getWidth() - actionWidth - sliderWidth - secondSeedWidth - microGap * 3);
+
+            promptEditor.setBounds(promptRow.removeFromLeft(firstSeedWidth));
+            promptRow.removeFromLeft(microGap);
+            promptApplyButton.setBounds(promptRow.removeFromLeft(actionWidth));
+            promptRow.removeFromLeft(microGap);
+            promptMorphSlider.setBounds(promptRow.removeFromLeft(sliderWidth));
+            promptRow.removeFromLeft(microGap);
+            morphPromptEditor.setBounds(promptRow.removeFromLeft(juce::jmax(0, secondSeedWidth)));
+        }
+        else
+        {
+            const int promptWidth = juce::jmax(compactHeaderLayout ? 148 : 166,
+                                               promptRow.getWidth() - actionWidth - compactMorphWidth - microGap * 2);
+            promptEditor.setBounds(promptRow.removeFromLeft(promptWidth));
+            promptRow.removeFromLeft(microGap);
+            promptApplyButton.setBounds(promptRow.removeFromLeft(actionWidth));
+            promptRow.removeFromLeft(microGap);
+            morphPromptEditor.setBounds(promptRow.removeFromLeft(juce::jmax(0, compactMorphWidth)));
+            promptMorphSlider.setBounds({});
+        }
+
+    }
+    else
+    {
+        promptEditor.setBounds({});
+        morphPromptEditor.setBounds({});
+        promptMorphSlider.setBounds({});
+        growLockCoreButton.setBounds({});
+        growLockMotionButton.setBounds({});
+        growLockSpectralButton.setBounds({});
+        growLockFxButton.setBounds({});
+        growLockSeqButton.setBounds({});
+        promptApplyButton.setBounds({});
+        for (auto& seedMemoryButton : seedMemoryButtons)
+            seedMemoryButton.setBounds({});
+    }
+
+    growLockCoreButton.setBounds({});
+    growLockMotionButton.setBounds({});
+    growLockSpectralButton.setBounds({});
+    growLockFxButton.setBounds({});
+    growLockSeqButton.setBounds({});
+
+    keyboardDrawer.setBounds(keyboardBounds);
 
     // Overlay covers the full window, on top of everything
     atmosphericOverlay.setBounds(getLocalBounds());
@@ -955,19 +1389,23 @@ void RootFlowAudioProcessorEditor::timerCallback()
 
     // Drive overlay from synth params
     float phase          = (mainLayout != nullptr) ? mainLayout->getPulsePhase() : 0.0f;
-    float atmosIntensity = *audioProcessor.tree.getRawParameterValue("atmosphere");
+    float atmosIntensity = mainLayout != nullptr
+        ? (float) mainLayout->getCenterComponent().getAtmosSlider().getValue()
+        : 0.0f;
 
     // MIDI-reactive bio-dust: grab latest velocity, smooth decay
     auto midiSnap = audioProcessor.getMidiActivitySnapshot();
     const bool midiActive = (midiSnap.type == RootFlowAudioProcessor::MidiActivitySnapshot::Type::note
                              && midiSnap.value > 0);
-    float rawVel = midiActive ? juce::jlimit(0.0f, 1.0f, (float) midiSnap.value / 127.0f) : 0.0f;
+    float rawVel = midiActive ? juce::jlimit(0.0f, 1.0f, (float) midiSnap.value / 127.0f) * 0.60f : 0.0f;
 
     // Smooth: 5-frame attack, ~60-frame decay (≈2 s at 30 Hz)
     if (rawVel > smoothedMidiVelocity)
         smoothedMidiVelocity = rawVel;                    // instant attack
     else
-        smoothedMidiVelocity *= 0.95f;                   // slow decay
+        smoothedMidiVelocity *= 0.90f;                   // slightly shorter decay keeps the overlay calmer
+
+    atmosIntensity *= 0.70f;
 
     atmosphericOverlay.setPhase(phase);
     atmosphericOverlay.setIntensity(atmosIntensity);
@@ -975,6 +1413,299 @@ void RootFlowAudioProcessorEditor::timerCallback()
     atmosphericOverlay.repaint();
 
     refreshHeaderControlState();
+}
+
+void RootFlowAudioProcessorEditor::applyPromptSeed()
+{
+    const auto seedA = promptEditor.getText().trim();
+    const auto seedB = morphPromptEditor.getText().trim();
+
+    if (seedA.isNotEmpty() && seedB.isNotEmpty())
+        audioProcessor.applyPromptMorph(seedA, seedB, (float) promptMorphSlider.getValue());
+    else if (seedA.isNotEmpty() || seedB.isNotEmpty())
+        audioProcessor.applyPromptPatch(seedA.isNotEmpty() ? seedA : seedB);
+    else
+        audioProcessor.applyPromptPatch({});
+
+    if (mainLayout != nullptr)
+        mainLayout->getCenterComponent().getEnergyDisplay().triggerCoreBurst();
+
+    refreshHeaderControlState();
+    repaint();
+}
+
+void RootFlowAudioProcessorEditor::showPatchMenu()
+{
+    enum MenuIds
+    {
+        savePatch = 1,
+        deletePatch,
+        modeSoft,
+        modeBalanced,
+        modeWild,
+        modeSeq,
+        recipeStart = 100
+    };
+
+    juce::PopupMenu menu;
+    menu.addSectionHeader("Patch");
+    menu.addItem(savePatch, "Save User Snapshot", true, false);
+    menu.addItem(deletePatch, "Delete User Snapshot", audioProcessor.getCurrentUserPresetIndex() >= 0, false);
+    menu.addSeparator();
+    menu.addSectionHeader("Mutate Mode");
+
+    const auto currentMode = audioProcessor.getMutationMode();
+    menu.addItem(modeSoft, "Soft", true, currentMode == RootFlowAudioProcessor::MutationMode::gentle);
+    menu.addItem(modeBalanced, "Balanced", true, currentMode == RootFlowAudioProcessor::MutationMode::balanced);
+    menu.addItem(modeWild, "Wild", true, currentMode == RootFlowAudioProcessor::MutationMode::wild);
+    menu.addItem(modeSeq, "Seq Only", true, currentMode == RootFlowAudioProcessor::MutationMode::sequencer);
+    menu.addSeparator();
+    menu.addSectionHeader("Style Recipes");
+
+    for (size_t i = 0; i < stylePromptRecipes.size(); ++i)
+    {
+        const auto& recipe = stylePromptRecipes[i];
+        juce::String label(recipe.menuLabel);
+        if (recipe.tooltip != nullptr && juce::String(recipe.tooltip).isNotEmpty())
+            label << "  |  " << recipe.tooltip;
+
+        menu.addItem(recipeStart + (int) i, label, true, false);
+    }
+
+    auto options = juce::PopupMenu::Options()
+                       .withTargetComponent(&patchMenuButton)
+                       .withMinimumWidth(320);
+
+    menu.showMenuAsync(options, [this] (int result)
+    {
+        switch (result)
+        {
+            case savePatch:
+                audioProcessor.saveCurrentStateAsUserPreset();
+                refreshHeaderControlState();
+                repaint();
+                break;
+            case deletePatch:
+                audioProcessor.deleteCurrentUserPreset();
+                refreshHeaderControlState();
+                repaint();
+                break;
+            case modeSoft:
+                audioProcessor.setMutationMode(RootFlowAudioProcessor::MutationMode::gentle);
+                refreshHeaderControlState();
+                repaint();
+                break;
+            case modeBalanced:
+                audioProcessor.setMutationMode(RootFlowAudioProcessor::MutationMode::balanced);
+                refreshHeaderControlState();
+                repaint();
+                break;
+            case modeWild:
+                audioProcessor.setMutationMode(RootFlowAudioProcessor::MutationMode::wild);
+                refreshHeaderControlState();
+                repaint();
+                break;
+            case modeSeq:
+                audioProcessor.setMutationMode(RootFlowAudioProcessor::MutationMode::sequencer);
+                refreshHeaderControlState();
+                repaint();
+                break;
+            default:
+                if (result >= recipeStart
+                    && result < recipeStart + (int) stylePromptRecipes.size())
+                {
+                    applyStylePromptRecipe(result - recipeStart);
+                }
+                break;
+        }
+    });
+}
+
+void RootFlowAudioProcessorEditor::showUtilityMenu()
+{
+    enum MenuIds
+    {
+        toggleLockRoot = 1,
+        toggleLockMotion,
+        toggleLockAir,
+        toggleLockFx,
+        toggleLockSeq,
+        toggleMidiLearn,
+        toggleHover,
+        toggleIdle,
+        togglePopups,
+        toggleTone
+    };
+
+    juce::PopupMenu menu;
+    menu.addSectionHeader("Grow Locks");
+    menu.addItem(toggleLockRoot, "Keep Root", true, audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::root));
+    menu.addItem(toggleLockMotion, "Keep Motion", true, audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::motion));
+    menu.addItem(toggleLockAir, "Keep Air", true, audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::spectral));
+    menu.addItem(toggleLockFx, "Keep FX", true, audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::fx));
+    menu.addItem(toggleLockSeq, "Keep Sequencer", true, audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::sequencer));
+    menu.addSeparator();
+    menu.addSectionHeader("Midi");
+    menu.addItem(toggleMidiLearn, "Midi Learn", true, audioProcessor.isMidiLearnArmed());
+    menu.addSeparator();
+    menu.addSectionHeader("View");
+    menu.addItem(toggleHover, "Hover FX", true, RootFlow::areHoverEffectsEnabled());
+    menu.addItem(toggleIdle, "Idle Motion", true, RootFlow::areIdleEffectsEnabled());
+    menu.addItem(togglePopups, "Inspector Popups", true, RootFlow::arePopupOverlaysEnabled());
+    menu.addSeparator();
+    menu.addSectionHeader("Monitor");
+    menu.addItem(toggleTone, "Tone Probe", true, audioProcessor.isTestToneEnabled());
+
+    auto options = juce::PopupMenu::Options()
+                       .withTargetComponent(&utilityMenuButton)
+                       .withMinimumWidth(180);
+
+    menu.showMenuAsync(options, [this] (int result)
+    {
+        switch (result)
+        {
+            case toggleLockRoot:   setGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::root, ! audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::root)); break;
+            case toggleLockMotion: setGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::motion, ! audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::motion)); break;
+            case toggleLockAir:    setGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::spectral, ! audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::spectral)); break;
+            case toggleLockFx:     setGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::fx, ! audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::fx)); break;
+            case toggleLockSeq:    setGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::sequencer, ! audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::sequencer)); break;
+            case toggleMidiLearn:  setMidiLearnEnabled(! audioProcessor.isMidiLearnArmed()); break;
+            case toggleHover:  setHoverEffectsEnabled(! RootFlow::areHoverEffectsEnabled()); break;
+            case toggleIdle:   setIdleEffectsEnabled(! RootFlow::areIdleEffectsEnabled()); break;
+            case togglePopups: setPopupOverlaysEnabled(! RootFlow::arePopupOverlaysEnabled()); break;
+            case toggleTone:   setToneProbeEnabled(! audioProcessor.isTestToneEnabled()); break;
+            default: break;
+        }
+    });
+}
+
+void RootFlowAudioProcessorEditor::setMidiLearnEnabled(bool enabled)
+{
+    audioProcessor.setMidiLearnArmed(enabled);
+    midiLearnButton.setToggleState(enabled, juce::dontSendNotification);
+    refreshHeaderControlState();
+    repaint();
+}
+
+void RootFlowAudioProcessorEditor::setHoverEffectsEnabled(bool enabled)
+{
+    RootFlow::setHoverEffectsEnabled(enabled);
+    hoverToggleButton.setToggleState(enabled, juce::dontSendNotification);
+
+    if (! enabled)
+        headerFocusedControl = nullptr;
+
+    refreshHeaderControlState();
+    repaint();
+    if (mainLayout != nullptr)
+        mainLayout->repaint();
+    keyboardDrawer.repaint();
+}
+
+void RootFlowAudioProcessorEditor::setIdleEffectsEnabled(bool enabled)
+{
+    RootFlow::setIdleEffectsEnabled(enabled);
+    idleToggleButton.setToggleState(enabled, juce::dontSendNotification);
+
+    refreshHeaderControlState();
+    repaint();
+    if (mainLayout != nullptr)
+        mainLayout->repaint();
+}
+
+void RootFlowAudioProcessorEditor::setPopupOverlaysEnabled(bool enabled)
+{
+    RootFlow::setPopupOverlaysEnabled(enabled);
+    popupToggleButton.setToggleState(enabled, juce::dontSendNotification);
+
+    refreshHeaderControlState();
+    repaint();
+    if (mainLayout != nullptr)
+        mainLayout->repaint();
+    keyboardDrawer.repaint();
+}
+
+void RootFlowAudioProcessorEditor::setToneProbeEnabled(bool enabled)
+{
+    audioProcessor.setTestToneEnabled(enabled);
+    testToneButton.setToggleState(enabled, juce::dontSendNotification);
+
+    refreshHeaderControlState();
+    repaint();
+}
+
+void RootFlowAudioProcessorEditor::setGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup group, bool enabled)
+{
+    audioProcessor.setGrowLockEnabled(group, enabled);
+
+    switch (group)
+    {
+        case RootFlowAudioProcessor::GrowLockGroup::core:      growLockCoreButton.setToggleState(enabled, juce::dontSendNotification); break;
+        case RootFlowAudioProcessor::GrowLockGroup::motion:    growLockMotionButton.setToggleState(enabled, juce::dontSendNotification); break;
+        case RootFlowAudioProcessor::GrowLockGroup::spectral:  growLockSpectralButton.setToggleState(enabled, juce::dontSendNotification); break;
+        case RootFlowAudioProcessor::GrowLockGroup::fx:        growLockFxButton.setToggleState(enabled, juce::dontSendNotification); break;
+        case RootFlowAudioProcessor::GrowLockGroup::sequencer: growLockSeqButton.setToggleState(enabled, juce::dontSendNotification); break;
+    }
+
+    refreshHeaderControlState();
+    repaint();
+}
+
+void RootFlowAudioProcessorEditor::applyStylePromptRecipe(int recipeIndex)
+{
+    if (! juce::isPositiveAndBelow(recipeIndex, (int) stylePromptRecipes.size()))
+        return;
+
+    const auto& recipe = stylePromptRecipes[(size_t) recipeIndex];
+    promptEditor.setText(juce::String(recipe.seedA).trim(), false);
+    morphPromptEditor.setText(juce::String(recipe.seedB).trim(), false);
+    promptMorphSlider.setValue(recipe.morphAmount, juce::dontSendNotification);
+    applyPromptSeed();
+}
+
+void RootFlowAudioProcessorEditor::recallSeedMemoryPrompt(int slotIndex)
+{
+    if (! juce::isPositiveAndBelow(slotIndex, (int) seedMemoryPrompts.size()))
+        return;
+
+    const auto recalledPrompt = seedMemoryPrompts[(size_t) slotIndex].trim();
+    if (recalledPrompt.isEmpty())
+        return;
+
+    const auto seedA = promptEditor.getText().trim();
+    const auto seedB = morphPromptEditor.getText().trim();
+
+    if (seedA.isEmpty())
+        promptEditor.setText(recalledPrompt, false);
+    else if (seedB.isEmpty() && seedA != recalledPrompt)
+        morphPromptEditor.setText(recalledPrompt, false);
+    else
+        promptEditor.setText(recalledPrompt, false);
+
+    refreshHeaderControlState();
+    repaint();
+}
+
+void RootFlowAudioProcessorEditor::deleteSeedMemoryPrompt(int slotIndex)
+{
+    if (! juce::isPositiveAndBelow(slotIndex, (int) seedMemoryPrompts.size()))
+        return;
+
+    const auto promptToDelete = seedMemoryPrompts[(size_t) slotIndex].trim();
+    if (promptToDelete.isEmpty())
+        return;
+
+    if (! audioProcessor.removePromptMemoryEntry(promptToDelete))
+        return;
+
+    if (promptEditor.getText().trim() == promptToDelete)
+        promptEditor.clear();
+
+    if (morphPromptEditor.getText().trim() == promptToDelete)
+        morphPromptEditor.clear();
+
+    refreshHeaderControlState();
+    repaint();
 }
 
 void RootFlowAudioProcessorEditor::refreshHeaderControlState()
@@ -1028,18 +1759,97 @@ void RootFlowAudioProcessorEditor::refreshHeaderControlState()
     if (presetBox.getSelectedId() != currentPresetIndex + 1)
         presetBox.setSelectedId(currentPresetIndex + 1, juce::dontSendNotification);
 
+    const bool hoverEnabled = RootFlow::areHoverEffectsEnabled();
+    const bool idleEnabled = RootFlow::areIdleEffectsEnabled();
+    const bool popupEnabled = RootFlow::arePopupOverlaysEnabled();
+    const bool anyGrowLockEnabled = audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::root)
+                                 || audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::motion)
+                                 || audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::spectral)
+                                 || audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::fx)
+                                 || audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::sequencer);
+
     midiLearnButton.setToggleState(learnArmed, juce::dontSendNotification);
     testToneButton.setToggleState(testToneEnabled, juce::dontSendNotification);
-    hoverToggleButton.setToggleState(RootFlow::areHoverEffectsEnabled(), juce::dontSendNotification);
-    idleToggleButton.setToggleState(RootFlow::areIdleEffectsEnabled(), juce::dontSendNotification);
-    popupToggleButton.setToggleState(RootFlow::arePopupOverlaysEnabled(), juce::dontSendNotification);
+    hoverToggleButton.setToggleState(hoverEnabled, juce::dontSendNotification);
+    idleToggleButton.setToggleState(idleEnabled, juce::dontSendNotification);
+    popupToggleButton.setToggleState(popupEnabled, juce::dontSendNotification);
+    growLockCoreButton.setToggleState(audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::core), juce::dontSendNotification);
+    growLockMotionButton.setToggleState(audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::motion), juce::dontSendNotification);
+    growLockSpectralButton.setToggleState(audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::spectral), juce::dontSendNotification);
+    growLockFxButton.setToggleState(audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::fx), juce::dontSendNotification);
+    growLockSeqButton.setToggleState(audioProcessor.isGrowLockEnabled(RootFlowAudioProcessor::GrowLockGroup::sequencer), juce::dontSendNotification);
     midiLearnButton.setButtonText(learnArmed ? "ARM" : "MAP");
+    utilityMenuButton.setButtonText("TOOLS");
     testToneButton.setButtonText(testToneEnabled ? "ON" : "TONE");
+    mutateModeButton.setButtonText(audioProcessor.getMutationModeShortLabel());
     presetSaveButton.setButtonText(presetDirty ? "SAVE*" : "SAVE");
+    patchMenuButton.setButtonText("EDIT");
+    promptApplyButton.setButtonText(promptEditor.getText().trim().isNotEmpty() && morphPromptEditor.getText().trim().isNotEmpty()
+                                        ? "MORPH"
+                                        : "GROW");
+    morphPromptEditor.setAlpha(morphPromptEditor.hasKeyboardFocus(true) || morphPromptEditor.getText().trim().isNotEmpty() ? 1.0f : 0.72f);
+    patchMenuButton.setTooltip((presetDirty ? juce::String("Unsaved patch / ") : juce::String())
+                               + (hasUserPreset ? juce::String("User preset / ") : juce::String("Factory preset / "))
+                               + "Mutate mode " + audioProcessor.getMutationModeDisplayName()
+                               + " / click for save, delete, mutate mode and style recipes");
+    mutateButton.setTooltip("Mutate current patch / mode " + audioProcessor.getMutationModeDisplayName());
+    utilityMenuButton.setTooltip(makeUtilitySummaryText(hoverEnabled, idleEnabled, popupEnabled, testToneEnabled, audioProcessor)
+                                 + " / click to open utility controls");
+
+    const auto previews = audioProcessor.getPromptMemoryPreviews((int) seedMemoryButtons.size());
+    bool seedMemoryLayoutChanged = false;
+    for (size_t i = 0; i < seedMemoryButtons.size(); ++i)
+    {
+        const auto previousPrompt = seedMemoryPrompts[i];
+        const auto previousSummary = seedMemorySummaries[i];
+        const bool hadVisibility = seedMemoryButtons[i].isVisible();
+
+        if (i < previews.size())
+        {
+            seedMemoryPrompts[i] = previews[i].prompt.trim();
+            seedMemorySummaries[i] = previews[i].summary.trim();
+        }
+        else
+        {
+            seedMemoryPrompts[i].clear();
+            seedMemorySummaries[i].clear();
+        }
+
+        const bool hasPrompt = seedMemoryPrompts[i].isNotEmpty();
+        seedMemoryButtons[i].setVisible(hasPrompt);
+        seedMemoryButtons[i].setEnabled(hasPrompt);
+        seedMemoryButtons[i].setAlpha(hasPrompt ? 1.0f : 0.0f);
+        seedMemoryButtons[i].setButtonText(hasPrompt ? makeSeedMemoryButtonLabel(seedMemoryPrompts[i])
+                                                     : juce::String("MEM"));
+
+        if (hasPrompt)
+        {
+            juce::String tooltip = seedMemoryPrompts[i];
+            if (seedMemorySummaries[i].isNotEmpty())
+                tooltip << " / " << seedMemorySummaries[i];
+            tooltip << " / left click fills Seed A, then Seed B / right click deletes";
+            seedMemoryButtons[i].setTooltip(tooltip);
+        }
+        else
+        {
+            seedMemoryButtons[i].setTooltip("No remembered seed yet");
+        }
+
+        if (previousPrompt != seedMemoryPrompts[i]
+            || previousSummary != seedMemorySummaries[i]
+            || hadVisibility != hasPrompt)
+        {
+            seedMemoryLayoutChanged = true;
+        }
+    }
+
     presetDeleteButton.setEnabled(hasUserPreset);
     presetDeleteButton.setAlpha(hasUserPreset ? 1.0f : 0.45f);
 
     headerControlStateInitialised = true;
+
+    if (seedMemoryLayoutChanged)
+        resized();
 }
 
 void RootFlowAudioProcessorEditor::visibilityChanged()
@@ -1057,7 +1867,7 @@ void RootFlowAudioProcessorEditor::updateAnimationTimerState()
     if (isShowing())
     {
         if (! isTimerRunning())
-            startTimerHz(30);
+            startTimerHz(24);
     }
     else
     {
@@ -1123,6 +1933,19 @@ void RootFlowAudioProcessorEditor::mouseDown(const juce::MouseEvent& e)
 
 void RootFlowAudioProcessorEditor::mouseUp(const juce::MouseEvent& e)
 {
+    for (size_t i = 0; i < seedMemoryButtons.size(); ++i)
+    {
+        if (e.eventComponent == &seedMemoryButtons[i])
+        {
+            if (e.mods.isPopupMenu())
+                deleteSeedMemoryPrompt((int) i);
+            else
+                recallSeedMemoryPrompt((int) i);
+
+            return;
+        }
+    }
+
     if (! RootFlow::areHoverEffectsEnabled())
     {
         if (headerFocusedControl != nullptr)
@@ -1140,6 +1963,4 @@ void RootFlowAudioProcessorEditor::mouseUp(const juce::MouseEvent& e)
     }
 }
 
-// paintOverChildren intentionally empty — atmospheric effects are
-// handled by AtmosphericOverlay (added last = top Z-order child).
 void RootFlowAudioProcessorEditor::paintOverChildren(juce::Graphics&) {}

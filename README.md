@@ -8,11 +8,20 @@
 ![AudioUnit](https://img.shields.io/badge/AudioUnit-supported-3A4E6A?style=for-the-badge)
 ![Standalone](https://img.shields.io/badge/Standalone-supported-3A4E6A?style=for-the-badge)
 ![Status](https://img.shields.io/badge/Status-Evolving-5FD1C7?style=for-the-badge)
-![Version](https://img.shields.io/badge/Version-1.2.0-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-1.3.2-blue?style=for-the-badge)
 
 **Funky Moose Rootflow Synth** is an organic, visually reactive software instrument built with **JUCE** and **C++17**.
 
 It blends ambient synthesis, bio-inspired sequencing, evolving modulation and a living interface into one playable instrument. Instead of feeling sterile or mechanical, Rootflow is designed to breathe, drift, pulse and grow.
+
+## Download
+
+The latest macOS and Windows builds are available under **[Releases](https://github.com/blubass/funky-moose-rootflow-synth/releases)**.
+
+Latest release: **v1.3.2**
+
+> [!IMPORTANT]
+> **For macOS users**: these builds are currently unsigned. You may need to open the app once via Finder or allow it in **System Settings > Privacy & Security**.
 
 ## Features
 
@@ -22,30 +31,44 @@ It blends ambient synthesis, bio-inspired sequencing, evolving modulation and a 
 - Root, Pulse and Ambient field layout for stable tone, animated motion and spatial shaping
 - Patch workflow with save, delete and mutate actions directly in the main interface
 - Playable keyboard and direct performance controls
-- Available as **Audio Unit**, **VST3** and **Standalone** on macOS
+- Available as **VST3** and **Standalone** on Windows, and **Audio Unit**, **VST3** and **Standalone** on macOS
 
 ## Interface
 
 ### Bio-Sequencer
-
-Controls evolving step activity, rhythmic motion and the internal pulse of a patch.
+A modulation sequencer for evolving rhythmic movement. It controls step activity, mutation behaviour and pulse-like parameter motion.
 
 ### Center Panel
-
 The living visual field. It reflects movement, modulation and interaction in real time.
 
-### Root Field / Pulse Field / Ambient Field
+### Root Field
+Controls tonal grounding, depth and low-frequency stability.
 
-These sections shape the body of the instrument:
+### Pulse Field
+Controls movement, rate, breath and animated modulation.
 
-### Version 1.2.0 (Latest)
-- **High-Performance Oversampling**: Added 2x and 4x modes using optimized Polyphase IIR filters.
-- **DSP Engine Stability**: Optimized filter coefficient updates and fixed high-sample-rate audio issues.
-- **Accurate MIDI Sync**: Improved timing synchronization for oversampled processing.
+### Ambient Field
+Controls space, air, reverb/delay character and stereo depth.
 
-- **Root Field**: depth, soil, anchor and tonal grounding
-- **Pulse Field**: rate, breath, growth and movement
-- **Ambient Field**: air, ground and space balance
+## Technical Highlights
+
+- **MIDI Learn**: Flexible controller mapping and default support for popular hardware.
+- **Preset System**: Robust factory and user preset management.
+- **Bio-Sequencer**: Advanced step engine with per-step probability and velocity.
+- **Anti-Aliasing**: PolyBLEP-style saw and pulse waveforms for cleaner high frequencies.
+- **FFT Visuals**: Real-time spectral analysis for the reative visualizer.
+- **High Performance**: Oversampling-ready processing path and voice optimization.
+- **Audio Safety**: DC blocking and output monitoring ("Watchdogs") for system stability.
+- **MPE Foundation**: MPE-aware MIDI expression groundwork for future-proof playing.
+
+### Version 1.3.2 (Latest)
+- **DSP Parameter Smoothing**: Implemented per-sample interpolation for all critical effect parameters (Mix, Delay, Feedback, Resonance) to eliminate zipper noise and artifacts.
+- **Musical ADSR Shaping**: Applied exponential power curves to the envelope output for a punchier, more analog response.
+- **Filter Bite**: Added dynamic envelope modulation to the filter cutoff for more expressive performance.
+- **Unison Stability**: Voice counts are now stabilized at note-on to prevent clicking during parameter modulation.
+- **Windows CI Fixed**: Resolved MSVC ambiguity in GitHub Actions.
+- **Preset Switching Stable**: `masterVolume` now persists across preset changes.
+- **Standalone Startup Hardened**: Fixed null-deref crash on app startup.
 
 ## Screenshot
 
@@ -54,68 +77,84 @@ These sections shape the body of the instrument:
 ## Installation
 
 ### macOS
-
-- **Audio Unit**: copy the `.component` bundle to `~/Library/Audio/Plug-Ins/Components` or `/Library/Audio/Plug-Ins/Components`
-- **VST3**: copy the `.vst3` bundle to `~/Library/Audio/Plug-Ins/VST3` or `/Library/Audio/Plug-Ins/VST3`
+- **Audio Unit**: copy the `.component` bundle to `~/Library/Audio/Plug-Ins/Components`
+- **VST3**: copy the `.vst3` bundle to `~/Library/Audio/Plug-Ins/VST3`
 - **Standalone**: move the `.app` bundle to `Applications`
 
 ### Notes
-
-- Unsigned builds may need to be opened once via Finder or allowed in `System Settings > Privacy & Security`
-- If you are replacing an older `RootFlow` build, rescan your DAW after installing `Funky Moose Rootflow Synth`
+- Unsigned builds may need to be opened once via Finder or allowed in `System Settings > Privacy & Security`.
+- If you are replacing an older `RootFlow` build, rescan your DAW after installing `Funky Moose Rootflow Synth`.
 
 ## Build from Source
 
-### Requirements
+Automated CI builds are created for macOS and Windows via GitHub Actions.
 
+### Requirements
 - CMake 3.22 or newer
 - JUCE 8.0.10
 - C++17 compatible compiler
 - Xcode or Xcode Command Line Tools on macOS
 
 ### Quick Build
-
 ```bash
-git clone https://github.com/blubass/funky-moose-rootflow-synth.git
+git clone --recursive https://github.com/blubass/funky-moose-rootflow-synth.git
 cd funky-moose-rootflow-synth
-cmake --preset default
-cmake --build --preset default
+
+# Optional: Clone JUCE if you don't have it installed globally
+git clone --depth 1 --branch 8.0.10 https://github.com/juce-framework/JUCE.git external/JUCE
+
+cmake -S . -B build-release -DCMAKE_BUILD_TYPE=Release
+cmake --build build-release --parallel
 ```
 
-The included preset expects JUCE here:
+By default, the project also looks for JUCE here:
+`$HOME/Developer/JUCE/install/lib/cmake/JUCE-8.0.10`
 
-```text
-$HOME/Developer/JUCE/install/lib/cmake/JUCE-8.0.10
-```
-
-If your JUCE install lives elsewhere, pass `-DJUCE_DIR=/path/to/JUCE/lib/cmake/JUCE-8.0.10` when configuring.
+If your JUCE install lives elsewhere and you are not using the `external/JUCE` approach, pass `-DJUCE_DIR=/path/to/JUCE/lib/cmake/JUCE-8.0.10` when configuring.
 
 ## Roadmap
 
-- deeper modulation routing
-- richer voice architecture
-- expanded sequencer behaviors
-- stronger patch and preset handling
-- refined visual polish and release packaging
+### Next
+- Preset browser polish
+- More factory patches
+- MIDI learn / host automation cleanup
+- CPU profiling and voice optimisation
+- Improved modulation routing display
+
+### Later
+- Expanded oscillator models
+- More Bio-Sequencer mutation modes
+- Cross-platform installer packages
+- Signed/notarized macOS builds
 
 ## Changelog
 
+### [1.3.2] - 2026-04-28
+- **Smooth Interaction**: Implemented robust per-sample parameter smoothing for all global effects to eliminate "holprige" behavior.
+- **Analog ADSR**: Retuned envelope curves to exponential for punchier, more musical articulation.
+- **VCF Drive**: Added envelope-to-filter modulation depth scaling.
+- **Bugfixes**: Resolved Windows CI failures and stabilized unison voice management.
+
+### [1.3.1] - 2026-04-20
+- **Preset Volume**: `masterVolume` now persists across preset changes.
+- **Standalone Crash Fix**: Hardened the editor overlay timer against stale parameter access on startup.
+- **State Migration**: Legacy parameter IDs for sessions and user presets are migrated into the current layout.
+- **Prompt and Node Fixes**: Corrected node-slot mapping and prompt-memory read/write behavior.
+
+### [1.3.0] - 2026-04-01
+- **Audio Unit Build**: Re-enabled AU output in standard CMake presets.
+- **macOS Packaging**: Universal `arm64/x86_64` binaries with Monterey deployment target.
+- **Audio Path Fixes**: Restored keyboard MIDI, modulation feedback, and master mix routing.
+
 ### [1.2.0] - 2026-03-30
-- **32-Voice Polyphony**: Increased voice count from 16 to 32 for massive chord textures.
-- **Sequencer Stability**: Completely rewritten gate logic and note-off handling for rock-solid timing.
-- **MUTATE System**: New organic mutation engine for evolving patch "DNA" with one click.
-- **Mutation Visuals**: Integrated "Spore Burst" visual feedback for parameter mutations.
-- **Performance**: Cached modulation indices to reduce CPU load in the audio thread.
-- **Meta**: Added Release CMake presets and updated version badges.
+- **32-Voice Polyphony**: Increased voice count for massive textures.
+- **Sequencer Stability**: New gate logic and note-off handling.
+- **MUTATE System**: Organic mutation engine for patch "DNA".
 
 ## Author
-
 Uwe Arthur Felchle
-
 Musician, composer, producer and developer
-
-https://uwefelchle.at
+[uwefelchle.at](https://uwefelchle.at)
 
 ## License
-
 This project is released under the MIT License. See [LICENSE](LICENSE).

@@ -1,104 +1,181 @@
 #pragma once
+
 #include <JuceHeader.h>
-#include <array>
-#include <cmath>
 
 namespace RootFlowDSP
 {
-inline float clamp01(float x) noexcept { return juce::jlimit(0.0f, 1.0f, x); }
+
+static inline float clamp01(float v) { return juce::jlimit(0.0f, 1.0f, v); }
 
 /**
- * SOIL (Earthy Resonator)
- * Dark, resonant environment based on plant energy.
+ * A gentle safety net to prevent harsh digital clipping.
  */
-class BloomProcessor
+static inline float softLimit(float x) noexcept
+{
+    return std::tanh(x * 1.1f) / 0.8005f; // std::tanh(1.1f) is approx 0.8005
+}
+
+/**
+ * CORE (Resonator & Body)
+ * The tonal center and physical presence of the sound.
+ */
+class CoreResonator
 {
 public:
     void prepare(const juce::dsp::ProcessSpec& spec)
     {
-        sampleRate = spec.sampleRate > 0.0 ? spec.sampleRate : 44100.0;
-        reverb.prepare(spec);
-        wetBuffer.setSize((int) spec.numChannels,
-                          (int) juce::jmax<juce::uint32>(1u, spec.maximumBlockSize),
-                          false,
-                          false,
-                          true);
-
+        sampleRate = spec.sampleRate > 0 ? spec.sampleRate : 44100.0;
+        
+        for (int i = 0; i < 2; ++i)
+        {
+            filter[i].reset();
+            filter[i].setType(juce::dsp::StateVariableTPTFilterType::bandpass);
+        }
+        
+        updateFilter(spec.sampleRate);
+        
         smoothedMix.reset(sampleRate, 0.05);
-        smoothedSize.reset(sampleRate, 0.05);
+        smoothedRes.reset(sampleRate, 0.05);
+        smoothedFreq.reset(sampleRate, 0.05);
+    }
 
-        prevL = 0.0f;
-        prevR = 0.0f;
+    void setParams(float coreAmount, float systemEnergy, float sourceDepth, float sourceAnchor)
+    {
+        smoothedMix.setTargetValue(clamp01(coreAmount));
+        
+        float baseFreq = 220.0f + (sourceAnchor * 880.0f);
+        float modFreq  = baseFreq * (1.0f + systemEnergy * 0.5f);
+        smoothedFreq.setTargetValue(juce::jlimit(20.0f, 18000.0f, modFreq));
+        
+        smoothedRes.setTargetValue(0.1f + (sourceDepth * 0.85f) + (systemEnergy * 0.15f));
+    }
+
+    void process(juce::AudioBuffer<float>& buffer)
+    {
+        const int numSamples = buffer.getNumSamples();
+        const int numChannels = buffer.getNumChannels();
+
+        if (smoothedMix.getCurrentValue() < 0.001f && smoothedMix.getTargetValue() < 0.001f)
+        {
+            smoothedMix.skip(numSamples);
+            smoothedFreq.skip(numSamples);
+            smoothedRes.skip(numSamples);
+            return;
+        }
+
+        for (int i = 0; i < numSamples; ++i)
+        {
+            float mix  = smoothedMix.getNextValue();
+            float freq = smoothedFreq.getNextValue();
+            float res  = smoothedRes.getNextValue();
+
+            for (int ch = 0; ch < numChannels; ++ch)
+            {
+                filter[ch % 2].setCutoffFrequency(freq);
+                filter[ch % 2].setResonance(res);
+
+                auto* samples = buffer.getWritePointer(ch);
+                float dry = samples[i];
+                float wet = filter[ch % 2].processSample(ch % 2, dry);
+                
+                samples[i] = dry * (1.0f - mix) + wet * mix;
+            }
+        }
+    }
+
+private:
+    void updateFilter(double sr)
+    {
+        for (int i = 0; i < 2; ++i)
+        {
+            filter[i].prepare({ sr, 512, 1 });
+        }
+    }
+
+    juce::dsp::StateVariableTPTFilter<float> filter[2];
+    double sampleRate = 44100.0;
+    juce::LinearSmoothedValue<float> smoothedMix;
+    juce::LinearSmoothedValue<float> smoothedFreq;
+    juce::LinearSmoothedValue<float> smoothedRes;
+};
+
+/**
+ * RADIANCE (Ambient & Space)
+ * Shimmers, air and ground presence.
+ */
+class RadianceFinisher
+{
+public:
+    void prepare(const juce::dsp::ProcessSpec& spec)
+    {
+        sampleRate = spec.sampleRate > 0 ? spec.sampleRate : 44100.0;
+        reverb.prepare(spec);
+        
+        wetBuffer.setSize(spec.numChannels, spec.maximumBlockSize);
+        smoothedMix.reset(sampleRate, 0.05);
     }
 
     void reset()
     {
         reverb.reset();
         smoothedMix.setCurrentAndTargetValue(0.0f);
-        prevL = 0.0f;
-        prevR = 0.0f;
     }
 
-    void setParams(float blossomAmount,
-                   float plantEnergy,
-                   float sapVitality,
-                   float pulseBreath,
-                   float canopyOpen,
-                   float rootAnchor)
+    void setParams(float radianceAmount, float systemEnergy, float sourceDepth,
+                   float flowEnergy, float pulseWidth, float fieldComplexity)
     {
-        smoothedMix.setTargetValue(clamp01(blossomAmount));
+        smoothedMix.setTargetValue(clamp01(radianceAmount));
 
-        // Size linked to Bio-Energy
-        smoothedSize.setTargetValue(0.45f + plantEnergy * 0.45f);
-
-        juce::dsp::Reverb::Parameters params;
-        params.roomSize = smoothedSize.getTargetValue();
-        params.damping  = 0.72f; // Very dark
-        params.width    = 0.65f;
+        auto params = reverb.getParameters();
+        params.roomSize = 0.75f + fieldComplexity * 0.22f;
+        params.damping  = 0.92f - (systemEnergy * 0.35f);
+        params.width    = 0.85f + (sourceDepth * 0.14f);
         params.wetLevel = 1.0f;
         params.dryLevel = 0.0f;
         reverb.setParameters(params);
-
-        // Lowpass damping factor based on vitality
-        targetDamp = 0.82f - (sapVitality * 0.28f); // More damping (softer)
     }
 
     void process(juce::AudioBuffer<float>& buffer)
     {
         const int numSamples = buffer.getNumSamples();
-        const float mix = smoothedMix.getNextValue();
-        smoothedMix.skip(numSamples - 1);
+        const int numChannels = buffer.getNumChannels();
+        
+        float startMix = smoothedMix.getNextValue();
+        smoothedMix.skip(numSamples - 2);
+        float endMix = smoothedMix.getNextValue();
 
-        if (mix < 0.001f)
+        if (startMix < 0.001f && endMix < 0.001f && smoothedMix.getTargetValue() < 0.001f)
             return;
 
-        jassert(wetBuffer.getNumChannels() >= buffer.getNumChannels());
+        jassert(wetBuffer.getNumChannels() >= numChannels);
         jassert(wetBuffer.getNumSamples() >= numSamples);
 
-        for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+        for (int ch = 0; ch < numChannels; ++ch)
             wetBuffer.copyFrom(ch, 0, buffer, ch, 0, numSamples);
 
         auto block = juce::dsp::AudioBlock<float>(wetBuffer)
-                         .getSubsetChannelBlock(0, (size_t) buffer.getNumChannels())
-                         .getSubBlock(0, (size_t) numSamples);
+                         .getSubsetChannelBlock(0, (size_t)numChannels)
+                         .getSubBlock(0, (size_t)numSamples);
+                         
         juce::dsp::ProcessContextReplacing<float> context(block);
         reverb.process(context);
 
-        for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+        for (int ch = 0; ch < numChannels; ++ch)
         {
-            auto* dryPtr = buffer.getWritePointer(ch);
-            auto* wetPtr = wetBuffer.getReadPointer(ch);
-            float& last = (ch == 0) ? prevL : prevR;
-
+            auto* samples = buffer.getWritePointer(ch);
+            auto* wetSamples = wetBuffer.getReadPointer(ch);
+            
+            float mixStep = (endMix - startMix) / (float)numSamples;
+            float currentMix = startMix;
+            
             for (int i = 0; i < numSamples; ++i)
             {
-                // Simple Low-Pass on the Reverb Tail (Soil effect)
-                // Heavier darkening for RootFlow organic feel
-                float s = wetPtr[i];
-                s = s * (1.0f - targetDamp) + last * targetDamp;
-                last = s;
-
-                dryPtr[i] = dryPtr[i] * (1.0f - mix) + s * mix;
+                float dry = samples[i];
+                float wet = wetSamples[i];
+                
+                // Moose with safety belt
+                samples[i] = juce::jlimit(-1.0f, 1.0f, dry * (1.0f - currentMix) + wet * currentMix);
+                currentMix += mixStep;
             }
         }
     }
@@ -106,24 +183,20 @@ public:
 private:
     juce::dsp::Reverb reverb;
     juce::AudioBuffer<float> wetBuffer;
-    double sampleRate = 44100.0;
     juce::LinearSmoothedValue<float> smoothedMix;
-    juce::LinearSmoothedValue<float> smoothedSize;
-    float prevL = 0.0f, prevR = 0.0f;
-    float targetDamp = 0.94f; // Deep analog darkening of reverb tail
+    double sampleRate = 44100.0;
 };
 
 /**
- * AIR (Modulated Wind-Delay)
- * Moving air feeling rather than static echoes.
+ * FIELD (Modulated Aether-Delay)
+ * Moving energy field rather than static echoes.
  */
-class RainProcessor
+class FieldDelay
 {
 public:
     void prepare(const juce::dsp::ProcessSpec& spec)
     {
         sampleRate = spec.sampleRate > 0 ? spec.sampleRate : 44100.0;
-        specInternal = spec;
 
         for (int i = 0; i < 2; ++i)
         {
@@ -132,6 +205,11 @@ public:
         }
 
         smoothedMix.reset(sampleRate, 0.08);
+        smoothedDelayMs.reset(sampleRate, 0.1);
+        smoothedFeedback.reset(sampleRate, 0.05);
+        smoothedModDepth.reset(sampleRate, 0.05);
+        smoothedModSpeed.reset(sampleRate, 0.05);
+        
         modPhase = 0.0f;
     }
 
@@ -141,35 +219,39 @@ public:
         smoothedMix.setCurrentAndTargetValue(0.0f);
     }
 
-    void setParams(float rainAmount,
-                   float plantEnergy,
-                   float sapFlow,
-                   float sapTexture,
-                   float pulseBreath,
-                   float canopy)
+    void setParams(float fieldAmount, float systemEnergy, float flowRate,
+                   float flowTexture, float pulseWidth, float fieldComplexity)
     {
-        smoothedMix.setTargetValue(clamp01(rainAmount));
-
-        // Speed of air movement linked to Pulse & Energy
-        modSpeed = 0.0001f + (pulseBreath * 0.0008f) + (plantEnergy * 0.0004f);
-
-        // Base delay time
-        baseDelayMs = 220.0f + (sapFlow * 380.0f);
-        feedback = 0.18f + (sapTexture * 0.32f); // Max 0.50, softer feedback loop
-        modDepth = 35.0f + (canopy * 65.0f);
+        smoothedMix.setTargetValue(clamp01(fieldAmount));
+        smoothedModSpeed.setTargetValue(0.0001f + (pulseWidth * 0.0008f) + (systemEnergy * 0.0004f));
+        smoothedDelayMs.setTargetValue(220.0f + (flowRate * 380.0f));
+        smoothedFeedback.setTargetValue(0.18f + (flowTexture * 0.32f));
+        smoothedModDepth.setTargetValue(35.0f + (fieldComplexity * 65.0f));
     }
 
     void process(juce::AudioBuffer<float>& buffer)
     {
         const int numSamples = buffer.getNumSamples();
         const int numChannels = buffer.getNumChannels();
-        const float mix = smoothedMix.getNextValue();
-        smoothedMix.skip(numSamples - 1);
-
-        if (mix < 0.001f) return;
+        
+        if (smoothedMix.getCurrentValue() < 0.001f && smoothedMix.getTargetValue() < 0.001f)
+        {
+            smoothedMix.skip(numSamples);
+            smoothedDelayMs.skip(numSamples);
+            smoothedFeedback.skip(numSamples);
+            smoothedModDepth.skip(numSamples);
+            smoothedModSpeed.skip(numSamples);
+            return;
+        }
 
         for (int i = 0; i < numSamples; ++i)
         {
+            float mix        = smoothedMix.getNextValue();
+            float feedback   = smoothedFeedback.getNextValue();
+            float baseDelayMs = smoothedDelayMs.getNextValue();
+            float modDepth   = smoothedModDepth.getNextValue();
+            float modSpeed   = smoothedModSpeed.getNextValue();
+
             modPhase += modSpeed;
             if (modPhase > 1.0f) modPhase -= 1.0f;
 
@@ -183,107 +265,37 @@ public:
                 float dry = samples[i];
                 float delayed = delay[ch % 2].popSample(0, delaySamples, true);
 
-                // Feedback loop with organic tape saturation & frequency damping
+                // Feedback loop with saturation & damping
                 float fbRaw = dry + delayed * feedback;
-                tapeLp[ch % 2] = tapeLp[ch % 2] * 0.65f + fbRaw * 0.35f; // Softer one-pole lowpass
-                float fbSignal = std::tanh(tapeLp[ch % 2] * 1.15f); // Slightly saturated for warmth
+                tapeLp[ch % 2] = tapeLp[ch % 2] * 0.65f + fbRaw * 0.35f;
+                float fbSignal = std::tanh(tapeLp[ch % 2] * 1.15f);
                 delay[ch % 2].pushSample(0, fbSignal);
 
-                samples[i] = dry * (1.0f - mix) + delayed * mix;
+                // Moose with safety belt
+                float wet = delayed * mix;
+                samples[i] = juce::jlimit(-1.0f, 1.0f, dry * (1.0f - mix) + wet);
             }
         }
     }
 
 private:
-    std::array<juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd>, 2> delay;
+    juce::dsp::DelayLine<float> delay[2];
+    float tapeLp[2] = { 0.0f, 0.0f };
     double sampleRate = 44100.0;
-    juce::dsp::ProcessSpec specInternal;
-    juce::LinearSmoothedValue<float> smoothedMix;
-
     float modPhase = 0.0f;
-    float modSpeed = 0.0005f;
-    float modDepth = 50.0f;
-    float baseDelayMs = 200.0f;
-    float feedback = 0.5f;
-    float tapeLp[2] = {0.0f, 0.0f};
+    
+    juce::LinearSmoothedValue<float> smoothedMix;
+    juce::LinearSmoothedValue<float> smoothedDelayMs;
+    juce::LinearSmoothedValue<float> smoothedFeedback;
+    juce::LinearSmoothedValue<float> smoothedModDepth;
+    juce::LinearSmoothedValue<float> smoothedModSpeed;
 };
 
-/**
- * SPACE (Cosmic Bloom)
- * Combining depth and shimmer for a wide finish.
- */
-class SunProcessor
+struct MidiExpressionState
 {
-public:
-    void prepare(const juce::dsp::ProcessSpec& spec)
-    {
-        sampleRate = spec.sampleRate > 0.0 ? spec.sampleRate : 44100.0;
-        reverb.prepare(spec);
-        wetBuffer.setSize((int) spec.numChannels,
-                          (int) juce::jmax<juce::uint32>(1u, spec.maximumBlockSize),
-                          false,
-                          false,
-                          true);
-        smoothedMix.reset(sampleRate, 0.05);
-    }
-
-    void reset()
-    {
-        reverb.reset();
-        smoothedMix.setCurrentAndTargetValue(0.0f);
-    }
-
-    void setParams(float sunAmount,
-                   float plantEnergy,
-                   float rootDepth,
-                   float sapVitality,
-                   float pulseBreath,
-                   float canopy)
-    {
-        smoothedMix.setTargetValue(clamp01(sunAmount));
-
-        auto params = reverb.getParameters();
-        params.roomSize = 0.75f + canopy * 0.22f;
-        params.damping  = 0.92f - (plantEnergy * 0.35f); // Deeply damped (dark, warm analog tail)
-        params.width    = 0.85f + (rootDepth * 0.14f);
-        params.wetLevel = 1.0f;
-        params.dryLevel = 0.0f;
-        reverb.setParameters(params);
-    }
-
-    void process(juce::AudioBuffer<float>& buffer)
-    {
-        const int numSamples = buffer.getNumSamples();
-        const float mix = smoothedMix.getNextValue();
-        smoothedMix.skip(numSamples - 1);
-
-        if (mix < 0.001f)
-            return;
-
-        jassert(wetBuffer.getNumChannels() >= buffer.getNumChannels());
-        jassert(wetBuffer.getNumSamples() >= numSamples);
-
-        for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
-            wetBuffer.copyFrom(ch, 0, buffer, ch, 0, numSamples);
-
-        auto block = juce::dsp::AudioBlock<float>(wetBuffer)
-                         .getSubsetChannelBlock(0, (size_t) buffer.getNumChannels())
-                         .getSubBlock(0, (size_t) numSamples);
-        juce::dsp::ProcessContextReplacing<float> context(block);
-        reverb.process(context);
-
-        for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
-        {
-            buffer.applyGainRamp(ch, 0, numSamples, 1.0f - mix, 1.0f - mix);
-            buffer.addFrom(ch, 0, wetBuffer.getReadPointer(ch), numSamples, mix);
-        }
-    }
-
-private:
-    juce::dsp::Reverb reverb;
-    juce::AudioBuffer<float> wetBuffer;
-    juce::LinearSmoothedValue<float> smoothedMix;
-    double sampleRate = 44100.0;
+    float pitchBendCents = 0.0f;
+    float timbre = 0.0f;
+    float pressure = 0.0f;
 };
 
 } // namespace RootFlowDSP

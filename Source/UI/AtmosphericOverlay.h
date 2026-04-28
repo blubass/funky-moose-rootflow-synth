@@ -3,11 +3,11 @@
 #include "Utils/DesignTokens.h"
 
 // ============================================================
-//  AtmosphericOverlay  v4 — Bioluminescent Panel Response
+//  AtmosphericOverlay  v4 — Cybernetic Matrix Response
 //
-//  God Rays: GONE. Replaced by soft panel-edge glow that
+//  Neon Glow: GONE. Replaced by soft panel-edge glow that
 //            emanates FROM the panels on MIDI input.
-//  Bio-Dust: Always faintly visible, surges on MIDI.
+//  Data Vapor: Always faintly visible, surges on MIDI.
 //
 //  Both driven by:  intensity = "atmosphere" param (0..1)
 //                   midiVelocity = smoothed MIDI velocity (0..1)
@@ -50,23 +50,22 @@ public:
     void paint(juce::Graphics& g) override
     {
         auto r = getLocalBounds().toFloat();
-        const float midi  = midiVelocity;                      // 0..1
-        const float atmos = intensity;                          // 0..1
+        const float midi  = midiVelocity * 0.72f;              // 0..1, slightly damped for a calmer feel
+        const float atmos = intensity * 0.76f;                 // keep atmosphere, but less visual pressure
         const float slow  = 0.5f + 0.5f * std::sin(phase * 0.5f);   // very slow breath
         const float fast  = 0.5f + 0.5f * std::sin(phase * 3.0f);   // faster flicker
 
         // -------------------------------------------------------
-        //  BIO-DUST  — always faintly visible, surges with MIDI
+        //  DATA VAPOR — always faintly visible, surges with MIDI
         //  Fixed: minimum alpha is large enough to always draw
         // -------------------------------------------------------
         {
-            // Resting glow: 0.05 * atmos (minimum ~0.009 at atmos=0.18 → too low, so add floor)
-            const float dustFloor  = 0.08f;                    // always show at least this
-            const float dustRest   = dustFloor * (0.3f + atmos * 0.7f);
-            const float dustSurge  = midi * 0.60f;             // strong surge on MIDI
-            const float dustAlpha  = dustRest + dustSurge;     // 0.024..0.68
+            const float dustFloor  = 0.04f;
+            const float dustRest   = dustFloor * (0.26f + atmos * 0.56f);
+            const float dustSurge  = midi * 0.26f;
+            const float dustAlpha  = dustRest + dustSurge;
 
-            for (int i = 0; i < 90; ++i)
+            for (int i = 0; i < 64; ++i)
             {
                 // Deterministic but slowly drifting positions
                 const float fx = std::fmod(std::abs(std::sin((float) i * 117.713f) * 43758.54f), 1.0f);
@@ -81,7 +80,7 @@ public:
                 // Individual breath per particle
                 const float breath  = 0.4f + 0.6f * std::sin(phase * 1.8f + (float) i * 0.9f);
                 // Finer alpha — each particle more delicate
-                const float alpha   = dustAlpha * breath * 0.55f;
+                const float alpha   = dustAlpha * breath * 0.32f;
 
                 const juce::Colour col =
                     (i %  7 == 0) ? juce::Colours::cyan.withAlpha(alpha)
@@ -96,13 +95,12 @@ public:
         // -------------------------------------------------------
         //  PANEL GLOW  — only on MIDI input
         //  Soft radial blooms that appear to emanate FROM inside
-        //  the panels — like bioluminescence, not searchlights.
+        //  the panels — like neon fluorescence, not searchlights.
         //  Positions: approximate panel centres in a 1240x820 layout.
         // -------------------------------------------------------
-        if (midi > 0.005f)
+        if (midi > 0.02f)
         {
-            // Global glow strength = midi velocity × atmosphere × breath
-            const float glowStr = midi * (0.3f + atmos * 0.7f) * (0.7f + slow * 0.3f);
+            const float glowStr = midi * (0.22f + atmos * 0.58f) * (0.82f + slow * 0.18f);
 
             // Panel hotspots (relative positions 0..1 in x and y)
             // Left panel, center, right panel, bottom
@@ -126,7 +124,7 @@ public:
                 const float ry = r.getHeight() * s.radiusY;
 
                 // Inner bright core — tight, punchy
-                const float coreAlpha = hotspotGlowStr * 0.28f * (0.6f + fast * 0.4f);
+                const float coreAlpha = hotspotGlowStr * 0.16f * (0.66f + fast * 0.34f);
                 juce::ColourGradient core(
                     s.tint.brighter(0.3f).withAlpha(coreAlpha), cx, cy,
                     juce::Colours::transparentBlack, cx + rx * 0.5f, cy, true);
@@ -134,7 +132,7 @@ public:
                 g.fillEllipse(cx - rx * 0.5f, cy - ry * 0.5f, rx, ry);
 
                 // Mid halo — medium radius, visible
-                const float haloAlpha = hotspotGlowStr * 0.14f;
+                const float haloAlpha = hotspotGlowStr * 0.08f;
                 juce::ColourGradient halo(
                     s.tint.withAlpha(haloAlpha), cx, cy,
                     juce::Colours::transparentBlack, cx + rx, cy, true);
@@ -142,7 +140,7 @@ public:
                 g.fillEllipse(cx - rx, cy - ry, rx * 2.0f, ry * 2.0f);
 
                 // Outer bloom — very large, very soft, for ambient bleed
-                const float bloomAlpha = hotspotGlowStr * 0.055f;
+                const float bloomAlpha = hotspotGlowStr * 0.03f;
                 juce::ColourGradient bloom(
                     s.tint.withAlpha(bloomAlpha), cx, cy,
                     juce::Colours::transparentBlack, cx + rx * 1.8f, cy, true);
@@ -152,7 +150,7 @@ public:
         }
         // -------------------------------------------------------
         //  SEQUENCER GLOW — dynamic step-based blooms
-        //  Triggers on step change, decays for "organic trail"
+        //  Triggers on step change, decays for "cybernetic trail"
         // -------------------------------------------------------
         for (int i = 0; i < 16; ++i)
         {
@@ -170,19 +168,19 @@ public:
 
                 // 1. Super Bloom — very large, subtle ambient wash
                 const float superRadius = radius * 2.8f;
-                juce::ColourGradient superG(tint.withAlpha(glow * 0.12f), pos.x, pos.y,
+                juce::ColourGradient superG(tint.withAlpha(glow * 0.06f), pos.x, pos.y,
                                             juce::Colours::transparentBlack, pos.x + superRadius, pos.y, true);
                 g.setGradientFill(superG);
                 g.fillEllipse(pos.x - superRadius, pos.y - superRadius, superRadius * 2.0f, superRadius * 2.0f);
 
                 // 2. Main Glow — the primary light source
-                juce::ColourGradient gred(tint.withAlpha(glow * 0.52f), pos.x, pos.y,
+                juce::ColourGradient gred(tint.withAlpha(glow * 0.28f), pos.x, pos.y,
                                           juce::Colours::transparentBlack, pos.x + radius, pos.y, true);
                 g.setGradientFill(gred);
                 g.fillEllipse(pos.x - radius, pos.y - radius, radius * 2.0f, radius * 2.0f);
                 
                 // 3. Sharp core spike — the "energy center"
-                juce::ColourGradient core(juce::Colours::white.withAlpha(glow * 0.45f), pos.x, pos.y,
+                juce::ColourGradient core(juce::Colours::white.withAlpha(glow * 0.18f), pos.x, pos.y,
                                           juce::Colours::transparentBlack, pos.x + radius * 0.35f, pos.y, true);
                 g.setGradientFill(core);
                 g.fillEllipse(pos.x - radius * 0.35f, pos.y - radius * 0.35f, radius * 0.7f, radius * 0.7f);
@@ -193,11 +191,11 @@ public:
 
 private:
     // Manual mapping of sequencer steps to screen coordinates (1240x820 layout)
-    // This replicates BioSequencerComponent::cellCentre but in global overlay space
+    // This replicates PulseMatrixSequencer::cellCentre but in global overlay space
     juce::Point<float> getStepScreenPos(int index, juce::Rectangle<float> r) const
     {
-        // 1. Calculate relative to BioSequencer bounds first
-        // MainLayout positions BioSequencer at roughly:
+        // 1. Calculate relative to PulseMatrixSequencer bounds first
+        // MainLayout positions PulseMatrixSequencer at roughly:
         // x: 0.17 * width (ish, depends on master section)
         // y: 0.10 * height + header
         
@@ -208,7 +206,7 @@ private:
         const float seqX = (r.getWidth() - (seqW + 22.0f + 320.0f)) * 0.5f; // Approximated
         const float seqY = headerH + 10.0f;
         
-        // Pad Area inside BioSequencer (replicated from BioSequencerComponent::getPadArea)
+        // Pad Area inside PulseMatrixSequencer (replicated from PulseMatrixSequencer::getPadArea)
         const float padTop = 52.0f + 16.0f;
         const float padBot = 58.0f + 6.0f;
         const float padH = seqH - padTop - padBot;

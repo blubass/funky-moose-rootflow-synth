@@ -8,38 +8,67 @@
 ![AudioUnit](https://img.shields.io/badge/AudioUnit-supported-3A4E6A?style=for-the-badge)
 ![Standalone](https://img.shields.io/badge/Standalone-supported-3A4E6A?style=for-the-badge)
 ![Status](https://img.shields.io/badge/Status-Evolving-5FD1C7?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-1.3.2-blue?style=for-the-badge)
 
 **Funky Moose Rootflow Synth** ist ein organisch reagierendes Software-Instrument, gebaut mit **JUCE** und **C++17**.
 
-Es verbindet Ambient-Synthese, bio-inspirierte Sequenzen, lebendige Modulation und eine atmende Benutzeroberflaeche zu einem Instrument, das sich eher gewachsen als zusammengeschraubt anfuehlt. Rootflow soll nicht steril oder technisch wirken. Es soll atmen, pulsieren, driften und sich entwickeln.
+Es verbindet Ambient-Synthese, bio-inspirierte Sequenzen, lebendige Modulation und eine atmende Benutzeroberfläche zu einem Instrument, das sich eher gewachsen als zusammengeschraubt anfühlt. Rootflow soll nicht steril oder technisch wirken. Es soll atmen, pulsieren, driften und sich entwickeln.
+
+## Download
+
+Die neuesten Builds für macOS und Windows sind unter **[Releases](https://github.com/blubass/funky-moose-rootflow-synth/releases)** verfügbar.
+
+Aktuelle Version: **v1.3.2**
+
+> [!IMPORTANT]
+> **Für macOS-Nutzer**: Diese Builds sind derzeit nicht signiert. Du musst die App eventuell einmal per Rechtsklick im Finder öffnen ("Öffnen") oder sie in den **Systemeinstellungen > Datenschutz & Sicherheit** freigeben.
 
 ## Features
 
-- Organische Synth-Engine fuer Texturen, Drones, Pulse und atmosphaerische Sounds
-- Bio-Sequencer fuer lebendige rhythmische Bewegung und mutationsgetriebene Pattern
-- Reaktives Center Panel mit knotiger, organismischer Bewegung und visueller Rueckmeldung
-- Root-, Pulse- und Ambient-Felder fuer tonale Basis, Bewegung und Raumanteil
+- Organische Synth-Engine für Texturen, Drones, Pulse und atmosphärische Sounds
+- Bio-Sequencer für lebendige rhythmische Bewegung und mutationsgetriebene Pattern
+- Reaktives Center Panel mit knotiger, organismischer Bewegung und visueller Rückmeldung
+- Root-, Pulse- und Ambient-Felder für tonale Basis, Bewegung und Raumanteil
 - Patch-Workflow mit Save-, Delete- und Mutate-Aktionen direkt im Hauptfenster
-- Spielbare Keyboard-Oberflaeche und direkte Performance-Kontrolle
-- Verfuegbar als **Audio Unit**, **VST3** und **Standalone** auf macOS
+- Spielbare Keyboard-Oberfläche und direkte Performance-Kontrolle
+- Verfügbar als **VST3** und **Standalone** auf Windows sowie als **Audio Unit**, **VST3** und **Standalone** auf macOS
 
 ## Interface
 
 ### Bio-Sequencer
-
-Steuert Step-Aktivitaet, rhythmische Bewegung und die innere Lebendigkeit eines Patches.
+Ein Modulations-Sequencer für lebendige rhythmische Bewegungen. Er steuert Step-Aktivität, Mutationsverhalten und pulsartige Parameter-Modulationen.
 
 ### Center Panel
+Das visuelle Zentrum. Es spiegelt Bewegung, Modulation und Interaktion in Echtzeit wider.
 
-Das lebendige visuelle Feld. Es macht Bewegung, Modulation und Interaktion in Echtzeit sichtbar.
+### Root Field
+Steuert die tonale Basis, Tiefe und die Stabilität im tieffrequenten Bereich.
 
-### Root Field / Pulse Field / Ambient Field
+### Pulse Field
+Steuert Bewegung, Rate, Atem und animierte Modulationen.
 
-Diese Bereiche formen den Klangkoerp### Version 1.2.0 (Aktuell)
-- **High-Performance Oversampling**: Neuer 2x und 4x Modus mit optimierten Polyphase-IIR-Filtern.
-- **DSP Stabilität**: Optimierte Parameter-Updates und Fix für Audio-Artefakte bei hohen Sampling-Raten.
-- **MIDI Synchronisation**: Verbesserte Timing-Präzision im Oversampling-Modus.
-- **Ambient Field**: Air, Ground und Space-Anteil
+### Ambient Field
+Steuert Raumanteil, Luftigkeit, den Charakter von Reverb/Delay und die Stereobreite.
+
+## Technische Highlights
+
+- **MIDI-Learn**: Flexibles Controller-Mapping und Standard-Unterstützung für gängige Hardware.
+- **Preset-System**: Robustes Factory- und User-Preset-Management.
+- **Bio-Sequencer**: Fortschrittliche Step-Engine mit Step-Wahrscheinlichkeit und Velocity.
+- **Anti-Aliasing**: Sägezahn- und Puls-Wellenformen mit PolyBLEP-Technologie für saubere Höhen.
+- **FFT-Visualisierung**: Echtzeit-Spektralanalyse für die reaktiven Visuals.
+- **High Performance**: Oversampling-fähiger Processing-Pfad und Voice-Optimierung.
+- **Audio-Sicherheit**: DC-Blocking und Output-Überwachung ("Watchdogs") für maximale Systemstabilität.
+- **MPE-Vorbereitung**: MPE-fähige MIDI-Expression-Basis für zukunftssicheres Spielgefühl.
+
+### Version 1.3.2 (Aktuell)
+- **DSP Parameter Smoothing**: Per-Sample-Interpolation für alle kritischen Effekt-Parameter (Mix, Delay, Feedback, Resonanz) zur Vermeidung von "Zipper Noise".
+- **Musikalische ADSR-Kurven**: Exponentielle Formgebung der Hüllkurven für einen perkussiveren, analogen Charakter.
+- **Filter Bite**: Dynamische Hüllkurven-Modulation auf den Filter-Cutoff für lebendigere Artikulation.
+- **Unisono-Stabilität**: Stimmenanzahl wird jetzt beim Note-On fixiert, um Knackser bei Modulationen zu vermeiden.
+- **Windows-CI repariert**: MSVC-Ambiguität in GitHub Actions behoben.
+- **Preset-Wechsel stabil**: `masterVolume` bleibt beim Umschalten von Presets erhalten.
+- **Standalone-Start abgesichert**: Null-Deref-Crash beim App-Start behoben.
 
 ## Screenshot
 
@@ -48,58 +77,77 @@ Diese Bereiche formen den Klangkoerp### Version 1.2.0 (Aktuell)
 ## Installation
 
 ### macOS
-
-- **Audio Unit**: das `.component`-Bundle nach `~/Library/Audio/Plug-Ins/Components` oder `/Library/Audio/Plug-Ins/Components` kopieren
-- **VST3**: das `.vst3`-Bundle nach `~/Library/Audio/Plug-Ins/VST3` oder `/Library/Audio/Plug-Ins/VST3` kopieren
+- **Audio Unit**: das `.component`-Bundle nach `~/Library/Audio/Plug-Ins/Components` kopieren
+- **VST3**: das `.vst3`-Bundle nach `~/Library/Audio/Plug-Ins/VST3` kopieren
 - **Standalone**: das `.app`-Bundle in `Applications` verschieben
 
 ### Hinweise
-
-- Unsigned Builds muessen unter Umstaenden einmal ueber Finder geoeffnet oder in `System Settings > Privacy & Security` erlaubt werden
-- Wenn du einen aelteren `RootFlow`-Build ersetzt, sollte die DAW nach der Installation von `Funky Moose Rootflow Synth` neu gescannt werden
+- Unsigned Builds müssen eventuell einmal über Finder geöffnet oder in den **Systemeinstellungen > Datenschutz & Sicherheit** erlaubt werden.
+- Wenn du einen älteren `RootFlow`-Build ersetzt, sollte die DAW nach der Installation neu gescannt werden.
 
 ## Build from Source
 
-### Voraussetzungen
+Automatisierte CI-Builds für macOS und Windows werden über GitHub Actions erstellt.
 
+### Voraussetzungen
 - CMake 3.22 oder neuer
 - JUCE 8.0.10
 - C++17 kompatibler Compiler
 - Xcode oder Xcode Command Line Tools auf macOS
 
 ### Schnellstart
-
 ```bash
-git clone https://github.com/blubass/funky-moose-rootflow-synth.git
+git clone --recursive https://github.com/blubass/funky-moose-rootflow-synth.git
 cd funky-moose-rootflow-synth
-cmake --preset default
-cmake --build --preset default
+
+# Optional: JUCE klonen, falls es nicht global installiert ist
+git clone --depth 1 --branch 8.0.10 https://github.com/juce-framework/JUCE.git external/JUCE
+
+cmake -S . -B build-release -DCMAKE_BUILD_TYPE=Release
+cmake --build build-release --parallel
 ```
 
-Das mitgelieferte Preset erwartet JUCE hier:
+Standardmäßig sucht das Projekt JUCE auch hier:
+`$HOME/Developer/JUCE/install/lib/cmake/JUCE-8.0.10`
 
-```text
-$HOME/Developer/JUCE/install/lib/cmake/JUCE-8.0.10
-```
-
-Falls JUCE bei dir woanders liegt, gib beim Konfigurieren `-DJUCE_DIR=/path/to/JUCE/lib/cmake/JUCE-8.0.10` an.
+Falls JUCE woanders liegt und du nicht den `external/JUCE`-Weg nutzt, gib beim Konfigurieren `-DJUCE_DIR=/path/to/JUCE/lib/cmake/JUCE-8.0.10` an.
 
 ## Roadmap
 
-- tiefere Modulationsverschaltung
-- reichere Voice-Architektur
-- erweitertes Sequencer-Verhalten
-- besseres Patch- und Preset-Handling
-- verfeinerte Visuals und Release-Pakete
+### Demnächst
+- Überarbeitung des Preset-Browsers
+- Mehr Factory-Patches
+- Aufräumarbeiten bei MIDI Learn / Host-Automation
+- CPU-Profiling und Voice-Optimierung
+- Verbesserte Anzeige des Modulations-Routings
+
+### Später
+- Erweiterte Oszillator-Modelle
+- Mehr Bio-Sequencer Mutationsmodi
+- Cross-Plattform Installer-Pakete
+- Signierte/Notarisierte macOS-Builds
+
+## Changelog
+
+### [1.3.2] - 2026-04-28
+- **Smooth Interaction**: Robuste Per-Sample-Parameter-Glättung für alle globalen Effekte.
+- **Analog ADSR**: Hüllkurven auf exponentielle Charakteristik umgestellt für perkussivere Artikulation.
+- **VCF Drive**: Hüllkurven-zu-Filter-Modulation integriert.
+- **Bugfixes**: Windows-CI repariert und Unisono-Stimmverwaltung stabilisiert.
+
+### [1.3.1] - 2026-04-20
+- **Preset-Lautstärke**: `masterVolume` bleibt beim Preset-Wechsel erhalten.
+- **Standalone-Crashfix**: Overlay-Update im Editor-Timer gegen veraltete Parameterzugriffe abgesichert.
+- **Kompatibilität**: Legacy-Parameter-IDs werden in das neue Layout migriert.
+
+### [1.3.0] - 2026-04-01
+- **Audio Unit Build**: AU in den Standard-Presets wieder aktiviert.
+- **macOS Packaging**: Universal-Build für Apple Silicon und Intel (Monterey+).
 
 ## Autor
-
 Uwe Arthur Felchle
-
 Musiker, Komponist, Produzent und Entwickler
-
-https://uwefelchle.at
+[uwefelchle.at](https://uwefelchle.at)
 
 ## Lizenz
-
 Dieses Projekt steht unter der MIT-Lizenz. Siehe [LICENSE](LICENSE).

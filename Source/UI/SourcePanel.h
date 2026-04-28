@@ -2,25 +2,25 @@
 #include <JuceHeader.h>
 #include "Utils/DesignTokens.h"
 
-class PulsePanel : public juce::Component
+class SourcePanel : public juce::Component
 {
 public:
-    PulsePanel()
+    SourcePanel()
     {
-        frequency.setName("FREQ");
-        width.setName("WIDTH");
-        energy.setName("ENERGY");
+        depth.setName("DEPTH");
+        core.setName("CORE");
+        anchor.setName("ANCHOR");
 
-        setupVerticalSlider(frequency);
-        setupVerticalSlider(width);
-        setupHorizontalSlider(energy);
-        wireSlider(frequency);
-        wireSlider(width);
-        wireSlider(energy);
+        setupVerticalSlider(depth);
+        setupVerticalSlider(core);
+        setupHorizontalSlider(anchor);
+        wireSlider(depth);
+        wireSlider(core);
+        wireSlider(anchor);
 
-        addAndMakeVisible(frequency);
-        addAndMakeVisible(width);
-        addAndMakeVisible(energy);
+        addAndMakeVisible(depth);
+        addAndMakeVisible(core);
+        addAndMakeVisible(anchor);
 
         setOpaque(false);
     }
@@ -33,79 +33,76 @@ public:
         auto topInner = topChamber.reduced(14, 14);
         const int laneWidth = juce::jlimit(52, 64, juce::roundToInt((float) topInner.getWidth() * 0.34f));
 
-        auto frequencyLane = juce::Rectangle<int>(topInner.getX() + 4,
-                                                 topInner.getY() + 2,
-                                                 laneWidth,
-                                                 topInner.getHeight() - 8);
-        auto widthLane = juce::Rectangle<int>(topInner.getRight() - laneWidth - 4,
-                                               topInner.getY() + 14,
-                                               laneWidth,
-                                               topInner.getHeight() - 20);
+        auto depthLane = juce::Rectangle<int>(topInner.getX() + 4,
+                                              topInner.getY() + 2,
+                                              laneWidth,
+                                              topInner.getHeight() - 8);
+        auto coreLane = juce::Rectangle<int>(topInner.getRight() - laneWidth - 4,
+                                             topInner.getY() + 14,
+                                             laneWidth,
+                                             topInner.getHeight() - 20);
 
-        frequency.setBounds(frequencyLane);
-        width.setBounds(widthLane);
+        depth.setBounds(depthLane);
+        core.setBounds(coreLane);
 
-        auto energyLane = bottomChamber.reduced(10, 12);
-        energy.setBounds(energyLane.withTrimmedTop(20).withTrimmedBottom(18));
+        auto anchorLane = bottomChamber.reduced(10, 12);
+        anchor.setBounds(anchorLane.withTrimmedTop(20).withTrimmedBottom(18));
     }
 
     void paint(juce::Graphics& g) override
     {
         auto shell = getShellBounds().toFloat();
-        auto topChamber = getTopChamberBounds().toFloat().translated(6.0f, 0.0f);
-        auto bottomChamber = getBottomChamberBounds().toFloat().translated(-8.0f, 0.0f);
-        const auto frequencyTint = getFrequencyTint();
-        const auto widthTint = getWidthTint();
-        const auto energyTint = getEnergyTint();
-        const auto bridgeTint = frequencyTint.interpolatedWith(energyTint, 0.34f);
-        const auto shellPath = RootFlow::makeSideColumnShell(shell, true);
+        auto topChamber = getTopChamberBounds().toFloat().translated(-6.0f, 0.0f);
+        auto bottomChamber = getBottomChamberBounds().toFloat().translated(8.0f, 0.0f);
+        const auto depthTint = getSourceDepthTint();
+        const auto coreTint = getSourceCoreTint();
+        const auto anchorTint = getSourceAnchorTint();
+        const auto bridgeTint = coreTint.interpolatedWith(anchorTint, 0.34f);
+        const auto shellPath = RootFlow::makeSideColumnShell(shell, false);
 
         {
             juce::Graphics::ScopedSaveState state(g);
             g.reduceClipRegion(shellPath);
 
-            juce::ColourGradient upperWash(widthTint.withAlpha(0.09f), shell.getRight() - shell.getWidth() * 0.26f, shell.getY() + shell.getHeight() * 0.10f,
+            juce::ColourGradient upperWash(depthTint.withAlpha(0.09f), shell.getX() + shell.getWidth() * 0.26f, shell.getY() + shell.getHeight() * 0.12f,
                                            juce::Colours::transparentBlack, shell.getCentreX(), shell.getY() + shell.getHeight() * 0.54f, true);
             g.setGradientFill(upperWash);
-            g.fillEllipse(shell.getRight() - shell.getWidth() * 0.78f, shell.getY() + shell.getHeight() * 0.02f,
+            g.fillEllipse(shell.getX() - shell.getWidth() * 0.04f, shell.getY() + shell.getHeight() * 0.02f,
                           shell.getWidth() * 0.82f, shell.getHeight() * 0.42f);
 
-            juce::ColourGradient lowerWash(energyTint.withAlpha(0.08f), shell.getRight() - shell.getWidth() * 0.32f, shell.getBottom() - shell.getHeight() * 0.16f,
+            juce::ColourGradient lowerWash(anchorTint.withAlpha(0.07f), shell.getX() + shell.getWidth() * 0.32f, shell.getBottom() - shell.getHeight() * 0.16f,
                                            juce::Colours::transparentBlack, shell.getCentreX(), shell.getY() + shell.getHeight() * 0.56f, true);
             g.setGradientFill(lowerWash);
-            g.fillEllipse(shell.getRight() - shell.getWidth() * 0.76f, shell.getBottom() - shell.getHeight() * 0.40f,
+            g.fillEllipse(shell.getX() + shell.getWidth() * 0.02f, shell.getBottom() - shell.getHeight() * 0.40f,
                           shell.getWidth() * 0.74f, shell.getHeight() * 0.34f);
         }
 
-        RootFlow::drawSideColumnShell(g, shell, true, frequencyTint.interpolatedWith(energyTint, 0.18f));
-        RootFlow::drawSystemPanel(g, topChamber, widthTint, true, 0.86f);
-        RootFlow::drawSystemPanel(g, bottomChamber, energyTint, true, 0.78f);
+        RootFlow::drawSideColumnShell(g, shell, false, depthTint.interpolatedWith(coreTint, 0.22f));
+        RootFlow::drawSystemPanel(g, topChamber, depthTint, false, 0.86f);
+        RootFlow::drawSystemPanel(g, bottomChamber, anchorTint, false, 0.76f);
 
         drawChamberBadge(g,
                          juce::Rectangle<float>(topChamber.getX() + 18.0f, topChamber.getY() + 10.0f, topChamber.getWidth() - 44.0f, 18.0f),
-                         "WINDOW WIDTH",
-                         widthTint);
+                         "SOURCE CORE",
+                         depthTint);
         drawChamberBadge(g,
                          juce::Rectangle<float>(bottomChamber.getX() + 16.0f, bottomChamber.getY() + 10.0f, bottomChamber.getWidth() - 38.0f, 18.0f),
-                         "MATRIX ENERGY",
-                         energyTint);
+                         "SYSTEM ANCHOR",
+                         anchorTint);
 
-        const auto topCore = topChamber.getCentre().translated(12.0f, -topChamber.getHeight() * 0.24f);
-        const auto bottomCore = bottomChamber.getCentre().translated(6.0f, bottomChamber.getHeight() * 0.18f);
-        RootFlow::drawGlowOrb(g, topCore, 10.0f, widthTint, 0.52f);
-        RootFlow::drawGlowOrb(g, bottomCore, 8.8f, energyTint, 0.48f);
+        const auto topCore = topChamber.getCentre().translated(-12.0f, -topChamber.getHeight() * 0.24f);
+        const auto bottomCore = bottomChamber.getCentre().translated(-6.0f, bottomChamber.getHeight() * 0.18f);
 
-        RootFlow::drawDataStream(g, { frequency.getBounds().getCentreX() - 10.0f, frequency.getBounds().getBottom() - 18.0f }, topCore, frequencyTint, 0.12f, 0.90f);
-        RootFlow::drawDataStream(g, { width.getBounds().getCentreX() - 10.0f, width.getBounds().getBottom() - 18.0f }, topCore.translated(-18.0f, 20.0f), widthTint, 0.12f, 0.90f);
-        RootFlow::drawDataStream(g, { energy.getBounds().getCentreX() - 10.0f, energy.getBounds().getBottom() - 18.0f }, bottomCore, energyTint, 0.14f, 0.90f);
-        RootFlow::drawDataStream(g, { topChamber.getX() + 26.0f, topChamber.getBottom() - 34.0f }, { bottomChamber.getRight() - 24.0f, bottomChamber.getY() + 24.0f }, bridgeTint, 0.09f, 0.95f);
+        RootFlow::drawDataStream(g, { depth.getBounds().getCentreX() + 10.0f, depth.getBounds().getBottom() - 18.0f }, topCore, depthTint, 0.12f, 0.90f);
+        RootFlow::drawDataStream(g, { core.getBounds().getCentreX() + 10.0f, core.getBounds().getBottom() - 18.0f }, topCore.translated(18.0f, 20.0f), coreTint, 0.12f, 0.90f);
+        RootFlow::drawDataStream(g, { anchor.getBounds().getCentreX() + 10.0f, anchor.getBounds().getBottom() - 18.0f }, bottomCore, anchorTint, 0.14f, 0.90f);
+        RootFlow::drawDataStream(g, { topChamber.getRight() - 26.0f, topChamber.getBottom() - 34.0f }, { bottomChamber.getX() + 24.0f, bottomChamber.getY() + 24.0f }, bridgeTint, 0.09f, 0.95f);
 
-        RootFlow::drawCoreNode(g, { bottomChamber.getX() + 28.0f, bottomChamber.getBottom() - 20.0f }, 7.2f, energyTint, 0.44f);
-        RootFlow::drawCoreNode(g, { bottomChamber.getRight() - 34.0f, bottomChamber.getBottom() - 22.0f }, 8.0f, frequencyTint, 0.48f);
-
-        drawSliderLabel(g, frequency, "FREQ");
-        drawSliderLabel(g, width, "WIDTH");
-        drawSliderLabel(g, energy, "ENERGY");
+        RootFlow::drawCoreNode(g, topCore, 7.5f, coreTint, 0.42f);
+        RootFlow::drawCoreNode(g, bottomCore, 8.2f, anchorTint, 0.46f);
+        RootFlow::drawCoreNode(g, { bottomChamber.getRight() - 28.0f, bottomChamber.getBottom() - 20.0f }, 7.2f, anchorTint, 0.44f);
+        RootFlow::drawCoreNode(g, { bottomChamber.getX() + 34.0f, bottomChamber.getBottom() - 22.0f }, 8.0f, coreTint, 0.48f);
+        drawSliderLabel(g, anchor, "ANCHOR");
     }
 
     void paintOverChildren(juce::Graphics& g) override
@@ -117,16 +114,16 @@ public:
             drawFocusBubble(g, *slider);
     }
 
-    juce::Slider& getFrequencySlider() { return frequency; }
-    juce::Slider& getWidthSlider() { return width; }
-    juce::Slider& getEnergySlider() { return energy; }
+    juce::Slider& getDepthSlider() { return depth; }
+    juce::Slider& getCoreSlider() { return core; }
+    juce::Slider& getAnchorSlider() { return anchor; }
     juce::Slider* getFocusedSlider() const { return findFocusedSlider(); }
     juce::Colour getFocusTint() const
     {
         if (auto* slider = findFocusedSlider())
             return getSliderTint(*slider);
 
-        return getFrequencyTint();
+        return getSourceDepthTint();
     }
 
     juce::String getFocusTitle() const
@@ -159,20 +156,9 @@ private:
         return juce::String(juce::roundToInt(juce::jlimit(0.0, 1.0, value) * 100.0)) + "%";
     }
 
-    static juce::Colour getFrequencyTint()
-    {
-        return RootFlow::accent.interpolatedWith(RootFlow::accentSoft, 0.24f);
-    }
-
-    static juce::Colour getWidthTint()
-    {
-        return RootFlow::accentSoft.interpolatedWith(RootFlow::amber, 0.16f);
-    }
-
-    static juce::Colour getEnergyTint()
-    {
-        return RootFlow::amber.interpolatedWith(RootFlow::accentSoft, 0.24f);
-    }
+    static juce::Colour getSourceDepthTint() { return RootFlow::violet.interpolatedWith(RootFlow::accentSoft, 0.36f); }
+    static juce::Colour getSourceCoreTint()  { return RootFlow::accent.interpolatedWith(RootFlow::violet, 0.18f); }
+    static juce::Colour getSourceAnchorTint() { return RootFlow::violet.interpolatedWith(RootFlow::accent, 0.14f); }
 
     void setupVerticalSlider(juce::Slider& s)
     {
@@ -204,7 +190,7 @@ private:
     juce::Rectangle<int> getTopChamberBounds() const
     {
         auto shell = getShellBounds();
-        return juce::Rectangle<int>(shell.getRight() - juce::roundToInt(shell.getWidth() * 0.82f) - 8,
+        return juce::Rectangle<int>(shell.getX() + 8,
                                     shell.getY() + 20,
                                     juce::roundToInt(shell.getWidth() * 0.82f),
                                     juce::roundToInt(shell.getHeight() * 0.52f));
@@ -213,7 +199,7 @@ private:
     juce::Rectangle<int> getBottomChamberBounds() const
     {
         auto shell = getShellBounds();
-        return juce::Rectangle<int>(shell.getRight() - juce::roundToInt(shell.getWidth() * 0.84f) - 4,
+        return juce::Rectangle<int>(shell.getX() + 4,
                                     shell.getBottom() - juce::roundToInt(shell.getHeight() * 0.40f) - 12,
                                     juce::roundToInt(shell.getWidth() * 0.84f),
                                     juce::roundToInt(shell.getHeight() * 0.38f));
@@ -251,11 +237,11 @@ private:
 
     juce::Slider* findFocusedSlider() const
     {
-        for (auto* slider : { static_cast<const juce::Slider*>(&frequency), static_cast<const juce::Slider*>(&width), static_cast<const juce::Slider*>(&energy) })
+        for (auto* slider : { static_cast<const juce::Slider*>(&depth), static_cast<const juce::Slider*>(&core), static_cast<const juce::Slider*>(&anchor) })
             if (slider->isMouseButtonDown())
                 return const_cast<juce::Slider*>(slider);
 
-        for (auto* slider : { static_cast<const juce::Slider*>(&frequency), static_cast<const juce::Slider*>(&width), static_cast<const juce::Slider*>(&energy) })
+        for (auto* slider : { static_cast<const juce::Slider*>(&depth), static_cast<const juce::Slider*>(&core), static_cast<const juce::Slider*>(&anchor) })
             if (RootFlow::isInteractiveHoverActive(*slider) && ! slider->isMouseButtonDown())
                 return const_cast<juce::Slider*>(slider);
 
@@ -264,20 +250,16 @@ private:
 
     juce::Colour getSliderTint(const juce::Slider& slider) const
     {
-        if (&slider == &frequency)
-            return getFrequencyTint();
-        if (&slider == &width)
-            return getWidthTint();
-        return getEnergyTint();
+        if (&slider == &depth)  return getSourceDepthTint();
+        if (&slider == &core)   return getSourceCoreTint();
+        return getSourceAnchorTint();
     }
 
     juce::String getSliderTitle(const juce::Slider& slider) const
     {
-        if (&slider == &frequency)
-            return "PULSE FREQUENCY";
-        if (&slider == &width)
-            return "WINDOW WIDTH";
-        return "MATRIX ENERGY";
+        if (&slider == &depth)  return "SOURCE DEPTH";
+        if (&slider == &core)   return "SOURCE CORE";
+        return "SYSTEM ANCHOR";
     }
 
     void drawFocusBubble(juce::Graphics& g, juce::Slider& slider) const
@@ -317,8 +299,8 @@ private:
         g.setColour(tint.withAlpha(0.96f));
         g.drawFittedText(formatPercent(slider.getValue()), valueArea.toNearestInt(), juce::Justification::centredRight, 1);
         RootFlow::drawGlowOrb(g, { bubble.getRight() - 10.0f, bubble.getY() + 9.5f }, 2.8f, tint,
-                              slider.isMouseButtonDown() ? 0.88f : 0.56f);
+                               slider.isMouseButtonDown() ? 0.88f : 0.56f);
     }
 
-    RootFlow::InteractiveSlider frequency, width, energy;
+    RootFlow::InteractiveSlider depth, core, anchor;
 };

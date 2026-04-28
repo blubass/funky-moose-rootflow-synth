@@ -6,15 +6,15 @@ namespace
 {
 juce::Colour getNodeTint(const FlowNode& node) noexcept
 {
-    const float canopyBias = juce::jlimit(0.0f, 1.0f, 1.0f - node.position.y);
+    const float systemUpperBias = juce::jlimit(0.0f, 1.0f, 1.0f - node.position.y);
     const float leftBias = juce::jlimit(0.0f, 1.0f, 1.0f - node.position.x);
     const float rightBias = juce::jlimit(0.0f, 1.0f, node.position.x);
 
-    auto tint = RootFlow::accent.interpolatedWith(RootFlow::accentSoft, 0.30f + canopyBias * 0.28f);
+    auto tint = RootFlow::accent.interpolatedWith(RootFlow::accentSoft, 0.30f + systemUpperBias * 0.28f);
     tint = tint.interpolatedWith(RootFlow::amber,
                                  juce::jlimit(0.0f, 1.0f, node.value * 0.34f + node.energy * 0.16f + rightBias * 0.08f));
     tint = tint.interpolatedWith(RootFlow::violet,
-                                 juce::jlimit(0.0f, 1.0f, leftBias * 0.10f + (1.0f - canopyBias) * 0.05f));
+                                 juce::jlimit(0.0f, 1.0f, leftBias * 0.10f + (1.0f - systemUpperBias) * 0.05f));
     return tint.interpolatedWith(juce::Colours::white, juce::jlimit(0.0f, 0.06f, node.energy * 0.06f));
 }
 
@@ -167,8 +167,8 @@ void EnergyDisplay::timerCallback()
     rms  = processor->getRMS();
     time += 1.0f / 60.0f;
     
-    if (sporeBurstTimer > 0.0f)
-        sporeBurstTimer = juce::jmax(0.0f, sporeBurstTimer - 0.04f);
+    if (coreBurstTimer > 0.0f)
+        coreBurstTimer = juce::jmax(0.0f, coreBurstTimer - 0.04f);
     
     // --- Sequencer → Node energy pulse ---
     if (processor->sequencerTriggered.exchange(false))
@@ -232,26 +232,26 @@ void EnergyDisplay::paint(juce::Graphics& g)
     float width  = bounds.getWidth();
     float height = bounds.getHeight();
     float midY   = height * 0.5f;
-    const auto crownLeft = juce::Point<float>(width * 0.34f, height * 0.12f);
-    const auto crownRight = juce::Point<float>(width * 0.66f, height * 0.12f);
-    const auto rootHub = juce::Point<float>(width * 0.50f, height * 0.86f);
+    const auto terminalLeft = juce::Point<float>(width * 0.34f, height * 0.12f);
+    const auto terminalRight = juce::Point<float>(width * 0.66f, height * 0.12f);
+    const auto coreHub = juce::Point<float>(width * 0.50f, height * 0.86f);
     const auto streamTint = RootFlow::accent.interpolatedWith(RootFlow::violet, 0.16f);
-    const auto groveTint = RootFlow::accent.interpolatedWith(RootFlow::accentSoft, 0.38f);
-    const auto bloomTint = RootFlow::amber.interpolatedWith(RootFlow::accentSoft, 0.16f);
+    const auto matrixTint = RootFlow::accent.interpolatedWith(RootFlow::accentSoft, 0.38f);
+    const auto pulseTint = RootFlow::amber.interpolatedWith(RootFlow::accentSoft, 0.16f);
 
-    juce::ColourGradient nucleus(groveTint.withAlpha(0.05f), width * 0.48f, height * 0.52f,
+    juce::ColourGradient nucleus(matrixTint.withAlpha(0.05f), width * 0.48f, height * 0.52f,
                                  juce::Colours::transparentBlack, width * 0.48f, height, true);
     g.setGradientFill(nucleus);
     g.fillEllipse(bounds.reduced(width * 0.12f, height * 0.12f));
 
-    juce::ColourGradient canopyGlow(bloomTint.withAlpha(0.05f), width * 0.64f, height * 0.12f,
+    juce::ColourGradient matrixUpperGlow(pulseTint.withAlpha(0.05f), width * 0.64f, height * 0.12f,
                                     juce::Colours::transparentBlack, width * 0.64f, height * 0.42f, true);
-    g.setGradientFill(canopyGlow);
+    g.setGradientFill(matrixUpperGlow);
     g.fillEllipse(width * 0.46f, height * 0.02f, width * 0.28f, height * 0.26f);
 
-    juce::ColourGradient rootGlow(groveTint.withAlpha(0.06f), rootHub.x, height * 0.70f,
-                                  juce::Colours::transparentBlack, rootHub.x, height, true);
-    g.setGradientFill(rootGlow);
+    juce::ColourGradient coreGlow(matrixTint.withAlpha(0.06f), coreHub.x, height * 0.70f,
+                                  juce::Colours::transparentBlack, coreHub.x, height, true);
+    g.setGradientFill(coreGlow);
     g.fillEllipse(width * 0.26f, height * 0.68f, width * 0.48f, height * 0.24f);
 
     juce::ColourGradient mist(streamTint.withAlpha(0.04f), width * 0.22f, height * 0.28f,
@@ -259,12 +259,12 @@ void EnergyDisplay::paint(juce::Graphics& g)
     g.setGradientFill(mist);
     g.fillEllipse(width * 0.08f, height * 0.14f, width * 0.34f, height * 0.56f);
 
-    juce::ColourGradient rightBloom(bloomTint.withAlpha(0.04f), width * 0.78f, height * 0.30f,
+    juce::ColourGradient rightBloom(pulseTint.withAlpha(0.04f), width * 0.78f, height * 0.30f,
                                     juce::Colours::transparentBlack, width * 0.92f, height * 0.74f, true);
     g.setGradientFill(rightBloom);
     g.fillEllipse(width * 0.62f, height * 0.14f, width * 0.30f, height * 0.48f);
 
-    juce::ColourGradient centreFlow(groveTint.withAlpha(0.04f), width * 0.50f, height * 0.42f,
+    juce::ColourGradient centreFlow(matrixTint.withAlpha(0.04f), width * 0.50f, height * 0.42f,
                                     juce::Colours::transparentBlack, width * 0.50f, height * 0.76f, true);
     g.setGradientFill(centreFlow);
     g.fillEllipse(width * 0.22f, height * 0.24f, width * 0.56f, height * 0.44f);
@@ -272,15 +272,15 @@ void EnergyDisplay::paint(juce::Graphics& g)
     auto viewport = bounds.reduced(width * 0.03f, height * 0.04f);
     g.setColour(juce::Colours::black.withAlpha(0.10f));
     g.drawRoundedRectangle(viewport, 28.0f, 0.9f);
-    g.setColour(groveTint.withAlpha(0.06f));
+    g.setColour(matrixTint.withAlpha(0.06f));
     g.drawRoundedRectangle(viewport.reduced(3.0f), 25.0f, 0.9f);
 
-    if (sporeBurstTimer > 0.0f)
+    if (coreBurstTimer > 0.0f)
     {
-        g.setColour(RootFlow::accent.interpolatedWith(juce::Colours::white, 0.6f).withAlpha(sporeBurstTimer * 0.16f));
+        g.setColour(RootFlow::accent.interpolatedWith(juce::Colours::white, 0.6f).withAlpha(coreBurstTimer * 0.16f));
         g.fillRoundedRectangle(viewport, 28.0f);
         
-        g.setColour(RootFlow::amber.withAlpha(sporeBurstTimer * 0.08f));
+        g.setColour(RootFlow::amber.withAlpha(coreBurstTimer * 0.08f));
         g.fillRoundedRectangle(viewport, 28.0f);
     }
 
@@ -296,18 +296,18 @@ void EnergyDisplay::paint(juce::Graphics& g)
     {
         auto halo = juce::Rectangle<float>(width * (0.22f + ring * 0.05f), height * (0.28f + ring * 0.02f),
                                            width * (0.56f - ring * 0.10f), height * (0.34f - ring * 0.04f));
-        const auto haloTint = ring == 0 ? groveTint : (ring == 1 ? streamTint : bloomTint);
+        const auto haloTint = ring == 0 ? matrixTint : (ring == 1 ? streamTint : pulseTint);
         g.setColour(haloTint.withAlpha(0.011f - ring * 0.002f));
         g.drawEllipse(halo, 0.9f);
     }
 
-    RootFlow::drawOrbSocket(g, crownLeft, 6.4f, streamTint, 0.38f);
-    RootFlow::drawOrbSocket(g, crownRight, 6.4f, bloomTint, 0.38f);
-    RootFlow::drawOrbSocket(g, rootHub, 9.0f, groveTint, 0.44f);
-    RootFlow::drawBioThread(g, crownLeft, { width * 0.42f, height * 0.36f }, streamTint, 0.10f, 1.05f);
-    RootFlow::drawBioThread(g, crownRight, { width * 0.58f, height * 0.36f }, bloomTint, 0.10f, 1.05f);
-    RootFlow::drawBioThread(g, rootHub, { width * 0.46f, height * 0.60f }, groveTint, 0.10f, 1.15f);
-    RootFlow::drawBioThread(g, rootHub, { width * 0.54f, height * 0.60f }, RootFlow::accentSoft, 0.10f, 1.15f);
+    RootFlow::drawCoreNode(g, terminalLeft, 6.4f, streamTint, 0.38f);
+    RootFlow::drawCoreNode(g, terminalRight, 6.4f, pulseTint, 0.38f);
+    RootFlow::drawCoreNode(g, coreHub, 9.0f, matrixTint, 0.44f);
+    RootFlow::drawDataStream(g, terminalLeft, { width * 0.42f, height * 0.36f }, streamTint, 0.10f, 1.05f);
+    RootFlow::drawDataStream(g, terminalRight, { width * 0.58f, height * 0.36f }, pulseTint, 0.10f, 1.05f);
+    RootFlow::drawDataStream(g, coreHub, { width * 0.46f, height * 0.60f }, matrixTint, 0.10f, 1.15f);
+    RootFlow::drawDataStream(g, coreHub, { width * 0.54f, height * 0.60f }, RootFlow::accentSoft, 0.10f, 1.15f);
 
     for (int i = 0; i < 20; ++i)
     {
@@ -316,8 +316,8 @@ void EnergyDisplay::paint(juce::Graphics& g)
         const float px = bounds.getX() + fx * width;
         const float py = bounds.getY() + fy * height;
         const float size = 1.0f + (float) (i % 3);
-        const auto starTint = i % 5 == 0 ? groveTint
-                            : (i % 7 == 0 ? bloomTint
+        const auto starTint = i % 5 == 0 ? matrixTint
+                            : (i % 7 == 0 ? pulseTint
                                           : (i % 3 == 0 ? streamTint
                                                         : juce::Colours::white));
         g.setColour(starTint.withAlpha(0.035f + (float) (i % 4) * 0.018f));
@@ -365,7 +365,7 @@ void EnergyDisplay::paint(juce::Graphics& g)
     const auto interactionState = connectionStart >= 0 ? juce::String("LINK")
                                : (selectedNode >= 0 ? juce::String("DRAG")
                                                     : (seqFlashTimer > 0.0f ? juce::String("PULSE")
-                                                                            : juce::String("GROVE")));
+                                                                            : juce::String("SYSTEM")));
     const bool hoverEffectsEnabled = RootFlow::areHoverEffectsEnabled();
     const int focusNodeIndex = juce::isPositiveAndBelow(selectedNode, (int) nodes.size()) ? selectedNode
                             : (juce::isPositiveAndBelow(connectionStart, (int) nodes.size()) ? connectionStart
@@ -381,7 +381,7 @@ void EnergyDisplay::paint(juce::Graphics& g)
                                    : (focusNode != nullptr ? focusNode->value : 0.0f);
 
     auto titleChip = juce::Rectangle<float>(width * 0.08f, height * 0.10f, juce::jmin(206.0f, width * 0.33f), 38.0f);
-    drawHudChip(g, titleChip, "Field", "NEURAL GROVE", RootFlow::accentSoft, seqFlashTimer > 0.0f);
+    drawHudChip(g, titleChip, "Matrix", "SYSTEM CORE", RootFlow::accentSoft, seqFlashTimer > 0.0f);
 
     auto statsStrip = juce::Rectangle<float>(titleChip.getRight() + 10.0f,
                                              titleChip.getY(),
@@ -409,7 +409,7 @@ void EnergyDisplay::paint(juce::Graphics& g)
             drawHudChip(g, nextChip(), "Links", juce::String((int) connections.size()), RootFlow::amber, ! connections.empty());
 
         drawHudChip(g, nextChip(), "State", interactionState, RootFlow::violet,
-                    interactionState != "GROVE");
+                    interactionState != "SYSTEM");
     }
 
     juce::String hintText = "DRAG NODE / RIGHT LINK / WHEEL EDGE\nSHIFT MUTATE / DOUBLE RESET";
@@ -469,14 +469,14 @@ void EnergyDisplay::paint(juce::Graphics& g)
         float midX = (x1 + x2) * 0.5f;
         float midY = (y1 + y2) * 0.5f;
         
-        // Biological breathing oscillation for the nerve curves
+        // Cybernetic pulsing oscillation for the matrix curves
         float curveIntensity = 35.0f * std::abs(c.amount);
         float ctrlX = midX + std::sin(time * 0.8f + (float)c.source) * curveIntensity;
         float ctrlY = midY + std::cos(time * 0.8f + (float)c.target) * curveIntensity;
 
         nervePath.quadraticTo(ctrlX, ctrlY, x2, y2);
 
-        // Mycelium Health visual scaling
+        // Matrix Health visual scaling
         float healthScale = c.health;
         float absAmt = std::abs(c.amount) * healthScale;
         juce::Colour connCol = c.amount < 0.0f
@@ -486,7 +486,7 @@ void EnergyDisplay::paint(juce::Graphics& g)
         // Fading based on health
         float alpha = (0.16f + (a.energy + b.energy) * 0.22f) * healthScale;
         
-        if (healthScale < 0.3f) // Flickering for dying mycelium
+        if (healthScale < 0.3f) // Flickering for unstable connection
         {
             float flicker = 0.7f + 0.3f * std::sin(time * 25.0f + (float)c.source);
             alpha *= flicker;
@@ -654,9 +654,9 @@ void EnergyDisplay::paint(juce::Graphics& g)
     }
 }
 
-void EnergyDisplay::triggerSporeBurst()
+void EnergyDisplay::triggerCoreBurst()
 {
-    sporeBurstTimer = 1.0f;
+    coreBurstTimer = 1.0f;
     if (nodeSystem != nullptr)
     {
         const juce::ScopedLock nodeLock(nodeSystem->getLock());
@@ -814,7 +814,11 @@ void EnergyDisplay::mouseUp(const juce::MouseEvent& e)
     if (connectionStart >= 0 && nodeSystem != nullptr)
     {
         if (connectionHover >= 0 && connectionHover != connectionStart)
+        {
             nodeSystem->addConnection(connectionStart, connectionHover);
+            if (processor != nullptr)
+                processor->markNodeSystemStateDirty();
+        }
         
         connectionStart = -1;
         connectionHover = -1;
@@ -952,7 +956,12 @@ void EnergyDisplay::mouseWheelMove(const juce::MouseEvent& e, const juce::MouseW
         }
     }
 
-    if (changed) repaint();
+    if (changed)
+    {
+        if (processor != nullptr)
+            processor->markNodeSystemStateDirty();
+        repaint();
+    }
 }
 
 void EnergyDisplay::drawKeyboardInteraction(juce::Graphics& g)
@@ -972,13 +981,13 @@ void EnergyDisplay::drawKeyboardInteraction(juce::Graphics& g)
             anyNoteOn = true;
             float xPos = ((float)(n - 21) / 88.0f) * w;
 
-            // Organic sap stream wobbling up toward the root hub
+            // Data streams pulsing toward the root matrix
             juce::Path stream;
             stream.startNewSubPath(xPos, h);
             float wobble = std::sin(time * 2.5f + (float)n * 0.3f) * 22.0f;
             stream.quadraticTo(xPos + wobble, h * 0.66f, rootHub.x, rootHub.y);
 
-            // Outer bio-glow
+            // Outer neon-glow
             g.setColour(RootFlow::accent.withAlpha(0.12f));
             g.strokePath(stream, juce::PathStrokeType(5.0f, juce::PathStrokeType::curved,
                                                       juce::PathStrokeType::rounded));

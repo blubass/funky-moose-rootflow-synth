@@ -11,7 +11,7 @@ public:
     EnergyDisplay() { setOpaque(false); }
 
     void setProcessor(RootFlowAudioProcessor* p);
-    void triggerSporeBurst();
+    void triggerCoreBurst();
 
     void paint(juce::Graphics& g) override;
     void resized() override;
@@ -40,7 +40,7 @@ private:
     int connectionHover = -1;
     int seqFlashNode    = -1;
     float seqFlashTimer = 0.0f;
-    float sporeBurstTimer = 0.0f;
+    float coreBurstTimer = 0.0f;
     float lastBeat      = 0.0f;
 
     int findNodeAt(juce::Point<float> mousePos);

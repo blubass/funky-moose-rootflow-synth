@@ -7,20 +7,20 @@ class BottomPanel : public juce::Component
 public:
     BottomPanel()
     {
-        bloom.setName("SOIL");
-        rain.setName("AIR");
-        sun.setName("SPACE");
+        radiance.setName("LOW");
+        charge.setName("MID");
+        discharge.setName("HIGH");
 
-        setupSlider(bloom);
-        setupSlider(rain);
-        setupSlider(sun);
-        wireSlider(bloom);
-        wireSlider(rain);
-        wireSlider(sun);
+        setupSlider(radiance);
+        setupSlider(charge);
+        setupSlider(discharge);
+        wireSlider(radiance);
+        wireSlider(charge);
+        wireSlider(discharge);
 
-        addAndMakeVisible(bloom);
-        addAndMakeVisible(rain);
-        addAndMakeVisible(sun);
+        addAndMakeVisible(radiance);
+        addAndMakeVisible(charge);
+        addAndMakeVisible(discharge);
 
         setOpaque(false);
     }
@@ -30,28 +30,28 @@ public:
         auto area = getLocalBounds().reduced(28, 18);
         int w = area.getWidth() / 3;
 
-        auto bloomLane = area.removeFromLeft(w).reduced(10, 0);
-        auto rainLane = area.removeFromLeft(w).reduced(10, 0);
-        auto sunLane = area.reduced(10, 0);
+        auto radianceLane = area.removeFromLeft(w).reduced(10, 0);
+        auto chargeLane = area.removeFromLeft(w).reduced(10, 0);
+        auto dischargeLane = area.reduced(10, 0);
 
-        bloom.setBounds(bloomLane.withTrimmedTop(38).withHeight(24));
-        rain.setBounds(rainLane.withTrimmedTop(38).withHeight(24));
-        sun.setBounds(sunLane.withTrimmedTop(38).withHeight(24));
+        radiance.setBounds(radianceLane.withTrimmedTop(38).withHeight(24));
+        charge.setBounds(chargeLane.withTrimmedTop(38).withHeight(24));
+        discharge.setBounds(dischargeLane.withTrimmedTop(38).withHeight(24));
     }
 
     void paint(juce::Graphics& g) override
     {
         auto area = getLocalBounds().toFloat().reduced(4.0f);
-        RootFlow::drawGlassPanel(g, area, 28.0f, 0.68f);
+        RootFlow::drawGlassPanel(g, area, 28.0f, 0.60f);
 
-        g.setFont(RootFlow::getFont(11.2f).boldened());
-        g.setColour(RootFlow::text.withAlpha(0.82f));
-        g.drawText("AMBIENT FIELD", area.withHeight(18.0f).translated(0.0f, 4.0f), juce::Justification::centred, false);
+        g.setFont(RootFlow::getFont(10.0f).boldened());
+        g.setColour(RootFlow::textMuted.interpolatedWith(RootFlow::text, 0.34f).withAlpha(0.72f));
+        g.drawText("SYSTEM MATRIX", area.withHeight(18.0f).translated(0.0f, 4.0f), juce::Justification::centred, false);
 
-        for (auto* slider : { &bloom, &rain, &sun })
+        for (auto* slider : { &radiance, &charge, &discharge })
         {
             auto well = slider->getBounds().toFloat().expanded(12.0f, 18.0f).translated(0.0f, -2.0f);
-            auto tint = slider == &sun ? RootFlow::amber : (slider == &rain ? RootFlow::accent : RootFlow::accentSoft);
+            auto tint = slider == &discharge ? RootFlow::amber : (slider == &charge ? RootFlow::accent : RootFlow::accentSoft);
             const bool focused = RootFlow::isInteractiveHoverActive(*slider);
 
             g.setColour(juce::Colours::black.withAlpha(0.14f));
@@ -68,20 +68,20 @@ public:
             }
 
             auto capsule = juce::Rectangle<float>(well.getX() + 16.0f, well.getY() + 6.0f, well.getWidth() - 32.0f, 18.0f);
-            const auto capsuleText = slider == &bloom ? juce::String("GROUND TONE")
-                                   : (slider == &rain ? juce::String("AIR CURRENT")
-                                                      : juce::String("SOLAR FIELD"));
+            const auto capsuleText = slider == &radiance ? juce::String("LOW RESONANCE")
+                                   : (slider == &charge ? juce::String("HIGH CHARGE")
+                                                       : juce::String("FLUX DISCHARGE"));
             drawFieldCapsule(g, capsule, capsuleText, tint);
         }
 
-        RootFlow::drawBioThread(g, bloom.getBounds().toFloat().getCentre().translated(18.0f, 8.0f),
-                                rain.getBounds().toFloat().getCentre().translated(-18.0f, 8.0f), RootFlow::accentSoft, 0.048f, 0.85f);
-        RootFlow::drawBioThread(g, rain.getBounds().toFloat().getCentre().translated(18.0f, 8.0f),
-                                sun.getBounds().toFloat().getCentre().translated(-18.0f, 8.0f), RootFlow::accent, 0.048f, 0.85f);
+        RootFlow::drawDataStream(g, radiance.getBounds().toFloat().getCentre().translated(18.0f, 8.0f),
+                                charge.getBounds().toFloat().getCentre().translated(-18.0f, 8.0f), RootFlow::accentSoft, 0.048f, 0.85f);
+        RootFlow::drawDataStream(g, charge.getBounds().toFloat().getCentre().translated(18.0f, 8.0f),
+                                discharge.getBounds().toFloat().getCentre().translated(-18.0f, 8.0f), RootFlow::accent, 0.048f, 0.85f);
 
-        drawSliderLabel(g, bloom, "SOIL");
-        drawSliderLabel(g, rain, "AIR");
-        drawSliderLabel(g, sun, "SPACE");
+        drawSliderLabel(g, radiance, "LOW");
+        drawSliderLabel(g, charge, "MID");
+        drawSliderLabel(g, discharge, "HIGH");
     }
 
     void paintOverChildren(juce::Graphics& g) override
@@ -93,9 +93,9 @@ public:
             drawFocusBubble(g, *slider);
     }
 
-    juce::Slider& getBloomSlider() { return bloom; }
-    juce::Slider& getRainSlider() { return rain; }
-    juce::Slider& getSunSlider() { return sun; }
+    juce::Slider& getRadianceSlider() { return radiance; }
+    juce::Slider& getChargeSlider() { return charge; }
+    juce::Slider& getDischargeSlider() { return discharge; }
     juce::Slider* getFocusedSlider() const { return findFocusedSlider(); }
     juce::Colour getFocusTint() const
     {
@@ -150,40 +150,40 @@ private:
 
     void drawSliderLabel(juce::Graphics& g, juce::Slider& slider, const juce::String& label) const
     {
-        const auto tint = &slider == &sun ? RootFlow::amber
-                         : (&slider == &rain ? RootFlow::accent
-                                             : RootFlow::accentSoft);
+        const auto tint = &slider == &discharge ? RootFlow::amber
+                         : (&slider == &charge ? RootFlow::accent
+                                              : RootFlow::accentSoft);
 
         juce::String combinedText = formatPercent(slider.getValue()) + "  " + label;
         auto infoBounds = slider.getBounds().withY(slider.getBottom() + 3).withHeight(18).toFloat();
         auto chip = infoBounds.reduced(22.0f, 0.0f);
 
-        RootFlow::drawGlassPanel(g, chip, chip.getHeight() * 0.5f, 0.46f);
-        g.setColour(tint.withAlpha(0.08f));
+        RootFlow::drawGlassPanel(g, chip, chip.getHeight() * 0.5f, 0.34f);
+        g.setColour(tint.withAlpha(0.05f));
         g.fillRoundedRectangle(chip.reduced(2.0f), chip.getHeight() * 0.42f);
 
-        g.setFont(RootFlow::getFont(9.5f).boldened());
-        g.setColour(RootFlow::text.withAlpha(0.98f));
+        g.setFont(RootFlow::getFont(8.8f).boldened());
+        g.setColour(RootFlow::textMuted.interpolatedWith(RootFlow::text, 0.42f).withAlpha(0.84f));
         g.drawText(combinedText, infoBounds.toNearestInt(), juce::Justification::centred, false);
     }
 
     void drawFieldCapsule(juce::Graphics& g, juce::Rectangle<float> area, const juce::String& text, juce::Colour tint) const
     {
-        RootFlow::drawGlassPanel(g, area, area.getHeight() * 0.5f, 0.50f);
-        g.setColour(tint.withAlpha(0.08f));
+        RootFlow::drawGlassPanel(g, area, area.getHeight() * 0.5f, 0.34f);
+        g.setColour(tint.withAlpha(0.05f));
         g.fillRoundedRectangle(area.reduced(2.0f), area.getHeight() * 0.42f);
-        g.setFont(RootFlow::getFont(9.4f).boldened());
-        g.setColour(RootFlow::text.interpolatedWith(tint, 0.10f).withAlpha(0.92f));
+        g.setFont(RootFlow::getFont(8.6f).boldened());
+        g.setColour(RootFlow::textMuted.interpolatedWith(RootFlow::text.interpolatedWith(tint, 0.08f), 0.48f).withAlpha(0.80f));
         g.drawFittedText(text, area.toNearestInt().reduced(8, 0), juce::Justification::centred, 1);
     }
 
     juce::Slider* findFocusedSlider() const
     {
-        for (auto* slider : { static_cast<const juce::Slider*>(&bloom), static_cast<const juce::Slider*>(&rain), static_cast<const juce::Slider*>(&sun) })
+        for (auto* slider : { static_cast<const juce::Slider*>(&radiance), static_cast<const juce::Slider*>(&charge), static_cast<const juce::Slider*>(&discharge) })
             if (slider->isMouseButtonDown())
                 return const_cast<juce::Slider*>(slider);
 
-        for (auto* slider : { static_cast<const juce::Slider*>(&bloom), static_cast<const juce::Slider*>(&rain), static_cast<const juce::Slider*>(&sun) })
+        for (auto* slider : { static_cast<const juce::Slider*>(&radiance), static_cast<const juce::Slider*>(&charge), static_cast<const juce::Slider*>(&discharge) })
             if (RootFlow::isInteractiveHoverActive(*slider) && ! slider->isMouseButtonDown())
                 return const_cast<juce::Slider*>(slider);
 
@@ -192,20 +192,20 @@ private:
 
     juce::Colour getSliderTint(const juce::Slider& slider) const
     {
-        if (&slider == &sun)
+        if (&slider == &discharge)
             return RootFlow::amber;
-        if (&slider == &rain)
+        if (&slider == &charge)
             return RootFlow::accent;
         return RootFlow::accentSoft;
     }
 
     juce::String getSliderTitle(const juce::Slider& slider) const
     {
-        if (&slider == &sun)
-            return "SOLAR FIELD";
-        if (&slider == &rain)
-            return "AIR CURRENT";
-        return "GROUND TONE";
+        if (&slider == &discharge)
+            return "FLUX DISCHARGE";
+        if (&slider == &charge)
+            return "HIGH CHARGE";
+        return "LOW RESONANCE";
     }
 
     void drawFocusBubble(juce::Graphics& g, juce::Slider& slider) const
@@ -243,8 +243,8 @@ private:
         g.setColour(tint.withAlpha(0.96f));
         g.drawFittedText(formatPercent(slider.getValue()), valueArea.toNearestInt(), juce::Justification::centredRight, 1);
         RootFlow::drawGlowOrb(g, { bubble.getRight() - 10.0f, bubble.getY() + 9.0f }, 2.7f, tint,
-                              slider.isMouseButtonDown() ? 0.84f : 0.54f);
+                               slider.isMouseButtonDown() ? 0.84f : 0.54f);
     }
 
-    RootFlow::InteractiveSlider bloom, rain, sun;
+    RootFlow::InteractiveSlider radiance, charge, discharge;
 };
