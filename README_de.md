@@ -50,7 +50,7 @@ Steuert Bewegung, Rate, Atem und animierte Modulationen.
 ### Ambient Field
 Steuert Raumanteil, Luftigkeit, den Charakter von Reverb/Delay und die Stereobreite.
 
-## Version 1.3.2 (Aktuell)
+### Version 1.3.2 (Aktuell)
 - **DSP Parameter Smoothing**: Per-Sample-Interpolation für alle kritischen Effekt-Parameter (Mix, Delay, Feedback, Resonanz) zur Vermeidung von "Zipper Noise".
 - **Musikalische ADSR-Kurven**: Exponentielle Formgebung der Hüllkurven für einen perkussiveren, analogen Charakter.
 - **Filter Bite**: Dynamische Hüllkurven-Modulation auf den Filter-Cutoff für lebendigere Artikulation.
