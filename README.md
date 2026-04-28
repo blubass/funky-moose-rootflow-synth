@@ -16,9 +16,9 @@ It blends ambient synthesis, bio-inspired sequencing, evolving modulation and a 
 
 ## Download
 
-Prebuilt macOS and Windows builds are available under **[Releases](https://github.com/blubass/funky-moose-rootflow-synth/releases)**.
+The latest macOS and Windows builds are available under **[Releases](https://github.com/blubass/funky-moose-rootflow-synth/releases)**.
 
-Latest release: **v1.3.2**.
+Latest release: **v1.3.2**
 
 > [!IMPORTANT]
 > **For macOS users**: these builds are currently unsigned. You may need to open the app once via Finder or allow it in **System Settings > Privacy & Security**.
