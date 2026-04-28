@@ -1545,5 +1545,7 @@ CMakeFiles/RootFlow.dir/Source/UI/EnergyDisplay.cpp.o: \
   /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/UI/../RootFlowDSP.h \
   /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/UI/../RootFlowVoice.h \
   /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/UI/../RootFlowOscillators.h \
+  /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/UI/../RootFlowPresets.h \
+  /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/UI/../RootFlowMutation.h \
   /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/UI/../UI/NodeSystem.h \
   /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/UI/Utils/DesignTokens.h

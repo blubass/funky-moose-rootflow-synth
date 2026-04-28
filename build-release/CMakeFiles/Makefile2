@@ -101,12 +101,12 @@ clean: CMakeFiles/RootFlowAssets.dir/clean
 CMakeFiles/RootFlow.dir/all: CMakeFiles/RootFlowAssets.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/RootFlow.dir/build.make CMakeFiles/RootFlow.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/RootFlow.dir/build.make CMakeFiles/RootFlow.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles --progress-num=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24 "Built target RootFlow"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles --progress-num=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26 "Built target RootFlow"
 .PHONY : CMakeFiles/RootFlow.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/RootFlow.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles 33
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles 35
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/RootFlow.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles 0
 .PHONY : CMakeFiles/RootFlow.dir/rule
@@ -118,7 +118,7 @@ RootFlow: CMakeFiles/RootFlow.dir/rule
 # codegen rule for target.
 CMakeFiles/RootFlow.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/RootFlow.dir/build.make CMakeFiles/RootFlow.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles --progress-num=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24 "Finished codegen for target RootFlow"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles --progress-num=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26 "Finished codegen for target RootFlow"
 .PHONY : CMakeFiles/RootFlow.dir/codegen
 
 # clean rule for target.
@@ -140,7 +140,7 @@ CMakeFiles/RootFlow_All.dir/all: CMakeFiles/RootFlow_VST3.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/RootFlow_All.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles 74
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles 76
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/RootFlow_All.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles 0
 .PHONY : CMakeFiles/RootFlow_All.dir/rule
@@ -170,12 +170,12 @@ CMakeFiles/RootFlow_Standalone.dir/all: CMakeFiles/RootFlow.dir/all
 CMakeFiles/RootFlow_Standalone.dir/all: CMakeFiles/RootFlowAssets.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/RootFlow_Standalone.dir/build.make CMakeFiles/RootFlow_Standalone.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/RootFlow_Standalone.dir/build.make CMakeFiles/RootFlow_Standalone.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles --progress-num=47,48,49,50,51,52,53,54,55,56,57,58,59 "Built target RootFlow_Standalone"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles --progress-num=49,50,51,52,53,54,55,56,57,58,59,60,61 "Built target RootFlow_Standalone"
 .PHONY : CMakeFiles/RootFlow_Standalone.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/RootFlow_Standalone.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles 46
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles 48
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/RootFlow_Standalone.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles 0
 .PHONY : CMakeFiles/RootFlow_Standalone.dir/rule
@@ -187,7 +187,7 @@ RootFlow_Standalone: CMakeFiles/RootFlow_Standalone.dir/rule
 # codegen rule for target.
 CMakeFiles/RootFlow_Standalone.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/RootFlow_Standalone.dir/build.make CMakeFiles/RootFlow_Standalone.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles --progress-num=47,48,49,50,51,52,53,54,55,56,57,58,59 "Finished codegen for target RootFlow_Standalone"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles --progress-num=49,50,51,52,53,54,55,56,57,58,59,60,61 "Finished codegen for target RootFlow_Standalone"
 .PHONY : CMakeFiles/RootFlow_Standalone.dir/codegen
 
 # clean rule for target.
@@ -203,12 +203,12 @@ CMakeFiles/RootFlow_AU.dir/all: CMakeFiles/RootFlow.dir/all
 CMakeFiles/RootFlow_AU.dir/all: CMakeFiles/RootFlowAssets.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/RootFlow_AU.dir/build.make CMakeFiles/RootFlow_AU.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/RootFlow_AU.dir/build.make CMakeFiles/RootFlow_AU.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles --progress-num=34,35,36,37,38,39,40,41,42,43,44,45,46 "Built target RootFlow_AU"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles --progress-num=36,37,38,39,40,41,42,43,44,45,46,47,48 "Built target RootFlow_AU"
 .PHONY : CMakeFiles/RootFlow_AU.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/RootFlow_AU.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles 46
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles 48
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/RootFlow_AU.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles 0
 .PHONY : CMakeFiles/RootFlow_AU.dir/rule
@@ -220,7 +220,7 @@ RootFlow_AU: CMakeFiles/RootFlow_AU.dir/rule
 # codegen rule for target.
 CMakeFiles/RootFlow_AU.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/RootFlow_AU.dir/build.make CMakeFiles/RootFlow_AU.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles --progress-num=34,35,36,37,38,39,40,41,42,43,44,45,46 "Finished codegen for target RootFlow_AU"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles --progress-num=36,37,38,39,40,41,42,43,44,45,46,47,48 "Finished codegen for target RootFlow_AU"
 .PHONY : CMakeFiles/RootFlow_AU.dir/codegen
 
 # clean rule for target.
@@ -237,12 +237,12 @@ CMakeFiles/RootFlow_VST3.dir/all: CMakeFiles/RootFlow_vst3_helper.dir/all
 CMakeFiles/RootFlow_VST3.dir/all: CMakeFiles/RootFlowAssets.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/RootFlow_VST3.dir/build.make CMakeFiles/RootFlow_VST3.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/RootFlow_VST3.dir/build.make CMakeFiles/RootFlow_VST3.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles --progress-num=60,61,62,63,64,65,66,67,68,69,70,71,72 "Built target RootFlow_VST3"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles --progress-num=62,63,64,65,66,67,68,69,70,71,72,73,74 "Built target RootFlow_VST3"
 .PHONY : CMakeFiles/RootFlow_VST3.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/RootFlow_VST3.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles 48
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles 50
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/RootFlow_VST3.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles 0
 .PHONY : CMakeFiles/RootFlow_VST3.dir/rule
@@ -254,7 +254,7 @@ RootFlow_VST3: CMakeFiles/RootFlow_VST3.dir/rule
 # codegen rule for target.
 CMakeFiles/RootFlow_VST3.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/RootFlow_VST3.dir/build.make CMakeFiles/RootFlow_VST3.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles --progress-num=60,61,62,63,64,65,66,67,68,69,70,71,72 "Finished codegen for target RootFlow_VST3"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles --progress-num=62,63,64,65,66,67,68,69,70,71,72,73,74 "Finished codegen for target RootFlow_VST3"
 .PHONY : CMakeFiles/RootFlow_VST3.dir/codegen
 
 # clean rule for target.
@@ -269,7 +269,7 @@ CMakeFiles/RootFlow_VST3.dir/clean:
 CMakeFiles/RootFlow_vst3_helper.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/RootFlow_vst3_helper.dir/build.make CMakeFiles/RootFlow_vst3_helper.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/RootFlow_vst3_helper.dir/build.make CMakeFiles/RootFlow_vst3_helper.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles --progress-num=73,74 "Built target RootFlow_vst3_helper"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles --progress-num=75,76 "Built target RootFlow_vst3_helper"
 .PHONY : CMakeFiles/RootFlow_vst3_helper.dir/all
 
 # Build rule for subdir invocation for target.
@@ -286,7 +286,7 @@ RootFlow_vst3_helper: CMakeFiles/RootFlow_vst3_helper.dir/rule
 # codegen rule for target.
 CMakeFiles/RootFlow_vst3_helper.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/RootFlow_vst3_helper.dir/build.make CMakeFiles/RootFlow_vst3_helper.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles --progress-num=73,74 "Finished codegen for target RootFlow_vst3_helper"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles --progress-num=75,76 "Finished codegen for target RootFlow_vst3_helper"
 .PHONY : CMakeFiles/RootFlow_vst3_helper.dir/codegen
 
 # clean rule for target.
@@ -301,7 +301,7 @@ CMakeFiles/RootFlow_vst3_helper.dir/clean:
 CMakeFiles/RootFlowAssets.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/RootFlowAssets.dir/build.make CMakeFiles/RootFlowAssets.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/RootFlowAssets.dir/build.make CMakeFiles/RootFlowAssets.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles --progress-num=25,26,27,28,29,30,31,32,33 "Built target RootFlowAssets"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles --progress-num=27,28,29,30,31,32,33,34,35 "Built target RootFlowAssets"
 .PHONY : CMakeFiles/RootFlowAssets.dir/all
 
 # Build rule for subdir invocation for target.
@@ -318,7 +318,7 @@ RootFlowAssets: CMakeFiles/RootFlowAssets.dir/rule
 # codegen rule for target.
 CMakeFiles/RootFlowAssets.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/RootFlowAssets.dir/build.make CMakeFiles/RootFlowAssets.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles --progress-num=25,26,27,28,29,30,31,32,33 "Finished codegen for target RootFlowAssets"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/CMakeFiles --progress-num=27,28,29,30,31,32,33,34,35 "Finished codegen for target RootFlowAssets"
 .PHONY : CMakeFiles/RootFlowAssets.dir/codegen
 
 # clean rule for target.

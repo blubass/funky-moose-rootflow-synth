@@ -1543,14 +1543,17 @@ CMakeFiles/RootFlow.dir/Source/PluginProcessor.cpp.o: \
   /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/RootFlowDSP.h \
   /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/RootFlowVoice.h \
   /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/RootFlowOscillators.h \
+  /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/RootFlowPresets.h \
+  /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/RootFlowMutation.h \
   /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/UI/NodeSystem.h \
   /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/PluginEditor.h \
   /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/RootFlowLookAndFeel.h \
-  /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/UI/MainLayoutComponent.h \
-  /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/UI/RootPanel.h \
   /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/UI/Utils/DesignTokens.h \
+  /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/UI/MainLayoutComponent.h \
+  /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/UI/SourcePanel.h \
   /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/UI/PulsePanel.h \
   /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/UI/CenterComponent.h \
   /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/UI/EnergyDisplay.h \
   /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/UI/BottomPanel.h \
-  /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/UI/BioSequencerComponent.h
+  /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/UI/PulseMatrixSequencer.h \
+  /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/UI/AtmosphericOverlay.h

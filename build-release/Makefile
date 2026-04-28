@@ -280,6 +280,54 @@ Source/RootFlowLookAndFeel.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/RootFlow.dir/build.make CMakeFiles/RootFlow.dir/Source/RootFlowLookAndFeel.cpp.s
 .PHONY : Source/RootFlowLookAndFeel.cpp.s
 
+Source/RootFlowMutation.o: Source/RootFlowMutation.cpp.o
+.PHONY : Source/RootFlowMutation.o
+
+# target to build an object file
+Source/RootFlowMutation.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/RootFlow.dir/build.make CMakeFiles/RootFlow.dir/Source/RootFlowMutation.cpp.o
+.PHONY : Source/RootFlowMutation.cpp.o
+
+Source/RootFlowMutation.i: Source/RootFlowMutation.cpp.i
+.PHONY : Source/RootFlowMutation.i
+
+# target to preprocess a source file
+Source/RootFlowMutation.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/RootFlow.dir/build.make CMakeFiles/RootFlow.dir/Source/RootFlowMutation.cpp.i
+.PHONY : Source/RootFlowMutation.cpp.i
+
+Source/RootFlowMutation.s: Source/RootFlowMutation.cpp.s
+.PHONY : Source/RootFlowMutation.s
+
+# target to generate assembly for a file
+Source/RootFlowMutation.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/RootFlow.dir/build.make CMakeFiles/RootFlow.dir/Source/RootFlowMutation.cpp.s
+.PHONY : Source/RootFlowMutation.cpp.s
+
+Source/RootFlowPresets.o: Source/RootFlowPresets.cpp.o
+.PHONY : Source/RootFlowPresets.o
+
+# target to build an object file
+Source/RootFlowPresets.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/RootFlow.dir/build.make CMakeFiles/RootFlow.dir/Source/RootFlowPresets.cpp.o
+.PHONY : Source/RootFlowPresets.cpp.o
+
+Source/RootFlowPresets.i: Source/RootFlowPresets.cpp.i
+.PHONY : Source/RootFlowPresets.i
+
+# target to preprocess a source file
+Source/RootFlowPresets.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/RootFlow.dir/build.make CMakeFiles/RootFlow.dir/Source/RootFlowPresets.cpp.i
+.PHONY : Source/RootFlowPresets.cpp.i
+
+Source/RootFlowPresets.s: Source/RootFlowPresets.cpp.s
+.PHONY : Source/RootFlowPresets.s
+
+# target to generate assembly for a file
+Source/RootFlowPresets.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/RootFlow.dir/build.make CMakeFiles/RootFlow.dir/Source/RootFlowPresets.cpp.s
+.PHONY : Source/RootFlowPresets.cpp.s
+
 Source/RootFlowVoice.o: Source/RootFlowVoice.cpp.o
 .PHONY : Source/RootFlowVoice.o
 
@@ -1282,6 +1330,12 @@ help:
 	@echo "... Source/RootFlowLookAndFeel.o"
 	@echo "... Source/RootFlowLookAndFeel.i"
 	@echo "... Source/RootFlowLookAndFeel.s"
+	@echo "... Source/RootFlowMutation.o"
+	@echo "... Source/RootFlowMutation.i"
+	@echo "... Source/RootFlowMutation.s"
+	@echo "... Source/RootFlowPresets.o"
+	@echo "... Source/RootFlowPresets.i"
+	@echo "... Source/RootFlowPresets.s"
 	@echo "... Source/RootFlowVoice.o"
 	@echo "... Source/RootFlowVoice.i"
 	@echo "... Source/RootFlowVoice.s"

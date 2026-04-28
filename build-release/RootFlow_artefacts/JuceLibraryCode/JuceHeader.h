@@ -41,7 +41,7 @@ namespace ProjectInfo
 {
     const char* const  projectName    = "Funky Moose Rootflow Synth";
     const char* const  companyName    = "Funky Moose Audio";
-    const char* const  versionString  = "1.2.0";
-    const int          versionNumber  =  0x10200;
+    const char* const  versionString  = "1.3.2";
+    const int          versionNumber  =  0x10302;
 }
 #endif

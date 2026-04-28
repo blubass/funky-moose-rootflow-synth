@@ -1540,4 +1540,5 @@ CMakeFiles/RootFlow.dir/Source/RootFlowVoice.cpp.o: \
   /Users/uwearthurfelchle/Developer/JUCE/install/include/JUCE-8.0.10/modules/juce_dsp/widgets/juce_Chorus.h \
   /Users/uwearthurfelchle/Juce/rootflow_full_package/build-release/juce_binarydata_RootFlowAssets/JuceLibraryCode/BinaryData.h \
   /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/RootFlowOscillators.h \
+  /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/RootFlowDSP.h \
   /Users/uwearthurfelchle/Juce/rootflow_full_package/Source/RootFlowModulators.h
