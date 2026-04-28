@@ -96,11 +96,19 @@ Das mitgelieferte Preset erwartet JUCE hier:
 Falls JUCE woanders liegt, gib beim Konfigurieren `-DJUCE_DIR=/path/to/JUCE/lib/cmake/JUCE-8.0.10` an.
 
 ## Roadmap
-- tiefere Modulationsverschaltung
-- reichere Voice-Architektur
-- erweitertes Sequencer-Verhalten
-- besseres Patch- und Preset-Handling
-- verfeinerte Visuals und Release-Pakete
+
+### Demnächst
+- Überarbeitung des Preset-Browsers
+- Mehr Factory-Patches
+- Aufräumarbeiten bei MIDI Learn / Host-Automation
+- CPU-Profiling und Voice-Optimierung
+- Verbesserte Anzeige des Modulations-Routings
+
+### Später
+- Erweiterte Oszillator-Modelle
+- Mehr Bio-Sequencer Mutationsmodi
+- Cross-Plattform Installer-Pakete
+- Signierte/Notarisierte macOS-Builds
 
 ## Changelog
 
