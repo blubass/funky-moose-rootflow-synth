@@ -246,13 +246,15 @@ public:
                 float dry = samples[i];
                 float delayed = delay[ch % 2].popSample(0, delaySamples, true);
 
-                // Feedback loop with quantum saturation & frequency damping
+                // Feedback loop with saturation & damping
                 float fbRaw = dry + delayed * feedback;
                 tapeLp[ch % 2] = tapeLp[ch % 2] * 0.65f + fbRaw * 0.35f; 
                 float fbSignal = std::tanh(tapeLp[ch % 2] * 1.15f); 
                 delay[ch % 2].pushSample(0, fbSignal);
 
-                samples[i] = dry * (1.0f - mix) + delayed * mix;
+                // Moose with safety belt
+                float wet = delayed * mix;
+                samples[i] = juce::jlimit(-1.0f, 1.0f, dry * (1.0f - mix) + wet);
             }
         }
     }
@@ -342,8 +344,21 @@ public:
 
         for (int ch = 0; ch < numChannels; ++ch)
         {
-            buffer.applyGainRamp(ch, 0, numSamples, 1.0f - startMix, 1.0f - endMix);
-            buffer.addFromWithRamp(ch, 0, wetBuffer.getReadPointer(ch), numSamples, startMix, endMix);
+            auto* samples = buffer.getWritePointer(ch);
+            auto* wetSamples = wetBuffer.getReadPointer(ch);
+            
+            float mixStep = (endMix - startMix) / (float)numSamples;
+            float currentMix = startMix;
+            
+            for (int i = 0; i < numSamples; ++i)
+            {
+                float dry = samples[i];
+                float wet = wetSamples[i];
+                
+                // Moose with safety belt
+                samples[i] = juce::jlimit(-1.0f, 1.0f, dry * (1.0f - currentMix) + wet * currentMix);
+                currentMix += mixStep;
+            }
         }
     }
 
