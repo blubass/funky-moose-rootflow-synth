@@ -55,6 +55,7 @@ Steuert Raumanteil, Luftigkeit, den Charakter von Reverb/Delay und die Stereobre
 - **MIDI-Learn**: Flexibles Controller-Mapping und Standard-Unterstützung für gängige Hardware.
 - **Preset-System**: Robustes Factory- und User-Preset-Management.
 - **Bio-Sequencer**: Fortschrittliche Step-Engine mit Step-Wahrscheinlichkeit und Velocity.
+- **Anti-Aliasing**: Sägezahn- und Puls-Wellenformen mit PolyBLEP-Technologie für saubere Höhen.
 - **FFT-Visualisierung**: Echtzeit-Spektralanalyse für die reaktiven Visuals.
 - **High Performance**: Oversampling-fähiger Processing-Pfad und Voice-Optimierung.
 - **Audio-Sicherheit**: DC-Blocking und Output-Überwachung ("Watchdogs") für maximale Systemstabilität.

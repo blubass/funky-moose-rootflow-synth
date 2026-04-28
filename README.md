@@ -55,6 +55,7 @@ Controls space, air, reverb/delay character and stereo depth.
 - **MIDI Learn**: Flexible controller mapping and default support for popular hardware.
 - **Preset System**: Robust factory and user preset management.
 - **Bio-Sequencer**: Advanced step engine with per-step probability and velocity.
+- **Anti-Aliasing**: PolyBLEP-style saw and pulse waveforms for cleaner high frequencies.
 - **FFT Visuals**: Real-time spectral analysis for the reative visualizer.
 - **High Performance**: Oversampling-ready processing path and voice optimization.
 - **Audio Safety**: DC blocking and output monitoring ("Watchdogs") for system stability.
