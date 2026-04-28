@@ -14,6 +14,15 @@
 
 Es verbindet Ambient-Synthese, bio-inspirierte Sequenzen, lebendige Modulation und eine atmende Benutzeroberfläche zu einem Instrument, das sich eher gewachsen als zusammengeschraubt anfühlt. Rootflow soll nicht steril oder technisch wirken. Es soll atmen, pulsieren, driften und sich entwickeln.
 
+## Download
+
+Fertige Builds für macOS und Windows sind unter **[Releases](https://github.com/blubass/funky-moose-rootflow-synth/releases)** verfügbar.
+
+Aktuelle Version: **v1.3.2**.
+
+> [!IMPORTANT]
+> **Für macOS-Nutzer**: Diese Builds sind derzeit nicht signiert. Du musst die App eventuell einmal per Rechtsklick im Finder öffnen ("Öffnen") oder sie in den **Systemeinstellungen > Datenschutz & Sicherheit** freigeben.
+
 ## Features
 
 - Organische Synth-Engine für Texturen, Drones, Pulse und atmosphärische Sounds
