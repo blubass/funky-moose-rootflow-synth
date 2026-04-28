@@ -3407,7 +3407,8 @@ void RootFlowAudioProcessor::applyOutputSafety(juce::AudioBuffer<float>& buffer)
             if (!std::isfinite(x))
                 x = 0.0f;
 
-            // Robust limiting at the very end of the chain (Safety First)
+            // Moose with safety belt: soft limit first, then hard limit
+            x = RootFlowDSP::softLimit(x);
             x = juce::jlimit(-1.0f, 1.0f, x);
             data[i] = x;
 

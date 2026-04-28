@@ -8,6 +8,14 @@ namespace RootFlowDSP
 static inline float clamp01(float v) { return juce::jlimit(0.0f, 1.0f, v); }
 
 /**
+ * A gentle safety net to prevent harsh digital clipping.
+ */
+static inline float softLimit(float x) noexcept
+{
+    return std::tanh(x * 1.1f) / 0.8005f; // std::tanh(1.1f) is approx 0.8005
+}
+
+/**
  * CORE (Resonator & Body)
  * The tonal center and physical presence of the sound.
  */
