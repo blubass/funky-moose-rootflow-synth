@@ -76,6 +76,8 @@ Steuert Raumanteil, Luftigkeit, den Charakter von Reverb/Delay und die Stereobre
 
 ## Build from Source
 
+Automatisierte CI-Builds für macOS und Windows werden über GitHub Actions erstellt.
+
 ### Voraussetzungen
 - CMake 3.22 oder neuer
 - JUCE 8.0.10

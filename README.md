@@ -76,6 +76,8 @@ Controls space, air, reverb/delay character and stereo depth.
 
 ## Build from Source
 
+Automated CI builds are created for macOS and Windows via GitHub Actions.
+
 ### Requirements
 - CMake 3.22 or newer
 - JUCE 8.0.10
