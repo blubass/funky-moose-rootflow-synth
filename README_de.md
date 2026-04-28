@@ -36,16 +36,19 @@ Aktuelle Version: **v1.3.2**.
 ## Interface
 
 ### Bio-Sequencer
-Steuert Step-Aktivität, rhythmische Bewegung und die innere Lebendigkeit eines Patches.
+Ein Modulations-Sequencer für lebendige rhythmische Bewegungen. Er steuert Step-Aktivität, Mutationsverhalten und pulsartige Parameter-Modulationen.
 
 ### Center Panel
-Das lebendige visuelle Feld. Es macht Bewegung, Modulation und Interaktion in Echtzeit sichtbar.
+Das visuelle Zentrum. Es spiegelt Bewegung, Modulation und Interaktion in Echtzeit wider.
 
-### Root Field / Pulse Field / Ambient Field
-Diese Bereiche formen den Klangkörper des Instruments:
-- **Root Field**: Tiefe, Boden, Anker und tonale Erdung
-- **Pulse Field**: Rate, Atem, Wachstum und Bewegung
-- **Ambient Field**: Luft, Boden und Raumanteil
+### Root Field
+Steuert die tonale Basis, Tiefe und die Stabilität im tieffrequenten Bereich.
+
+### Pulse Field
+Steuert Bewegung, Rate, Atem und animierte Modulationen.
+
+### Ambient Field
+Steuert Raumanteil, Luftigkeit, den Charakter von Reverb/Delay und die Stereobreite.
 
 ### Version 1.3.2 (Aktuell)
 - **DSP Parameter Smoothing**: Per-Sample-Interpolation für alle kritischen Effekt-Parameter (Mix, Delay, Feedback, Resonanz) zur Vermeidung von "Zipper Noise".
